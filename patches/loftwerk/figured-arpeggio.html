@@ -1,0 +1,2441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Figured Arpeggio - Loftwerk</title>
+    <link rel="stylesheet" href="../../styles.css">
+    <link rel="stylesheet" href="../../lib/effect-ui.css">
+    <script src="../../lib/pedalboard-effects.js"></script>
+    <script src="../../lib/effect-ui.js"></script>
+    <script type="module" src="../../lib/phonebook-features.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+            cursor: pointer;
+            user-select: none;
+            padding: 0.5em 0;
+        }
+        .section-label:hover {
+            color: #888;
+        }
+        .section-label::before {
+            content: '▶';
+            display: inline-block;
+            margin-right: 0.5em;
+            font-size: 0.8em;
+            transition: transform 0.15s;
+        }
+        details[open] > .section-label::before {
+            transform: rotate(90deg);
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-controls:last-of-type {
+            border-bottom: none;
+        }
+        details:not([open]) > .section-label {
+            margin-bottom: 0;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 100px;
+        }
+        .twister-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin: 1.5em 0;
+            padding: 1em;
+            background: #0a0a14;
+            border-radius: 8px;
+            border: 1px solid #222;
+        }
+        .twister-knob {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px;
+            background: #111;
+            border-radius: 6px;
+            border: 1px solid #333;
+        }
+        .twister-knob label {
+            font-size: 0.65em;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+            text-align: center;
+        }
+        .twister-knob .param-value {
+            font-size: 0.75em;
+            color: #4a90d9;
+            margin-top: 4px;
+        }
+        .twister-knob select {
+            width: 100%;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #ccc;
+            padding: 4px;
+            border-radius: 4px;
+            font-size: 0.7em;
+        }
+        .sequence-display {
+            font-family: monospace;
+            font-size: 0.8em;
+            color: #7b68ee;
+            background: #0a0a14;
+            padding: 12px;
+            border-radius: 4px;
+            margin: 1em 0;
+            min-height: 60px;
+            text-align: center;
+        }
+        .current-note {
+            color: #4a90d9;
+            font-weight: bold;
+        }
+        .voice-display {
+            display: flex;
+            justify-content: space-around;
+            margin: 4px 0;
+            font-size: 0.7em;
+        }
+        .voice-display span {
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .voice-display .v1 { background: #2a4a6a; }
+        .voice-display .v2 { background: #4a2a6a; }
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 3px;
+            margin: 1em 0;
+            flex-wrap: wrap;
+        }
+        .step {
+            width: 10px;
+            height: 10px;
+            background: #222;
+            border-radius: 2px;
+        }
+        .step.active {
+            background: #333;
+        }
+        .step.current {
+            background: #7b68ee;
+            box-shadow: 0 0 6px #7b68ee;
+        }
+        .step.v1 { background: #4a90d9; }
+        .step.v2 { background: #9b68ee; }
+        .randomize-btns {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin: 1em 0;
+            flex-wrap: wrap;
+        }
+        .randomize-btn {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #ccc;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-size: 0.85em;
+        }
+        .randomize-btn:hover {
+            background: #2a2a4e;
+            border-color: #7b68ee;
+            color: #7b68ee;
+        }
+        .mode-indicator {
+            text-align: center;
+            font-size: 0.85em;
+            color: #888;
+            margin: 0.5em 0;
+        }
+        .mode-indicator .mode-name {
+            color: #7b68ee;
+            font-weight: bold;
+        }
+        .wave-select, .filter-select {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 0.5em;
+        }
+        .wave-btn {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #888;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75em;
+            transition: all 0.15s;
+        }
+        .wave-btn:hover {
+            border-color: #4a90d9;
+        }
+        .wave-btn.active {
+            background: #2a2a4e;
+            border-color: #4a90d9;
+            color: #4a90d9;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Figured Arpeggio</h1>
+                <p>Philip Glass-style figured arpeggios with Reich phasing and modal exchange</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="randomize-btns">
+                <button class="randomize-btn" id="createLead">Create Lead</button>
+                <button class="randomize-btn" id="createPad">Create Pad</button>
+                <button class="randomize-btn" id="createPerc">Create Percussion</button>
+            </div>
+
+            <div class="mode-indicator">
+                <span id="rootDisplay">D</span> <span class="mode-name" id="modeDisplay">Minor</span>
+                - <span id="chordDisplay">Woven 4th</span>
+            </div>
+
+            <div class="sequence-display" id="sequenceDisplay">
+                Press play to start the figured arpeggio
+            </div>
+
+            <div class="step-indicator" id="stepIndicator"></div>
+
+            <!-- MIDI Fighter Twister Layout: 4x4 grid -->
+            <span class="section-label">MIDI Fighter Twister - Page 1</span>
+            <div class="twister-grid">
+                <!-- Row 1: Tempo, Root, Scale, Figure -->
+                <div class="twister-knob">
+                    <label>1. Tempo</label>
+                    <input type="range" id="tempo" min="40" max="200" value="132" step="1">
+                    <span class="param-value" id="tempoVal">132</span>
+                </div>
+                <div class="twister-knob">
+                    <label>2. Root</label>
+                    <select id="rootNote">
+                        <option value="0">C</option>
+                        <option value="1">C#</option>
+                        <option value="2" selected>D</option>
+                        <option value="3">D#</option>
+                        <option value="4">E</option>
+                        <option value="5">F</option>
+                        <option value="6">F#</option>
+                        <option value="7">G</option>
+                        <option value="8">G#</option>
+                        <option value="9">A</option>
+                        <option value="10">A#</option>
+                        <option value="11">B</option>
+                    </select>
+                </div>
+                <div class="twister-knob">
+                    <label>3. Mode</label>
+                    <select id="mode">
+                        <option value="minor" selected>Minor</option>
+                        <option value="major">Major</option>
+                        <option value="dorian">Dorian</option>
+                        <option value="phrygian">Phrygian</option>
+                        <option value="lydian">Lydian</option>
+                        <option value="mixolydian">Mixolydian</option>
+                        <option value="aeolian">Aeolian</option>
+                    </select>
+                </div>
+                <div class="twister-knob">
+                    <label>4. Figure</label>
+                    <select id="figurePattern">
+                        <option value="glass-koyaanisqatsi" selected>Woven 4th</option>
+                        <option value="glass-hours">Ascending 6th</option>
+                        <option value="glass-madRush">Tumbling</option>
+                        <option value="glass-metamorphosis">Stepwise 7th</option>
+                        <option value="reich-piano">12-Tone Cell</option>
+                        <option value="reich-clapping">Additive 3-3-2</option>
+                        <option value="simple-triad">Triad</option>
+                    </select>
+                </div>
+
+                <!-- Row 2: Phase, Direction, Subdivision, Gate -->
+                <div class="twister-knob">
+                    <label>5. Phase Cycle</label>
+                    <input type="range" id="phaseCycle" min="0" max="64" value="0" step="1">
+                    <span class="param-value" id="phaseCycleVal">Off</span>
+                </div>
+                <div class="twister-knob">
+                    <label>6. Direction</label>
+                    <select id="arpDirection">
+                        <option value="up">Up</option>
+                        <option value="down">Down</option>
+                        <option value="updown">Up-Down</option>
+                        <option value="figured" selected>Figured</option>
+                        <option value="contrary">Contrary</option>
+                    </select>
+                </div>
+                <div class="twister-knob">
+                    <label>7. Subdiv</label>
+                    <select id="subdivision">
+                        <option value="8">8th</option>
+                        <option value="16" selected>16th</option>
+                        <option value="triplet">Triplet</option>
+                        <option value="quintuplet">Quint</option>
+                    </select>
+                </div>
+                <div class="twister-knob">
+                    <label>8. Gate</label>
+                    <input type="range" id="gateLength" min="0.1" max="1" value="0.7" step="0.05">
+                    <span class="param-value" id="gateLengthVal">0.70</span>
+                </div>
+
+                <!-- Row 3: Voice 2 enable/phase, Modal Exchange, Clip, Density -->
+                <div class="twister-knob">
+                    <label>9. Voice 2</label>
+                    <select id="voice2Mode">
+                        <option value="off">Off</option>
+                        <option value="unison">Unison</option>
+                        <option value="octave">Octave</option>
+                        <option value="fifth">Fifth</option>
+                        <option value="contrary" selected>Contrary</option>
+                        <option value="phase">Phase</option>
+                    </select>
+                </div>
+                <div class="twister-knob">
+                    <label>10. V2 Phase</label>
+                    <input type="range" id="voice2Phase" min="0" max="1" value="0.0625" step="0.0625">
+                    <span class="param-value" id="voice2PhaseVal">1/16</span>
+                </div>
+                <div class="twister-knob">
+                    <label>11. Modal</label>
+                    <input type="range" id="modalExchange" min="0" max="1" value="0" step="0.01">
+                    <span class="param-value" id="modalExchangeVal">0.00</span>
+                </div>
+                <div class="twister-knob">
+                    <label>12. Clip</label>
+                    <input type="range" id="metricalClip" min="0" max="4" value="0" step="1">
+                    <span class="param-value" id="metricalClipVal">0</span>
+                </div>
+
+                <!-- Row 4: Filter, Resonance, Transpose, Mutate -->
+                <div class="twister-knob">
+                    <label>13. Filter</label>
+                    <input type="range" id="lpFilterCutoff" min="20" max="20000" value="300" step="1">
+                    <span class="param-value" id="lpFilterCutoffVal">300</span>
+                </div>
+                <div class="twister-knob">
+                    <label>14. Res</label>
+                    <input type="range" id="lpFilterResonance" min="0" max="1" value="0.1" step="0.01">
+                    <span class="param-value" id="lpFilterResonanceVal">0.10</span>
+                </div>
+                <div class="twister-knob">
+                    <label>15. Transpose</label>
+                    <input type="range" id="transpose" min="-12" max="12" value="0" step="1">
+                    <span class="param-value" id="transposeVal">0</span>
+                </div>
+                <div class="twister-knob">
+                    <label>16. Mutate</label>
+                    <input type="range" id="mutate" min="0" max="1" value="0" step="0.01">
+                    <span class="param-value" id="mutateVal">0.00</span>
+                </div>
+            </div>
+
+            <!-- Full Molly Synth Parameters -->
+            <details class="param-controls" open>
+                <summary class="section-label">Oscillator</summary>
+                <div class="wave-select" id="oscWaveShape">
+                    <button class="wave-btn" data-value="0">Tri</button>
+                    <button class="wave-btn" data-value="1">Saw</button>
+                    <button class="wave-btn active" data-value="2">Pulse</button>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>PW Mod</label>
+                        <input type="range" id="pwMod" min="0" max="1" value="0.2" step="0.01">
+                        <span class="param-value" id="pwModVal">0.20</span>
+                    </div>
+                    <div class="param-group">
+                        <label>PW Mod Src</label>
+                        <div class="wave-select" id="pwModSource">
+                            <button class="wave-btn active" data-value="0">LFO</button>
+                            <button class="wave-btn" data-value="1">Env1</button>
+                            <button class="wave-btn" data-value="2">Man</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Freq Mod LFO</label>
+                        <input type="range" id="freqModLfo" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="freqModLfoVal">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Freq Mod Env</label>
+                        <input type="range" id="freqModEnv" min="-1" max="1" value="0" step="0.01">
+                        <span class="param-value" id="freqModEnvVal">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Glide</label>
+                        <input type="range" id="glide" min="0" max="5" value="0" step="0.01">
+                        <span class="param-value" id="glideVal">0.00</span>
+                    </div>
+                </div>
+            </details>
+
+            <details class="param-controls">
+                <summary class="section-label">Mixer</summary>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Main Osc</label>
+                        <input type="range" id="mainOscLevel" min="0" max="1" value="1" step="0.01">
+                        <span class="param-value" id="mainOscLevelVal">1.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Sub Osc</label>
+                        <input type="range" id="subOscLevel" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="subOscLevelVal">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Sub Detune</label>
+                        <input type="range" id="subOscDetune" min="-5" max="5" value="0" step="0.01">
+                        <span class="param-value" id="subOscDetuneVal">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Noise</label>
+                        <input type="range" id="noiseLevel" min="0" max="1" value="0.1" step="0.01">
+                        <span class="param-value" id="noiseLevelVal">0.10</span>
+                    </div>
+                </div>
+            </details>
+
+            <details class="param-controls">
+                <summary class="section-label">Filter (Extended)</summary>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>HP Cutoff</label>
+                        <input type="range" id="hpFilterCutoff" min="10" max="20000" value="10" step="1">
+                        <span class="param-value" id="hpFilterCutoffVal">10</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Filter Type</label>
+                        <div class="wave-select" id="lpFilterType">
+                            <button class="wave-btn" data-value="0">-12dB</button>
+                            <button class="wave-btn active" data-value="1">-24dB</button>
+                        </div>
+                    </div>
+                    <div class="param-group">
+                        <label>Env Select</label>
+                        <div class="wave-select" id="lpFilterEnvSelect">
+                            <button class="wave-btn active" data-value="0">Env1</button>
+                            <button class="wave-btn" data-value="1">Env2</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Mod Env</label>
+                        <input type="range" id="lpFilterModEnv" min="-1" max="1" value="0.25" step="0.01">
+                        <span class="param-value" id="lpFilterModEnvVal">0.25</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mod LFO</label>
+                        <input type="range" id="lpFilterModLfo" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="lpFilterModLfoVal">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Tracking</label>
+                        <input type="range" id="lpFilterTracking" min="0" max="2" value="1" step="0.01">
+                        <span class="param-value" id="lpFilterTrackingVal">1.00</span>
+                    </div>
+                </div>
+            </details>
+
+            <details class="param-controls">
+                <summary class="section-label">LFO</summary>
+                <div class="wave-select" id="lfoWaveShape">
+                    <button class="wave-btn active" data-value="0">Sin</button>
+                    <button class="wave-btn" data-value="1">Tri</button>
+                    <button class="wave-btn" data-value="2">Saw</button>
+                    <button class="wave-btn" data-value="3">Sqr</button>
+                    <button class="wave-btn" data-value="4">Rnd</button>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Frequency</label>
+                        <input type="range" id="lfoFreq" min="0.05" max="20" value="5" step="0.01">
+                        <span class="param-value" id="lfoFreqVal">5.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Fade</label>
+                        <input type="range" id="lfoFade" min="-15" max="15" value="0" step="0.1">
+                        <span class="param-value" id="lfoFadeVal">0.0</span>
+                    </div>
+                </div>
+            </details>
+
+            <details class="param-controls">
+                <summary class="section-label">Envelope 1 (Modulation)</summary>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Attack</label>
+                        <input type="range" id="env1Attack" min="0.002" max="5" value="0.01" step="0.001">
+                        <span class="param-value" id="env1AttackVal">0.01</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Decay</label>
+                        <input type="range" id="env1Decay" min="0.002" max="10" value="0.3" step="0.01">
+                        <span class="param-value" id="env1DecayVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Sustain</label>
+                        <input type="range" id="env1Sustain" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="env1SustainVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Release</label>
+                        <input type="range" id="env1Release" min="0.002" max="10" value="0.5" step="0.01">
+                        <span class="param-value" id="env1ReleaseVal">0.50</span>
+                    </div>
+                </div>
+            </details>
+
+            <details class="param-controls">
+                <summary class="section-label">Envelope 2 (Amplitude)</summary>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Attack</label>
+                        <input type="range" id="env2Attack" min="0.002" max="5" value="0.01" step="0.001">
+                        <span class="param-value" id="env2AttackVal">0.01</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Decay</label>
+                        <input type="range" id="env2Decay" min="0.002" max="10" value="0.3" step="0.01">
+                        <span class="param-value" id="env2DecayVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Sustain</label>
+                        <input type="range" id="env2Sustain" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="env2SustainVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Release</label>
+                        <input type="range" id="env2Release" min="0.002" max="10" value="0.5" step="0.01">
+                        <span class="param-value" id="env2ReleaseVal">0.50</span>
+                    </div>
+                </div>
+            </details>
+
+            <details class="param-controls">
+                <summary class="section-label">Amp & Ring Mod</summary>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Amp</label>
+                        <input type="range" id="amp" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="ampVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Amp Mod LFO</label>
+                        <input type="range" id="ampMod" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="ampModVal">0.00</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Ring Freq</label>
+                        <input type="range" id="ringModFreq" min="10" max="300" value="50" step="1">
+                        <span class="param-value" id="ringModFreqVal">50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Ring Fade</label>
+                        <input type="range" id="ringModFade" min="-15" max="15" value="0" step="0.1">
+                        <span class="param-value" id="ringModFadeVal">0.0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Ring Mix</label>
+                        <input type="range" id="ringModMix" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="ringModMixVal">0.00</span>
+                    </div>
+                </div>
+            </details>
+
+            <details class="param-controls">
+                <summary class="section-label">Output</summary>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Chorus Mix</label>
+                        <input type="range" id="chorusMix" min="0" max="1" value="0.8" step="0.01">
+                        <span class="param-value" id="chorusMixVal">0.80</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Octave</label>
+                        <input type="range" id="baseOctave" min="2" max="6" value="4" step="1">
+                        <span class="param-value" id="baseOctaveVal">4</span>
+                    </div>
+                </div>
+            </details>
+
+            <div class="code-block">
+                <code>Loftwerk: NYC Minimalism - Glass figured arpeggios, Reich phasing, modal exchange</code>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+
+            <p class="status" id="status">Designed for MIDI Fighter Twister (16 controls per page)</p>
+        </main>
+
+        <nav class="nav-links">
+            <a href="../../index.html">&larr; Index</a>
+            <a href="counterpoint.html">Next &rarr;</a>
+        </nav>
+    </div>
+
+    <script>
+        // Full Molly the Polly synth processor - identical to molly-01.html
+        const processorCode = `
+class FiguredArpeggioProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+        this.maxVoices = 10;
+        this.time = 0;
+
+        // Global parameters (identical to Molly)
+        this.oscWaveShape = 2; // 0=VarSaw, 1=Saw, 2=Pulse
+        this.pwMod = 0.2;
+        this.pwModSource = 0; // 0=LFO, 1=Env1, 2=Manual
+        this.freqModLfo = 0;
+        this.freqModEnv = 0;
+        this.glide = 0;
+        this.mainOscLevel = 1;
+        this.subOscLevel = 0;
+        this.subOscDetune = 0;
+        this.noiseLevel = 0.1;
+
+        this.hpFilterCutoff = 10;
+        this.lpFilterCutoff = 300;
+        this.lpFilterResonance = 0.1;
+        this.lpFilterType = 1; // 0=-12dB, 1=-24dB
+        this.lpFilterEnvSelect = 0;
+        this.lpFilterModEnv = 0.25;
+        this.lpFilterModLfo = 0;
+        this.lpFilterTracking = 1;
+
+        this.lfoFreq = 5;
+        this.lfoWaveShape = 0;
+        this.lfoFade = 0;
+
+        this.env1Attack = 0.01;
+        this.env1Decay = 0.3;
+        this.env1Sustain = 0.5;
+        this.env1Release = 0.5;
+
+        this.env2Attack = 0.01;
+        this.env2Decay = 0.3;
+        this.env2Sustain = 0.5;
+        this.env2Release = 0.5;
+
+        this.amp = 0.5;
+        this.ampMod = 0;
+
+        this.ringModFreq = 50;
+        this.ringModFade = 0;
+        this.ringModMix = 0;
+
+        this.chorusMix = 0.8;
+
+        // LFO state
+        this.lfoPhase = 0;
+        this.lfoValue = 0;
+        this.lfoNoiseValue = 0;
+        this.lfoNoiseTarget = 0;
+
+        // Ring mod oscillator
+        this.ringModPhase = 0;
+
+        // Pink noise state
+        this.pinkB0 = 0; this.pinkB1 = 0; this.pinkB2 = 0;
+        this.pinkB3 = 0; this.pinkB4 = 0; this.pinkB5 = 0; this.pinkB6 = 0;
+
+        // Voice pool
+        this.voices = [];
+        for (let i = 0; i < this.maxVoices; i++) {
+            this.voices.push(this.createVoice());
+        }
+        this.lastFreq = 0;
+
+        // Chorus delay lines
+        this.chorusDelayL = new Float32Array(Math.ceil(sampleRate * 0.02));
+        this.chorusDelayR = new Float32Array(Math.ceil(sampleRate * 0.02));
+        this.chorusIdx = 0;
+        this.chorusLfoPhase = 0;
+
+        // Compressor state
+        this.compEnv = 0;
+
+        // DC blocker
+        this.dcPrev = 0;
+        this.dcOut = 0;
+
+        this.port.onmessage = (e) => {
+            const data = e.data;
+
+            if (data.noteOn !== undefined) {
+                this.noteOn(data.noteOn.note, data.noteOn.velocity);
+            }
+            if (data.noteOff !== undefined) {
+                this.noteOff(data.noteOff);
+            }
+            if (data.pitchBend !== undefined) {
+                for (const v of this.voices) {
+                    if (v.active) v.pitchBendRatio = data.pitchBend;
+                }
+            }
+            if (data.pressure !== undefined) {
+                for (const v of this.voices) {
+                    if (v.active) v.pressure = data.pressure;
+                }
+            }
+
+            // Parameters
+            if (data.oscWaveShape !== undefined) this.oscWaveShape = data.oscWaveShape;
+            if (data.pwMod !== undefined) this.pwMod = data.pwMod;
+            if (data.pwModSource !== undefined) this.pwModSource = data.pwModSource;
+            if (data.freqModLfo !== undefined) this.freqModLfo = data.freqModLfo;
+            if (data.freqModEnv !== undefined) this.freqModEnv = data.freqModEnv;
+            if (data.glide !== undefined) this.glide = data.glide;
+            if (data.mainOscLevel !== undefined) this.mainOscLevel = data.mainOscLevel;
+            if (data.subOscLevel !== undefined) this.subOscLevel = data.subOscLevel;
+            if (data.subOscDetune !== undefined) this.subOscDetune = data.subOscDetune;
+            if (data.noiseLevel !== undefined) this.noiseLevel = data.noiseLevel;
+            if (data.hpFilterCutoff !== undefined) this.hpFilterCutoff = data.hpFilterCutoff;
+            if (data.lpFilterCutoff !== undefined) this.lpFilterCutoff = data.lpFilterCutoff;
+            if (data.lpFilterResonance !== undefined) this.lpFilterResonance = data.lpFilterResonance;
+            if (data.lpFilterType !== undefined) this.lpFilterType = data.lpFilterType;
+            if (data.lpFilterEnvSelect !== undefined) this.lpFilterEnvSelect = data.lpFilterEnvSelect;
+            if (data.lpFilterModEnv !== undefined) this.lpFilterModEnv = data.lpFilterModEnv;
+            if (data.lpFilterModLfo !== undefined) this.lpFilterModLfo = data.lpFilterModLfo;
+            if (data.lpFilterTracking !== undefined) this.lpFilterTracking = data.lpFilterTracking;
+            if (data.lfoFreq !== undefined) this.lfoFreq = data.lfoFreq;
+            if (data.lfoWaveShape !== undefined) this.lfoWaveShape = data.lfoWaveShape;
+            if (data.lfoFade !== undefined) this.lfoFade = data.lfoFade;
+            if (data.env1Attack !== undefined) this.env1Attack = data.env1Attack;
+            if (data.env1Decay !== undefined) this.env1Decay = data.env1Decay;
+            if (data.env1Sustain !== undefined) this.env1Sustain = data.env1Sustain;
+            if (data.env1Release !== undefined) this.env1Release = data.env1Release;
+            if (data.env2Attack !== undefined) this.env2Attack = data.env2Attack;
+            if (data.env2Decay !== undefined) this.env2Decay = data.env2Decay;
+            if (data.env2Sustain !== undefined) this.env2Sustain = data.env2Sustain;
+            if (data.env2Release !== undefined) this.env2Release = data.env2Release;
+            if (data.amp !== undefined) this.amp = data.amp;
+            if (data.ampMod !== undefined) this.ampMod = data.ampMod;
+            if (data.ringModFreq !== undefined) this.ringModFreq = data.ringModFreq;
+            if (data.ringModFade !== undefined) this.ringModFade = data.ringModFade;
+            if (data.ringModMix !== undefined) this.ringModMix = data.ringModMix;
+            if (data.chorusMix !== undefined) this.chorusMix = data.chorusMix;
+        };
+    }
+
+    createVoice() {
+        return {
+            active: false,
+            note: -1,
+            freq: 440,
+            targetFreq: 440,
+            velocity: 1,
+            pressure: 0,
+            pitchBendRatio: 1,
+            gate: false,
+
+            // Oscillator phases
+            mainPhase: 0,
+            subPhase: 0,
+            mainDriftPhase: Math.random(),
+            subDriftPhase: Math.random(),
+
+            // Envelopes
+            env1: 0,
+            env1Stage: 'off',
+            env1Time: 0,
+            env2: 0,
+            env2Stage: 'off',
+            env2Time: 0,
+
+            // LFO fade
+            lfoFadeLevel: 0,
+            ringModFadeLevel: 0,
+            noteStartTime: 0,
+
+            // Filter states
+            hpState: { x1: 0, x2: 0, y1: 0, y2: 0 },
+            lpState1: { s1: 0, s2: 0, s3: 0, s4: 0 },
+            lpState2: { s1: 0, s2: 0, s3: 0, s4: 0 }
+        };
+    }
+
+    noteOn(note, velocity) {
+        const freq = 440 * Math.pow(2, (note - 69) / 12);
+
+        // Check if note already playing - retrigger
+        let voice = this.voices.find(v => v.active && v.note === note);
+
+        if (!voice) {
+            // Find free voice
+            voice = this.voices.find(v => !v.active);
+
+            if (!voice) {
+                // Find voice in release stage
+                voice = this.voices.find(v => v.env2Stage === 'release');
+
+                if (!voice) {
+                    // Steal oldest voice (last in array with lowest env)
+                    voice = this.voices.reduce((a, b) => a.env2 < b.env2 ? a : b);
+                }
+            }
+        }
+
+        voice.active = true;
+        voice.note = note;
+        voice.targetFreq = freq;
+        voice.freq = this.lastFreq > 0 && this.glide > 0 ? this.lastFreq : freq;
+        voice.velocity = 0.3 + velocity * 0.7; // Map 0-1 to 0.3-1
+        voice.pressure = 0;
+        voice.pitchBendRatio = 1;
+        voice.gate = true;
+
+        // Reset phases on new voice
+        if (!voice.active || voice.env2Stage === 'release') {
+            voice.mainPhase = 0;
+            voice.subPhase = Math.random() * 0.1;
+        }
+
+        // Reset envelopes
+        voice.env1Stage = 'attack';
+        voice.env1Time = 0;
+        voice.env2Stage = 'attack';
+        voice.env2Time = 0;
+
+        // Reset fade levels
+        voice.noteStartTime = this.time;
+        voice.lfoFadeLevel = this.lfoFade < 0 ? 1 : 0;
+        voice.ringModFadeLevel = this.ringModFade < 0 ? 1 : 0;
+
+        // Reset filter states
+        voice.hpState = { x1: 0, x2: 0, y1: 0, y2: 0 };
+        voice.lpState1 = { s1: 0, s2: 0, s3: 0, s4: 0 };
+        voice.lpState2 = { s1: 0, s2: 0, s3: 0, s4: 0 };
+
+        this.lastFreq = freq;
+    }
+
+    noteOff(note) {
+        for (const voice of this.voices) {
+            if (voice.active && voice.note === note && voice.gate) {
+                voice.gate = false;
+                voice.env1Stage = 'release';
+                voice.env1Time = 0;
+                voice.env2Stage = 'release';
+                voice.env2Time = 0;
+            }
+        }
+    }
+
+    // Pink noise generator
+    pinkNoise() {
+        const white = Math.random() * 2 - 1;
+        this.pinkB0 = 0.99886 * this.pinkB0 + white * 0.0555179;
+        this.pinkB1 = 0.99332 * this.pinkB1 + white * 0.0750759;
+        this.pinkB2 = 0.96900 * this.pinkB2 + white * 0.1538520;
+        this.pinkB3 = 0.86650 * this.pinkB3 + white * 0.3104856;
+        this.pinkB4 = 0.55000 * this.pinkB4 + white * 0.5329522;
+        this.pinkB5 = -0.7616 * this.pinkB5 - white * 0.0168980;
+        const pink = this.pinkB0 + this.pinkB1 + this.pinkB2 + this.pinkB3 + this.pinkB4 + this.pinkB5 + this.pinkB6 + white * 0.5362;
+        this.pinkB6 = white * 0.115926;
+        return pink * 0.11;
+    }
+
+    // LFO generator
+    updateLfo(dt) {
+        this.lfoPhase += this.lfoFreq * dt;
+        if (this.lfoPhase >= 1) {
+            this.lfoPhase -= 1;
+            // Update noise target on cycle
+            this.lfoNoiseTarget = Math.random() * 2 - 1;
+        }
+
+        switch (this.lfoWaveShape) {
+            case 0: // Sine
+                this.lfoValue = Math.sin(this.lfoPhase * Math.PI * 2);
+                break;
+            case 1: // Triangle
+                this.lfoValue = this.lfoPhase < 0.5 ? this.lfoPhase * 4 - 1 : 3 - this.lfoPhase * 4;
+                break;
+            case 2: // Saw
+                this.lfoValue = this.lfoPhase * 2 - 1;
+                break;
+            case 3: // Square
+                this.lfoValue = this.lfoPhase < 0.5 ? 1 : -1;
+                break;
+            case 4: // Random (S&H)
+                // Smooth towards target
+                this.lfoNoiseValue += (this.lfoNoiseTarget - this.lfoNoiseValue) * 0.1;
+                this.lfoValue = this.lfoNoiseValue;
+                break;
+        }
+    }
+
+    // ADSR envelope
+    processEnvelope(voice, envNum, attack, decay, sustain, release, dt) {
+        const stage = envNum === 1 ? voice.env1Stage : voice.env2Stage;
+        let env = envNum === 1 ? voice.env1 : voice.env2;
+        let time = envNum === 1 ? voice.env1Time : voice.env2Time;
+
+        time += dt;
+
+        switch (stage) {
+            case 'attack':
+                env = time / Math.max(attack, 0.001);
+                if (env >= 1) {
+                    env = 1;
+                    if (envNum === 1) { voice.env1Stage = 'decay'; voice.env1Time = 0; }
+                    else { voice.env2Stage = 'decay'; voice.env2Time = 0; }
+                    time = 0;
+                }
+                break;
+            case 'decay':
+                env = 1 - (1 - sustain) * (time / Math.max(decay, 0.001));
+                if (time >= decay) {
+                    env = sustain;
+                    if (envNum === 1) voice.env1Stage = 'sustain';
+                    else voice.env2Stage = 'sustain';
+                }
+                break;
+            case 'sustain':
+                env = sustain;
+                break;
+            case 'release':
+                const startLevel = envNum === 1 ? voice.env1 : voice.env2;
+                env = startLevel * Math.exp(-time / (release * 0.25 + 0.001));
+                if (env < 0.0001) {
+                    env = 0;
+                    if (envNum === 1) voice.env1Stage = 'off';
+                    else {
+                        voice.env2Stage = 'off';
+                        voice.active = false;
+                    }
+                }
+                break;
+        }
+
+        if (envNum === 1) { voice.env1 = env; voice.env1Time = time; }
+        else { voice.env2 = env; voice.env2Time = time; }
+
+        return env;
+    }
+
+    // VarSaw oscillator (triangle with variable width)
+    varSaw(phase) {
+        // Like a triangle wave
+        return phase < 0.5 ? phase * 4 - 1 : 3 - phase * 4;
+    }
+
+    // Saw oscillator with anti-aliasing (polyBLEP)
+    saw(phase, freq) {
+        let out = phase * 2 - 1;
+        // PolyBLEP
+        const dt = freq / this.sampleRate;
+        if (phase < dt) {
+            const t = phase / dt;
+            out -= t + t - t * t - 1;
+        } else if (phase > 1 - dt) {
+            const t = (phase - 1) / dt + 1;
+            out -= t * t + t + t - 1;
+        }
+        return out;
+    }
+
+    // Pulse oscillator
+    pulse(phase, width, freq) {
+        const dt = freq / this.sampleRate;
+        let out = phase < width ? 1 : -1;
+        // PolyBLEP at edges
+        if (phase < dt) {
+            const t = phase / dt;
+            out += (t + t - t * t - 1);
+        } else if (phase > 1 - dt) {
+            const t = (phase - 1) / dt + 1;
+            out += (t * t + t + t - 1);
+        }
+        if (phase > width && phase < width + dt) {
+            const t = (phase - width) / dt;
+            out -= (t + t - t * t - 1);
+        } else if (phase < width && phase > width - dt && width > dt) {
+            const t = (phase - width) / dt + 1;
+            out -= (t * t + t + t - 1);
+        }
+        return out;
+    }
+
+    // High-pass filter (2-pole)
+    hpf(input, state, cutoff) {
+        const freq = Math.max(10, Math.min(this.sampleRate * 0.45, cutoff));
+        const w = Math.tan(Math.PI * freq / this.sampleRate);
+        const a = 1 / (1 + Math.SQRT2 * w + w * w);
+        const b1 = -2 * a;
+        const b2 = a;
+        const a1 = 2 * (w * w - 1) * a;
+        const a2 = (1 - Math.SQRT2 * w + w * w) * a;
+
+        const out = a * input + b1 * state.x1 + b2 * state.x2 - a1 * state.y1 - a2 * state.y2;
+        state.x2 = state.x1;
+        state.x1 = input;
+        state.y2 = state.y1;
+        state.y1 = out;
+
+        return isFinite(out) ? out : 0;
+    }
+
+    // Moog-style ladder filter (4-pole)
+    moogLadder(input, state, cutoff, resonance) {
+        const freq = Math.max(20, Math.min(this.sampleRate * 0.45, cutoff));
+        const f = freq / this.sampleRate;
+        const k = 4 * resonance * 0.99;
+        const p = f * (1.8 - 0.8 * f);
+
+        const fb = k * state.s4;
+        const inp = Math.tanh(input - fb);
+
+        state.s1 += p * (inp - state.s1);
+        state.s2 += p * (state.s1 - state.s2);
+        state.s3 += p * (state.s2 - state.s3);
+        state.s4 += p * (state.s3 - state.s4);
+
+        // Clamp for stability
+        if (!isFinite(state.s1)) state.s1 = 0;
+        if (!isFinite(state.s2)) state.s2 = 0;
+        if (!isFinite(state.s3)) state.s3 = 0;
+        if (!isFinite(state.s4)) state.s4 = 0;
+
+        return state.s4;
+    }
+
+    processVoice(voice, lfo, ringMod, dt) {
+        // Process envelopes
+        const env1 = this.processEnvelope(voice, 1, this.env1Attack, this.env1Decay, this.env1Sustain, this.env1Release, dt);
+        const env2 = this.processEnvelope(voice, 2, this.env2Attack, this.env2Decay, this.env2Sustain, this.env2Release, dt);
+
+        if (!voice.active) return 0;
+
+        // LFO fade
+        const fadeTime = Math.abs(this.lfoFade);
+        if (fadeTime > 0) {
+            const elapsed = this.time - voice.noteStartTime;
+            if (this.lfoFade > 0) {
+                // Fade in
+                voice.lfoFadeLevel = Math.min(1, elapsed / fadeTime);
+            } else {
+                // Fade out
+                voice.lfoFadeLevel = Math.max(0, 1 - elapsed / fadeTime);
+            }
+        } else {
+            voice.lfoFadeLevel = 1;
+        }
+
+        // Ring mod fade
+        const ringFadeTime = Math.abs(this.ringModFade);
+        if (ringFadeTime > 0) {
+            const elapsed = this.time - voice.noteStartTime;
+            if (this.ringModFade > 0) {
+                voice.ringModFadeLevel = Math.min(1, elapsed / ringFadeTime);
+            } else {
+                voice.ringModFadeLevel = Math.max(0, 1 - elapsed / ringFadeTime);
+            }
+        } else {
+            voice.ringModFadeLevel = 1;
+        }
+
+        const lfoModulated = lfo * voice.lfoFadeLevel;
+        const ringModModulated = ringMod * voice.ringModFadeLevel;
+
+        // Glide
+        if (this.glide > 0 && voice.freq !== voice.targetFreq) {
+            const glideRate = 1 / (this.glide * this.sampleRate);
+            if (voice.freq < voice.targetFreq) {
+                voice.freq = Math.min(voice.freq * (1 + glideRate * 1000), voice.targetFreq);
+            } else {
+                voice.freq = Math.max(voice.freq * (1 - glideRate * 1000), voice.targetFreq);
+            }
+        } else {
+            voice.freq = voice.targetFreq;
+        }
+
+        // Frequency modulation
+        let freqModRatio = (lfoModulated * this.freqModLfo) + (env1 * this.freqModEnv);
+        if (freqModRatio >= 0) {
+            freqModRatio = 1 + freqModRatio * 3; // 1 to 4x
+        } else {
+            freqModRatio = 1 / (1 - freqModRatio * 3); // 0.25 to 1x
+        }
+
+        const freq = Math.max(20, Math.min(this.sampleRate * 0.45, voice.freq * voice.pitchBendRatio * freqModRatio));
+
+        // Drift LFOs (subtle analog instability)
+        voice.mainDriftPhase += 0.1 / this.sampleRate;
+        if (voice.mainDriftPhase >= 1) voice.mainDriftPhase -= 1;
+        voice.subDriftPhase += 0.1 / this.sampleRate;
+        if (voice.subDriftPhase >= 1) voice.subDriftPhase -= 1;
+
+        const mainDrift = 1 + Math.sin(voice.mainDriftPhase * Math.PI * 2) * 0.001;
+        const subDrift = 1 + Math.sin(voice.subDriftPhase * Math.PI * 2) * 0.0008;
+
+        // Pulse width modulation
+        let pw = 0.5;
+        if (this.oscWaveShape === 2) { // Pulse
+            switch (this.pwModSource) {
+                case 0: pw = 0.5 + lfoModulated * this.pwMod * 0.49; break;
+                case 1: pw = 0.5 + env1 * this.pwMod * 0.49; break;
+                case 2: pw = 0.5 + this.pwMod * 0.49; break;
+            }
+        }
+
+        // Main oscillator
+        voice.mainPhase += (freq * mainDrift) / this.sampleRate;
+        if (voice.mainPhase >= 1) voice.mainPhase -= 1;
+
+        let mainOsc;
+        switch (this.oscWaveShape) {
+            case 0: mainOsc = this.varSaw(voice.mainPhase); break;
+            case 1: mainOsc = this.saw(voice.mainPhase, freq); break;
+            case 2: mainOsc = this.pulse(voice.mainPhase, pw, freq); break;
+            default: mainOsc = this.saw(voice.mainPhase, freq);
+        }
+        mainOsc *= this.mainOscLevel;
+
+        // Sub oscillator (pulse at half freq with detune)
+        const subFreq = freq * 0.5 * Math.pow(2, this.subOscDetune / 12);
+        voice.subPhase += (subFreq * subDrift) / this.sampleRate;
+        if (voice.subPhase >= 1) voice.subPhase -= 1;
+        const subOsc = (voice.subPhase < 0.5 ? 1 : -1);
+
+        // Mix oscillators with crossfade
+        let signal = mainOsc;
+        signal = signal * (1 - this.subOscLevel * 0.5) + subOsc * (this.subOscLevel * 0.5);
+
+        // Noise
+        const white = Math.random() * 2 - 1;
+        signal = signal * (1 - this.noiseLevel * 0.5) + white * (this.noiseLevel * 0.5);
+
+        // Add constant pink noise floor
+        signal += this.pinkNoise() * 0.007;
+
+        // High-pass filter (with keyboard tracking)
+        const cFreq = 130.81; // C3 reference
+        const hpTrackRatio = freq < cFreq ? cFreq - (cFreq - freq) : cFreq + (freq - cFreq);
+        const hpCutoff = Math.max(10, Math.min(20000, this.hpFilterCutoff * (hpTrackRatio / cFreq)));
+        signal = this.hpf(signal, voice.hpState, hpCutoff);
+
+        // Low-pass filter
+        // Keyboard tracking
+        const lpTrackRatio = freq < cFreq
+            ? cFreq - ((cFreq - freq) * this.lpFilterTracking)
+            : cFreq + ((freq - cFreq) * this.lpFilterTracking);
+
+        // Pressure modulation
+        let lpCutoff = this.lpFilterCutoff * (1 + voice.pressure * 0.55);
+        lpCutoff *= lpTrackRatio / cFreq;
+
+        // Envelope and LFO modulation
+        const envForFilter = this.lpFilterEnvSelect === 0 ? env1 : env2;
+        let filterModRatio = (lfoModulated * this.lpFilterModLfo) + (envForFilter * this.lpFilterModEnv * 2);
+        if (filterModRatio >= 0) {
+            filterModRatio = 1 + filterModRatio * 11; // 1 to 12x
+        } else {
+            filterModRatio = 1 / (1 - filterModRatio * 11); // ~0.08 to 1x
+        }
+        lpCutoff = Math.max(20, Math.min(20000, lpCutoff * filterModRatio));
+
+        // Resonance mapping (0-1 to rq)
+        const rq = this.lpFilterType === 0
+            ? Math.pow(10, -this.lpFilterResonance * 1.3) // -12dB mode
+            : Math.pow(10, -this.lpFilterResonance * 0.5); // -24dB mode
+
+        // Apply filter (single or double for 12/24dB)
+        signal = this.moogLadder(signal, voice.lpState1, lpCutoff, this.lpFilterResonance);
+        if (this.lpFilterType === 1) {
+            signal = this.moogLadder(signal, voice.lpState2, lpCutoff, this.lpFilterResonance * 0.5);
+        }
+
+        // Amplitude envelope
+        signal *= env2;
+
+        // Velocity
+        signal *= voice.velocity;
+
+        // LFO amplitude modulation
+        signal *= 1 - this.ampMod + this.ampMod * (lfoModulated * 0.5 + 0.5);
+
+        // Pressure amplitude boost
+        signal *= 1 + voice.pressure * 1.15;
+
+        // Ring modulation
+        const ringModAmount = this.ringModMix * voice.ringModFadeLevel;
+        signal = signal * (1 - ringModAmount * 0.5) + signal * ringModModulated * (ringModAmount * 0.5);
+
+        return signal;
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        const dt = 1 / this.sampleRate;
+
+        for (let s = 0; s < left.length; s++) {
+            this.time += dt;
+
+            // Update LFO
+            this.updateLfo(dt);
+
+            // Update ring mod oscillator
+            this.ringModPhase += this.ringModFreq / this.sampleRate;
+            if (this.ringModPhase >= 1) this.ringModPhase -= 1;
+            const ringMod = Math.sin(this.ringModPhase * Math.PI * 2);
+
+            // Process all voices
+            let mix = 0;
+            for (const voice of this.voices) {
+                if (voice.active || voice.env2 > 0.0001) {
+                    mix += this.processVoice(voice, this.lfoValue, ringMod, dt);
+                }
+            }
+
+            // Scale and apply amp
+            mix *= 0.4 * this.amp;
+
+            // Bass boost (BLowShelf at 400Hz, +2dB)
+            // Simplified implementation
+            const bassBoost = 1.26; // ~+2dB
+            const bassFreq = 400 / this.sampleRate;
+            mix *= 1 + (bassBoost - 1) * Math.max(0, 1 - Math.abs(mix) * 2);
+
+            // Soft clipping and compression
+            mix = Math.tanh(mix * 1.5);
+
+            // Simple compression
+            const threshold = 0.4;
+            const ratio = 0.25;
+            const absSignal = Math.abs(mix);
+            if (absSignal > threshold) {
+                const excess = absSignal - threshold;
+                const compressed = threshold + excess * ratio;
+                mix = mix > 0 ? compressed : -compressed;
+            }
+
+            // DC blocking
+            const dcOut = mix - this.dcPrev + 0.995 * this.dcOut;
+            this.dcPrev = mix;
+            this.dcOut = dcOut;
+            mix = dcOut;
+
+            // Chorus
+            const chorusPreDelay = 0.01;
+            const chorusDepth = 0.0053;
+
+            // Add slight noise for analog character
+            const chorusIn = mix + mix * (Math.random() * 2 - 1) * 0.004;
+
+            // LFO for chorus
+            this.chorusLfoPhase += (0.5 + this.chorusMix * 0.25) / this.sampleRate;
+            if (this.chorusLfoPhase >= 1) this.chorusLfoPhase -= 1;
+            const chorusLfo = Math.sin(this.chorusLfoPhase * Math.PI * 2) * 0.5 + 0.5;
+
+            const delay1 = chorusPreDelay + chorusLfo * chorusDepth * (1 - this.chorusMix * 0.25);
+            const delay2 = chorusPreDelay + (1 - chorusLfo) * chorusDepth * (1 - this.chorusMix * 0.25);
+
+            const delaySamples1 = Math.floor(delay1 * this.sampleRate);
+            const delaySamples2 = Math.floor(delay2 * this.sampleRate);
+
+            // Write to delay lines
+            this.chorusDelayL[this.chorusIdx] = chorusIn;
+            this.chorusDelayR[this.chorusIdx] = chorusIn;
+
+            // Read from delay lines
+            const readIdx1 = (this.chorusIdx - delaySamples1 + this.chorusDelayL.length) % this.chorusDelayL.length;
+            const readIdx2 = (this.chorusIdx - delaySamples2 + this.chorusDelayR.length) % this.chorusDelayR.length;
+
+            const chorusL = this.chorusDelayL[readIdx1];
+            const chorusR = this.chorusDelayR[readIdx2];
+
+            this.chorusIdx = (this.chorusIdx + 1) % this.chorusDelayL.length;
+
+            // Mix dry/wet
+            const wetAmount = this.chorusMix * 0.5;
+            const outL = mix * (1 - wetAmount) + chorusL * wetAmount;
+            const outR = mix * (1 - wetAmount) + chorusR * wetAmount;
+
+            left[s] = Math.tanh(outL);
+            if (right) right[s] = Math.tanh(outR);
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('figured-arpeggio-processor', FiguredArpeggioProcessor);
+`;
+
+        // ============ MUSIC THEORY DATA ============
+
+        // Scales as semitone intervals from root
+        const SCALES = {
+            major:      [0, 2, 4, 5, 7, 9, 11],
+            minor:      [0, 2, 3, 5, 7, 8, 10],
+            dorian:     [0, 2, 3, 5, 7, 9, 10],
+            phrygian:   [0, 1, 3, 5, 7, 8, 10],
+            lydian:     [0, 2, 4, 6, 7, 9, 11],
+            mixolydian: [0, 2, 4, 5, 7, 9, 10],
+            aeolian:    [0, 2, 3, 5, 7, 8, 10]
+        };
+
+        // Philip Glass and Steve Reich figured patterns
+        // These define the ACTUAL melodic patterns - not just scale degrees
+        // Each pattern is designed to create the characteristic "figured bass" weaving
+        const FIGURE_PATTERNS = {
+            // Woven 4th: The 4th degree woven between 3rd and 5th
+            // This creates the rising/falling "wave" effect characteristic of minimalism
+            'glass-koyaanisqatsi': {
+                name: 'Woven 4th',
+                // Scale degrees: 1, 4, 5, 3, 5, 4, 1, 3 (0-indexed: 0, 3, 4, 2, 4, 3, 0, 2)
+                // The key is the 4th (index 3) woven between 3rd and 5th
+                degrees: [0, 3, 4, 2, 4, 3, 0, 2, 4, 3, 0, 2],
+                octavePattern: [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1],
+                rhythm: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                phasing: false
+            },
+            // Ascending 6th: Arpeggio ascending through the 6th degree with modal exchange
+            'glass-hours': {
+                name: 'Ascending 6th',
+                degrees: [0, 2, 4, 2, 0, 2, 4, 5, 4, 2, 0, 2],
+                octavePattern: [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+                rhythm: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                phasing: false
+            },
+            // Tumbling: Cascading pattern with octave displacement
+            'glass-madRush': {
+                name: 'Tumbling',
+                degrees: [0, 2, 4, 0, 2, 4, 2, 0, 4, 2, 0],
+                octavePattern: [0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0],
+                rhythm: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                phasing: false
+            },
+            // Stepwise 7th: Scalar motion through the 7th degree
+            'glass-metamorphosis': {
+                name: 'Stepwise 7th',
+                degrees: [0, 2, 4, 6, 4, 2, 0, 2, 4, 2],
+                octavePattern: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                rhythm: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                phasing: false
+            },
+            // 12-Tone Cell: A 12-note melodic cell designed for phasing
+            'reich-piano': {
+                name: '12-Tone Cell',
+                degrees: [0, 1, 4, 5, 6, 1, 0, 5, 4, 1, 6, 5],
+                octavePattern: [0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1],
+                rhythm: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                phasing: true
+            },
+            // Additive 3-3-2: African-derived additive rhythm pattern
+            'reich-clapping': {
+                name: 'Additive 3-3-2',
+                degrees: [0, 0, 0, 2, 2, 4, 4, 0],
+                octavePattern: [0, 0, 0, 0, 0, 0, 0, 1],
+                rhythm: [1, 1, 0.5, 1, 1, 0.5, 1, 1],
+                phasing: true
+            },
+            // Triad: Simple triadic arpeggio for comparison
+            'simple-triad': {
+                name: 'Triad',
+                degrees: [0, 2, 4, 2],
+                octavePattern: [0, 0, 0, 0],
+                rhythm: [1, 1, 1, 1],
+                phasing: false
+            }
+        };
+
+        const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+        // ============ STATE ============
+
+        let audioContext;
+        let workletNode;
+        let analyser;
+        let isPlaying = false;
+        let pedalboardUI = null;
+        let pedalboardNode = null;
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let modMatrix = null;
+
+        // Sequencer state - THE LIVE STATE that gets read every step
+        let voice1Step = 0;
+        let voice2Step = 0;
+        let schedulerInterval = null;
+        let schedulerTimeoutId = null;
+
+        // Reich-style phasing state
+        let phaseDriftAccumulator = 0;  // Accumulated timing drift in ms
+        let stepsInCurrentCycle = 0;    // Count steps to track where we are in the phase cycle
+
+        // Mutate state: stores degree offsets for each pattern step
+        // When mutate > 0, we accumulate random offsets
+        // When mutate returns to 0, current mutations become permanent
+        let mutatedDegreeOffsets = {}; // patternKey -> array of offsets
+        let pendingMutations = {};     // temporary mutations while knob is turned
+        let lastMutateValue = 0;
+        let mutateAccumulator = 0;     // accumulates mutation "pressure"
+
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        // Wait for phonebook features
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        // ============ SCALE AND NOTE FUNCTIONS ============
+
+        function getScaleNote(scaleDegree, root, scale, octaveOffset) {
+            // scaleDegree can be any integer - wraps around the scale
+            const scaleLen = scale.length;
+            const degreeInOctave = ((scaleDegree % scaleLen) + scaleLen) % scaleLen;
+            const extraOctave = Math.floor(scaleDegree / scaleLen);
+
+            const semitone = scale[degreeInOctave];
+            const midiNote = root + semitone + ((octaveOffset + extraOctave) * 12);
+
+            return midiNote;
+        }
+
+        function applyModalExchange(scale, amount) {
+            // Philip Glass modal exchange: flatten certain notes
+            // Like A minor (A B C D E F G) -> Ab major area
+            // We progressively flatten notes as amount increases
+
+            if (amount <= 0) return [...scale];
+
+            const exchanged = [...scale];
+
+            // With increasing amount, flatten more notes
+            if (amount > 0.1 && exchanged[2] > 0) {
+                exchanged[2] = exchanged[2] - 1; // Flatten 3rd
+            }
+            if (amount > 0.3 && exchanged[5] > 0) {
+                exchanged[5] = exchanged[5] - 1; // Flatten 6th
+            }
+            if (amount > 0.5 && exchanged[1] > 0) {
+                exchanged[1] = exchanged[1] - 1; // Flatten 2nd
+            }
+            if (amount > 0.7 && exchanged[6] > 0) {
+                exchanged[6] = exchanged[6] - 1; // Flatten 7th
+            }
+            if (amount > 0.9 && exchanged[4] > 0) {
+                exchanged[4] = exchanged[4] - 1; // Flatten 5th
+            }
+
+            return exchanged;
+        }
+
+        // ============ LIVE NOTE GENERATION ============
+        // These functions generate notes on-the-fly from current control values
+        // This is the key fix - we don't cache notes, we generate them live
+
+        function getCurrentPattern() {
+            const patternKey = document.getElementById('figurePattern').value;
+            return FIGURE_PATTERNS[patternKey] || FIGURE_PATTERNS['glass-koyaanisqatsi'];
+        }
+
+        function getCurrentPatternKey() {
+            return document.getElementById('figurePattern').value;
+        }
+
+        function getCurrentScale() {
+            const modeKey = document.getElementById('mode').value;
+            let scale = [...SCALES[modeKey]] || [...SCALES.minor];
+
+            // Apply modal exchange
+            const modalAmount = parseFloat(document.getElementById('modalExchange').value);
+            if (modalAmount > 0) {
+                scale = applyModalExchange(scale, modalAmount);
+            }
+
+            return scale;
+        }
+
+        // ============ MUTATION SYSTEM ============
+        // Mutate progressively randomizes pattern degrees within the scale
+        // When mutate knob returns to 0, mutations lock in
+
+        function getMutationOffset(patternKey, stepIndex) {
+            // Get permanent offset
+            const permanent = (mutatedDegreeOffsets[patternKey] || [])[stepIndex] || 0;
+            // Get pending offset (while mutate knob is active)
+            const pending = (pendingMutations[patternKey] || [])[stepIndex] || 0;
+            return permanent + pending;
+        }
+
+        function applyMutation() {
+            const mutateValue = parseFloat(document.getElementById('mutate').value);
+            const patternKey = getCurrentPatternKey();
+            const pattern = getCurrentPattern();
+
+            // If mutate just returned to 0, lock in pending mutations
+            if (mutateValue === 0 && lastMutateValue > 0) {
+                if (pendingMutations[patternKey]) {
+                    if (!mutatedDegreeOffsets[patternKey]) {
+                        mutatedDegreeOffsets[patternKey] = new Array(pattern.degrees.length).fill(0);
+                    }
+                    for (let i = 0; i < pattern.degrees.length; i++) {
+                        mutatedDegreeOffsets[patternKey][i] =
+                            (mutatedDegreeOffsets[patternKey][i] || 0) +
+                            (pendingMutations[patternKey][i] || 0);
+                    }
+                    pendingMutations[patternKey] = null;
+                }
+                mutateAccumulator = 0;
+            }
+            // If mutate is active, accumulate mutations
+            else if (mutateValue > 0) {
+                mutateAccumulator += mutateValue * 0.02; // Accumulate mutation pressure
+
+                // When we hit a threshold, apply a new random mutation
+                if (mutateAccumulator >= 1) {
+                    mutateAccumulator -= 1;
+
+                    if (!pendingMutations[patternKey]) {
+                        pendingMutations[patternKey] = new Array(pattern.degrees.length).fill(0);
+                    }
+
+                    // Pick a random step to mutate
+                    const stepToMutate = Math.floor(Math.random() * pattern.degrees.length);
+
+                    // Apply a random scale-degree offset (-2 to +2)
+                    // Higher mutate values = wider range
+                    const maxOffset = Math.ceil(mutateValue * 3);
+                    const offset = Math.floor(Math.random() * (maxOffset * 2 + 1)) - maxOffset;
+
+                    pendingMutations[patternKey][stepToMutate] += offset;
+                }
+            }
+
+            lastMutateValue = mutateValue;
+        }
+
+        function resetMutations() {
+            const patternKey = getCurrentPatternKey();
+            mutatedDegreeOffsets[patternKey] = null;
+            pendingMutations[patternKey] = null;
+            mutateAccumulator = 0;
+        }
+
+        function getVoice1NoteAtStep(step) {
+            const pattern = getCurrentPattern();
+            const patternKey = getCurrentPatternKey();
+            const scale = getCurrentScale();
+            const root = parseInt(document.getElementById('rootNote').value);
+            const baseOctave = parseInt(document.getElementById('baseOctave').value);
+            const direction = document.getElementById('arpDirection').value;
+            const metricalClip = parseInt(document.getElementById('metricalClip').value);
+            const transpose = parseInt(document.getElementById('transpose').value);
+
+            // Get the effective pattern length (with clipping)
+            let effectiveLength = pattern.degrees.length;
+            if (metricalClip > 0 && effectiveLength > metricalClip) {
+                effectiveLength = effectiveLength - metricalClip;
+            }
+
+            // Wrap step to effective length
+            let patternStep = step % effectiveLength;
+
+            // Apply direction
+            if (direction === 'down') {
+                patternStep = effectiveLength - 1 - patternStep;
+            } else if (direction === 'updown') {
+                const fullCycle = effectiveLength * 2 - 2;
+                const cyclePos = step % fullCycle;
+                if (cyclePos < effectiveLength) {
+                    patternStep = cyclePos;
+                } else {
+                    patternStep = fullCycle - cyclePos;
+                }
+            } else if (direction === 'figured') {
+                // Figured adds occasional step-backs for weaving effect
+                const figuredSequence = [];
+                for (let i = 0; i < effectiveLength; i++) {
+                    figuredSequence.push(i);
+                    if (i > 0 && i < effectiveLength - 1 && i % 3 === 0) {
+                        figuredSequence.push(i - 1);
+                    }
+                }
+                patternStep = figuredSequence[step % figuredSequence.length];
+            } else if (direction === 'contrary') {
+                // Contrary motion handled by voice 2
+            }
+
+            // Ensure patternStep is in bounds
+            patternStep = Math.max(0, Math.min(patternStep, pattern.degrees.length - 1));
+
+            // Get base degree and apply mutation offset
+            let degree = pattern.degrees[patternStep];
+            degree += getMutationOffset(patternKey, patternStep);
+
+            // Apply transpose (in scale degrees, not semitones)
+            degree += transpose;
+
+            const octaveOffset = pattern.octavePattern[patternStep] || 0;
+            const midiNote = getScaleNote(degree, root, scale, baseOctave + octaveOffset);
+
+            return {
+                midi: midiNote,
+                duration: pattern.rhythm[patternStep % pattern.rhythm.length] || 1
+            };
+        }
+
+        function getVoice2NoteAtStep(step) {
+            const v2Mode = document.getElementById('voice2Mode').value;
+
+            if (v2Mode === 'off') return null;
+
+            const v1Note = getVoice1NoteAtStep(step);
+
+            switch (v2Mode) {
+                case 'unison':
+                    return { ...v1Note };
+                case 'octave':
+                    return { ...v1Note, midi: v1Note.midi - 12 };
+                case 'fifth':
+                    return { ...v1Note, midi: v1Note.midi + 7 };
+                case 'contrary':
+                    // Contrary motion: invert around the root
+                    const root = parseInt(document.getElementById('rootNote').value);
+                    const baseOctave = parseInt(document.getElementById('baseOctave').value);
+                    const pivot = root + (baseOctave * 12);
+                    const interval = v1Note.midi - pivot;
+                    return { ...v1Note, midi: pivot - interval - 12 };
+                case 'phase':
+                    // Same notes, phased timing handled in scheduler
+                    return { ...v1Note };
+                default:
+                    return null;
+            }
+        }
+
+        function getPatternLength() {
+            const pattern = getCurrentPattern();
+            const direction = document.getElementById('arpDirection').value;
+            const metricalClip = parseInt(document.getElementById('metricalClip').value);
+
+            let effectiveLength = pattern.degrees.length;
+            if (metricalClip > 0 && effectiveLength > metricalClip) {
+                effectiveLength = effectiveLength - metricalClip;
+            }
+
+            if (direction === 'updown') {
+                return effectiveLength * 2 - 2;
+            } else if (direction === 'figured') {
+                // Calculate figured sequence length
+                let count = 0;
+                for (let i = 0; i < effectiveLength; i++) {
+                    count++;
+                    if (i > 0 && i < effectiveLength - 1 && i % 3 === 0) {
+                        count++;
+                    }
+                }
+                return count;
+            }
+
+            return effectiveLength;
+        }
+
+        // ============ DISPLAY UPDATES ============
+
+        function updateModeDisplay() {
+            const root = parseInt(document.getElementById('rootNote').value);
+            const mode = document.getElementById('mode').value;
+            const pattern = getCurrentPattern();
+
+            document.getElementById('rootDisplay').textContent = NOTE_NAMES[root];
+            document.getElementById('modeDisplay').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+            document.getElementById('chordDisplay').textContent = pattern.name;
+        }
+
+        function updateSequenceDisplay() {
+            const display = document.getElementById('sequenceDisplay');
+            const patternLen = getPatternLength();
+            const v2Mode = document.getElementById('voice2Mode').value;
+
+            // Show current notes (generate them live)
+            const maxShow = Math.min(patternLen, 16);
+            let v1Html = '';
+            for (let i = 0; i < maxShow; i++) {
+                const note = getVoice1NoteAtStep(i);
+                const name = NOTE_NAMES[note.midi % 12] + Math.floor(note.midi / 12 - 1);
+                const isCurrent = i === (voice1Step % patternLen);
+                v1Html += isCurrent ? `<span class="current-note">[${name}]</span> ` : `${name} `;
+            }
+            if (patternLen > 16) v1Html += '...';
+
+            let html = `<div class="voice-display"><span class="v1">V1: ${v1Html}</span></div>`;
+
+            if (v2Mode !== 'off') {
+                let v2Html = '';
+                for (let i = 0; i < Math.min(maxShow, 12); i++) {
+                    const note = getVoice2NoteAtStep(i);
+                    if (note) {
+                        const name = NOTE_NAMES[note.midi % 12] + Math.floor(note.midi / 12 - 1);
+                        const isCurrent = i === (voice2Step % patternLen);
+                        v2Html += isCurrent ? `<span class="current-note">[${name}]</span> ` : `${name} `;
+                    }
+                }
+                if (patternLen > 12) v2Html += '...';
+                html += `<div class="voice-display"><span class="v2">V2: ${v2Html}</span></div>`;
+            }
+
+            display.innerHTML = html;
+        }
+
+        function updateStepIndicator() {
+            const indicator = document.getElementById('stepIndicator');
+            indicator.innerHTML = '';
+
+            const patternLen = getPatternLength();
+            const maxSteps = Math.min(patternLen, 24);
+            const v2Mode = document.getElementById('voice2Mode').value;
+
+            for (let i = 0; i < maxSteps; i++) {
+                const step = document.createElement('div');
+                step.className = 'step active';
+                if (i === (voice1Step % patternLen)) step.classList.add('current', 'v1');
+                if (v2Mode !== 'off' && i === (voice2Step % patternLen)) {
+                    step.classList.add('v2');
+                }
+                indicator.appendChild(step);
+            }
+        }
+
+        // ============ SEQUENCER ============
+
+        function getStepDurationMs() {
+            const tempo = parseFloat(document.getElementById('tempo').value);
+            const subdivision = document.getElementById('subdivision').value;
+
+            const beatMs = 60000 / tempo;
+
+            switch (subdivision) {
+                case '8': return beatMs / 2;
+                case '16': return beatMs / 4;
+                case 'triplet': return beatMs / 3;
+                case 'quintuplet': return beatMs / 5;
+                default: return beatMs / 4;
+            }
+        }
+
+        function playNote(midiNote, velocity, durationMs) {
+            if (!workletNode) return;
+
+            workletNode.port.postMessage({
+                noteOn: { note: midiNote, velocity }
+            });
+
+            setTimeout(() => {
+                if (workletNode) {
+                    workletNode.port.postMessage({ noteOff: midiNote });
+                }
+            }, durationMs);
+        }
+
+        function scheduleStep() {
+            if (!isPlaying) return;
+
+            // Apply mutation each step (accumulates when mutate > 0)
+            applyMutation();
+
+            const stepMs = getStepDurationMs();
+            const gateLength = parseFloat(document.getElementById('gateLength').value);
+            const noteDuration = stepMs * gateLength;
+            const v2Mode = document.getElementById('voice2Mode').value;
+            const patternLen = getPatternLength();
+
+            // Voice 1 - generate note LIVE from current control values
+            const v1Note = getVoice1NoteAtStep(voice1Step);
+            playNote(v1Note.midi, 0.7, noteDuration * v1Note.duration);
+
+            // Reich-style phasing calculation
+            // Phase cycle = how many bars until V2 completes one full pattern drift
+            const phaseCycleBars = parseInt(document.getElementById('phaseCycle').value);
+
+            // Voice 2 with phase offset
+            if (v2Mode !== 'off') {
+                // Base delay from V2 Phase knob (parameter 10)
+                const v2PhaseRaw = parseFloat(document.getElementById('voice2Phase').value);
+                let v2DelayMs = stepMs * v2PhaseRaw;
+
+                // Reich-style phasing: gradual drift when phaseCycle > 0 and V2 mode is 'phase'
+                if (phaseCycleBars > 0 && v2Mode === 'phase') {
+                    // Calculate steps per phase cycle
+                    // Assuming 16 steps per bar (16th notes at default), adjust based on subdivision
+                    const stepsPerBar = 16; // This is typical for 16th note patterns
+                    const stepsPerCycle = phaseCycleBars * stepsPerBar;
+
+                    // Over the entire cycle, V2 drifts one full pattern length
+                    // Drift per step = (one pattern length in ms) / (steps in cycle)
+                    const patternDurationMs = stepMs * patternLen;
+                    const driftPerStep = patternDurationMs / stepsPerCycle;
+
+                    // Accumulate drift
+                    phaseDriftAccumulator += driftPerStep;
+                    stepsInCurrentCycle++;
+
+                    // Reset when we complete a cycle
+                    if (stepsInCurrentCycle >= stepsPerCycle) {
+                        phaseDriftAccumulator = 0;
+                        stepsInCurrentCycle = 0;
+                    }
+
+                    // Add drift to V2 delay (V2 plays progressively earlier = negative drift)
+                    // We use modulo to keep drift within one step duration for smooth effect
+                    v2DelayMs += (phaseDriftAccumulator % stepMs);
+                }
+
+                setTimeout(() => {
+                    if (!isPlaying) return;
+                    const v2Note = getVoice2NoteAtStep(voice2Step);
+                    if (v2Note) {
+                        playNote(v2Note.midi, 0.55, noteDuration * v2Note.duration);
+                    }
+                }, v2DelayMs);
+            }
+
+            // Advance steps
+            voice1Step = (voice1Step + 1) % patternLen;
+            voice2Step = (voice2Step + 1) % patternLen;
+
+            // Reich-style phasing step advancement
+            // When drift accumulates past one full step, V2 advances an extra step
+            if (phaseCycleBars > 0 && v2Mode === 'phase') {
+                if (phaseDriftAccumulator >= stepMs) {
+                    voice2Step = (voice2Step + 1) % patternLen;
+                    phaseDriftAccumulator -= stepMs;
+                }
+            }
+
+            updateStepIndicator();
+            updateSequenceDisplay();
+
+            // Schedule next step
+            schedulerTimeoutId = setTimeout(scheduleStep, stepMs);
+        }
+
+        function startSequencer() {
+            if (schedulerTimeoutId) return;
+
+            voice1Step = 0;
+            voice2Step = 0;
+            phaseDriftAccumulator = 0;
+            stepsInCurrentCycle = 0;
+            scheduleStep();
+        }
+
+        function stopSequencer() {
+            if (schedulerTimeoutId) {
+                clearTimeout(schedulerTimeoutId);
+                schedulerTimeoutId = null;
+            }
+            voice1Step = 0;
+            voice2Step = 0;
+        }
+
+        // ============ RANDOMIZATION FUNCTIONS (Molly-style) ============
+        // Helper function to set wave button
+        function setWaveBtn(groupId, value) {
+            const group = document.getElementById(groupId);
+            group.querySelectorAll('.wave-btn').forEach(b => b.classList.remove('active'));
+            const btn = group.querySelector(`[data-value="${value}"]`);
+            if (btn) btn.classList.add('active');
+        }
+
+        // Only randomize synth parameters, not sequencer/pattern controls
+        // Identical to Molly the Polly
+
+        function randomizeLead() {
+            // Oscillator
+            setWaveBtn('oscWaveShape', Math.floor(Math.random() * 3));
+            document.getElementById('pwMod').value = Math.random();
+            setWaveBtn('pwModSource', Math.floor(Math.random() * 3));
+            document.getElementById('freqModLfo').value = Math.pow(Math.random(), 2) * 0.1;
+            document.getElementById('freqModEnv').value = Math.random() > 0.95 ? (Math.random() * 0.12 - 0.06) : 0;
+            document.getElementById('glide').value = Math.pow(Math.random(), 2);
+
+            // Mixer
+            if (Math.random() > 0.8) {
+                document.getElementById('mainOscLevel').value = 1;
+                document.getElementById('subOscLevel').value = 0;
+            } else {
+                document.getElementById('mainOscLevel').value = Math.random();
+                document.getElementById('subOscLevel').value = Math.random();
+            }
+            const detuneOpts = [0, 0, 0, 4, 5, -4, -5];
+            document.getElementById('subOscDetune').value = detuneOpts[Math.floor(Math.random() * detuneOpts.length)] + Math.random() * 0.01;
+            document.getElementById('noiseLevel').value = Math.pow(Math.random(), 2);
+
+            // Filter
+            document.getElementById('hpFilterCutoff').value = 10;
+            document.getElementById('lpFilterCutoff').value = 100 + Math.pow(Math.random(), 2) * 19900;
+            document.getElementById('lpFilterResonance').value = Math.random() * 0.9;
+            setWaveBtn('lpFilterType', Math.floor(Math.random() * 2));
+            setWaveBtn('lpFilterEnvSelect', Math.floor(Math.random() * 2));
+            document.getElementById('lpFilterModEnv').value = Math.random() * 2 - 1;
+            document.getElementById('lpFilterModLfo').value = Math.random() * 0.2;
+            document.getElementById('lpFilterTracking').value = Math.random() * 2;
+
+            // LFO
+            document.getElementById('lfoFreq').value = 0.05 + Math.random() * 19.95;
+            setWaveBtn('lfoWaveShape', Math.floor(Math.random() * 5));
+            document.getElementById('lfoFade').value = Math.random() * 30 - 15;
+
+            // Envelopes
+            document.getElementById('env1Attack').value = 0.002 + Math.random() * 0.998;
+            document.getElementById('env1Decay').value = 0.002 + Math.random() * 9.998;
+            document.getElementById('env1Sustain').value = Math.random();
+            document.getElementById('env1Release').value = 0.002 + Math.random() * 9.998;
+            document.getElementById('env2Attack').value = 0.002 + Math.pow(Math.random(), 2) * 0.5;
+            document.getElementById('env2Decay').value = 0.002 + Math.random() * 9.998;
+            document.getElementById('env2Sustain').value = Math.random();
+            document.getElementById('env2Release').value = 0.002 + Math.random() * 3;
+
+            // Amp
+            document.getElementById('amp').value = 0.75 + Math.random() * 0.15;
+            document.getElementById('ampMod').value = Math.random() * 0.5;
+
+            // Ring mod
+            document.getElementById('ringModFreq').value = 10 + Math.random() * 290;
+            document.getElementById('ringModFade').value = Math.random() * 17 - 15;
+            document.getElementById('ringModMix').value = Math.random() > 0.8 ? Math.random() : 0;
+
+            document.getElementById('chorusMix').value = Math.random();
+
+            updateAllDisplays();
+            sendAllParams();
+        }
+
+        function randomizePad() {
+            setWaveBtn('oscWaveShape', Math.floor(Math.random() * 3));
+            document.getElementById('pwMod').value = Math.random();
+            setWaveBtn('pwModSource', Math.floor(Math.random() * 3));
+            document.getElementById('freqModLfo').value = Math.pow(Math.random(), 4) * 0.2;
+            document.getElementById('freqModEnv').value = Math.random() > 0.8 ? Math.pow(Math.random(), 4) * 0.3 - 0.1 : 0;
+            document.getElementById('glide').value = Math.pow(Math.random(), 2) * 5;
+
+            document.getElementById('mainOscLevel').value = Math.random();
+            document.getElementById('subOscLevel').value = Math.random();
+            document.getElementById('subOscDetune').value = (Math.random() * 10 - 5) + Math.random() * 0.01;
+            document.getElementById('noiseLevel').value = Math.pow(Math.random(), 2);
+
+            document.getElementById('hpFilterCutoff').value = 10;
+            document.getElementById('lpFilterCutoff').value = 100 + Math.random() * 19900;
+            document.getElementById('lpFilterResonance').value = Math.random();
+            setWaveBtn('lpFilterType', Math.floor(Math.random() * 2));
+            setWaveBtn('lpFilterEnvSelect', Math.floor(Math.random() * 2));
+            document.getElementById('lpFilterModEnv').value = Math.random() * 2 - 1;
+            document.getElementById('lpFilterModLfo').value = Math.random();
+            document.getElementById('lpFilterTracking').value = Math.random() * 2;
+
+            document.getElementById('lfoFreq').value = 0.05 + Math.random() * 19.95;
+            setWaveBtn('lfoWaveShape', Math.floor(Math.random() * 5));
+            document.getElementById('lfoFade').value = Math.random() * 30 - 15;
+
+            document.getElementById('env1Attack').value = 0.002 + Math.random() * 4.998;
+            document.getElementById('env1Decay').value = 0.002 + Math.random() * 9.998;
+            document.getElementById('env1Sustain').value = Math.random();
+            document.getElementById('env1Release').value = 0.002 + Math.random() * 9.998;
+            document.getElementById('env2Attack').value = 0.002 + Math.random() * 4.998;
+            document.getElementById('env2Decay').value = 0.002 + Math.random() * 9.998;
+            document.getElementById('env2Sustain').value = 0.1 + Math.random() * 0.9;
+            document.getElementById('env2Release').value = 0.5 + Math.random() * 9.5;
+
+            document.getElementById('amp').value = 0.5 + Math.random() * 0.3;
+            document.getElementById('ampMod').value = Math.random();
+
+            document.getElementById('ringModFreq').value = 10 + Math.random() * 290;
+            document.getElementById('ringModFade').value = Math.random() * 30 - 15;
+            document.getElementById('ringModMix').value = Math.random() > 0.8 ? Math.random() : 0;
+
+            document.getElementById('chorusMix').value = Math.random();
+
+            updateAllDisplays();
+            sendAllParams();
+        }
+
+        function randomizePerc() {
+            setWaveBtn('oscWaveShape', Math.floor(Math.random() * 3));
+            document.getElementById('pwMod').value = Math.random();
+            setWaveBtn('pwModSource', Math.floor(Math.random() * 3));
+            document.getElementById('freqModLfo').value = Math.pow(Math.random(), 2);
+            document.getElementById('freqModEnv').value = Math.pow(Math.random(), 4) * 2 - 1;
+            document.getElementById('glide').value = Math.pow(Math.random(), 2) * 5;
+
+            document.getElementById('mainOscLevel').value = Math.random();
+            document.getElementById('subOscLevel').value = Math.random();
+            document.getElementById('subOscDetune').value = Math.random() * 10 - 5;
+            document.getElementById('noiseLevel').value = 0.1 + Math.random() * 0.9;
+
+            document.getElementById('hpFilterCutoff').value = 10;
+            document.getElementById('lpFilterCutoff').value = 100 + Math.random() * 5900;
+            document.getElementById('lpFilterResonance').value = Math.random() > 0.6 ? 0.5 + Math.random() * 0.5 : Math.random();
+            setWaveBtn('lpFilterType', Math.floor(Math.random() * 2));
+            setWaveBtn('lpFilterEnvSelect', Math.floor(Math.random() * 2));
+            document.getElementById('lpFilterModEnv').value = Math.random() * 1.3 - 0.3;
+            document.getElementById('lpFilterModLfo').value = Math.random();
+            document.getElementById('lpFilterTracking').value = Math.random() * 2;
+
+            document.getElementById('lfoFreq').value = 0.05 + Math.random() * 19.95;
+            setWaveBtn('lfoWaveShape', Math.floor(Math.random() * 5));
+            document.getElementById('lfoFade').value = Math.random() * 30 - 15;
+
+            document.getElementById('env1Attack').value = 0.002 + Math.random() * 4.998;
+            document.getElementById('env1Decay').value = 0.002 + Math.random() * 9.998;
+            document.getElementById('env1Sustain').value = Math.random();
+            document.getElementById('env1Release').value = 0.002 + Math.random() * 9.998;
+            document.getElementById('env2Attack').value = 0.002;
+            document.getElementById('env2Decay').value = 0.008 + Math.pow(Math.random(), 4) * 1.8;
+            document.getElementById('env2Sustain').value = 0;
+            document.getElementById('env2Release').value = document.getElementById('env2Decay').value;
+
+            document.getElementById('amp').value = 0.75 + Math.random() * 0.25;
+            document.getElementById('ampMod').value = Math.random() * 0.2;
+
+            document.getElementById('ringModFreq').value = 10 + Math.random() * 290;
+            document.getElementById('ringModFade').value = Math.random() * 17 - 15;
+            document.getElementById('ringModMix').value = Math.random() > 0.4 ? Math.random() : 0;
+
+            document.getElementById('chorusMix').value = Math.random();
+
+            updateAllDisplays();
+            sendAllParams();
+        }
+
+        // ============ AUDIO INIT ============
+
+        async function initAudio() {
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'figured-arpeggio-processor', {
+                outputChannelCount: [2]
+            });
+
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+
+            // Initialize pedalboard
+            const pedalboardContainer = document.getElementById('pedalboard-container');
+            if (typeof PedalboardUI !== 'undefined' && pedalboardContainer) {
+                pedalboardUI = new PedalboardUI(pedalboardContainer, audioContext, {
+                    patchId: 'loftwerk-figured-arpeggio'
+                });
+                pedalboardNode = await pedalboardUI.init();
+                pedalboardUI.connect(workletNode);
+                pedalboardNode.connect(analyser);
+                pedalboardNode.connect(audioContext.destination);
+            } else {
+                workletNode.connect(analyser);
+                analyser.connect(audioContext.destination);
+            }
+
+            // Initialize features
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'figured-arpeggio',
+                    patchId: 'loftwerk-figured-arpeggio'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, pedalboardNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register controls
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'loftwerk-figured-arpeggio',
+                    prefix: 'figarp',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            sendAllParams();
+        }
+
+        function sendAllParams() {
+            if (!workletNode) return;
+
+            // Get wave selector values
+            const oscWaveShape = parseInt(document.querySelector('#oscWaveShape .wave-btn.active')?.dataset.value || 2);
+            const pwModSource = parseInt(document.querySelector('#pwModSource .wave-btn.active')?.dataset.value || 0);
+            const lpFilterType = parseInt(document.querySelector('#lpFilterType .wave-btn.active')?.dataset.value || 1);
+            const lpFilterEnvSelect = parseInt(document.querySelector('#lpFilterEnvSelect .wave-btn.active')?.dataset.value || 0);
+            const lfoWaveShape = parseInt(document.querySelector('#lfoWaveShape .wave-btn.active')?.dataset.value || 0);
+
+            workletNode.port.postMessage({
+                // Oscillator
+                oscWaveShape: oscWaveShape,
+                pwMod: parseFloat(document.getElementById('pwMod').value),
+                pwModSource: pwModSource,
+                freqModLfo: parseFloat(document.getElementById('freqModLfo').value),
+                freqModEnv: parseFloat(document.getElementById('freqModEnv').value),
+                glide: parseFloat(document.getElementById('glide').value),
+
+                // Mixer
+                mainOscLevel: parseFloat(document.getElementById('mainOscLevel').value),
+                subOscLevel: parseFloat(document.getElementById('subOscLevel').value),
+                subOscDetune: parseFloat(document.getElementById('subOscDetune').value),
+                noiseLevel: parseFloat(document.getElementById('noiseLevel').value),
+
+                // Filter
+                hpFilterCutoff: parseFloat(document.getElementById('hpFilterCutoff').value),
+                lpFilterCutoff: parseFloat(document.getElementById('lpFilterCutoff').value),
+                lpFilterResonance: parseFloat(document.getElementById('lpFilterResonance').value),
+                lpFilterType: lpFilterType,
+                lpFilterEnvSelect: lpFilterEnvSelect,
+                lpFilterModEnv: parseFloat(document.getElementById('lpFilterModEnv').value),
+                lpFilterModLfo: parseFloat(document.getElementById('lpFilterModLfo').value),
+                lpFilterTracking: parseFloat(document.getElementById('lpFilterTracking').value),
+
+                // LFO
+                lfoFreq: parseFloat(document.getElementById('lfoFreq').value),
+                lfoWaveShape: lfoWaveShape,
+                lfoFade: parseFloat(document.getElementById('lfoFade').value),
+
+                // Envelope 1
+                env1Attack: parseFloat(document.getElementById('env1Attack').value),
+                env1Decay: parseFloat(document.getElementById('env1Decay').value),
+                env1Sustain: parseFloat(document.getElementById('env1Sustain').value),
+                env1Release: parseFloat(document.getElementById('env1Release').value),
+
+                // Envelope 2
+                env2Attack: parseFloat(document.getElementById('env2Attack').value),
+                env2Decay: parseFloat(document.getElementById('env2Decay').value),
+                env2Sustain: parseFloat(document.getElementById('env2Sustain').value),
+                env2Release: parseFloat(document.getElementById('env2Release').value),
+
+                // Amp & Ring Mod
+                amp: parseFloat(document.getElementById('amp').value),
+                ampMod: parseFloat(document.getElementById('ampMod').value),
+                ringModFreq: parseFloat(document.getElementById('ringModFreq').value),
+                ringModFade: parseFloat(document.getElementById('ringModFade').value),
+                ringModMix: parseFloat(document.getElementById('ringModMix').value),
+
+                // Output
+                chorusMix: parseFloat(document.getElementById('chorusMix').value)
+            });
+        }
+
+        function updateAllDisplays() {
+            const params = [
+                // Twister controls
+                'tempo', 'gateLength', 'phaseOffset', 'voice2Phase', 'modalExchange',
+                'metricalClip', 'transpose', 'mutate',
+                // Oscillator
+                'pwMod', 'freqModLfo', 'freqModEnv', 'glide',
+                // Mixer
+                'mainOscLevel', 'subOscLevel', 'subOscDetune', 'noiseLevel',
+                // Filter
+                'hpFilterCutoff', 'lpFilterCutoff', 'lpFilterResonance', 'lpFilterModEnv', 'lpFilterModLfo', 'lpFilterTracking',
+                // LFO
+                'lfoFreq', 'lfoFade',
+                // Envelope 1
+                'env1Attack', 'env1Decay', 'env1Sustain', 'env1Release',
+                // Envelope 2
+                'env2Attack', 'env2Decay', 'env2Sustain', 'env2Release',
+                // Amp & Ring Mod
+                'amp', 'ampMod', 'ringModFreq', 'ringModFade', 'ringModMix',
+                // Output
+                'chorusMix', 'baseOctave'
+            ];
+
+            params.forEach(param => {
+                const el = document.getElementById(param);
+                const display = document.getElementById(param + 'Val');
+                if (el && display) {
+                    const val = parseFloat(el.value);
+                    if (param === 'voice2Phase') {
+                        const frac = Math.round(val * 16);
+                        display.textContent = frac === 0 ? '0' : `${frac}/16`;
+                    } else if (param === 'transpose') {
+                        display.textContent = val > 0 ? `+${val}` : val;
+                    } else if (['hpFilterCutoff', 'lpFilterCutoff', 'ringModFreq'].includes(param)) {
+                        display.textContent = Math.round(val);
+                    } else {
+                        display.textContent = Math.abs(val) < 10 ? val.toFixed(2) : Math.round(val);
+                    }
+                }
+            });
+        }
+
+        // ============ EVENT HANDLERS ============
+
+        // Synth parameters that get sent to worklet
+        const synthParams = [
+            // Oscillator
+            'pwMod', 'freqModLfo', 'freqModEnv', 'glide',
+            // Mixer
+            'mainOscLevel', 'subOscLevel', 'subOscDetune', 'noiseLevel',
+            // Filter
+            'hpFilterCutoff', 'lpFilterCutoff', 'lpFilterResonance', 'lpFilterModEnv', 'lpFilterModLfo', 'lpFilterTracking',
+            // LFO
+            'lfoFreq', 'lfoFade',
+            // Envelope 1
+            'env1Attack', 'env1Decay', 'env1Sustain', 'env1Release',
+            // Envelope 2
+            'env2Attack', 'env2Decay', 'env2Sustain', 'env2Release',
+            // Amp & Ring Mod
+            'amp', 'ampMod', 'ringModFreq', 'ringModFade', 'ringModMix',
+            // Output
+            'chorusMix'
+        ];
+
+        // Range parameters
+        const rangeParams = [
+            // Twister controls
+            'tempo', 'gateLength', 'phaseCycle', 'voice2Phase', 'modalExchange',
+            'metricalClip', 'transpose', 'mutate', 'baseOctave',
+            // Synth params
+            ...synthParams
+        ];
+
+        rangeParams.forEach(param => {
+            const el = document.getElementById(param);
+            if (el) {
+                el.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value);
+                    const display = document.getElementById(param + 'Val');
+                    if (display) {
+                        if (param === 'phaseCycle') {
+                            // Reich-style phasing: show bars or "Off"
+                            display.textContent = val === 0 ? 'Off' : `${val} bars`;
+                        } else if (param === 'voice2Phase') {
+                            const frac = Math.round(val * 16);
+                            display.textContent = frac === 0 ? '0' : `${frac}/16`;
+                        } else if (param === 'transpose') {
+                            // Show + sign for positive values
+                            display.textContent = val > 0 ? `+${val}` : val;
+                        } else if (['hpFilterCutoff', 'lpFilterCutoff', 'ringModFreq'].includes(param)) {
+                            display.textContent = Math.round(val);
+                        } else {
+                            display.textContent = Math.abs(val) < 10 ? val.toFixed(2) : Math.round(val);
+                        }
+                    }
+
+                    // Send to worklet if synth param
+                    if (synthParams.includes(param) && workletNode) {
+                        const msg = {};
+                        msg[param] = val;
+                        workletNode.port.postMessage(msg);
+                    }
+
+                    // Update displays for sequence-affecting params
+                    const sequenceParams = ['modalExchange', 'metricalClip', 'baseOctave', 'transpose'];
+                    if (sequenceParams.includes(param)) {
+                        updateSequenceDisplay();
+                        updateStepIndicator();
+                    }
+
+                    // Mutate - also check for lock-in when returning to 0
+                    if (param === 'mutate') {
+                        applyMutation();
+                        updateSequenceDisplay();
+                    }
+                });
+            }
+        });
+
+        // Select handlers - these now work because we generate notes live
+        ['rootNote', 'mode', 'figurePattern', 'arpDirection', 'voice2Mode', 'subdivision'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', () => {
+                    // Update displays - notes will be generated live on next step
+                    updateModeDisplay();
+                    updateSequenceDisplay();
+                    updateStepIndicator();
+                });
+            }
+        });
+
+        // Wave button selectors
+        ['oscWaveShape', 'pwModSource', 'lpFilterType', 'lpFilterEnvSelect', 'lfoWaveShape'].forEach(groupId => {
+            const group = document.getElementById(groupId);
+            if (group) {
+                group.querySelectorAll('.wave-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        // Remove active from siblings
+                        group.querySelectorAll('.wave-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+
+                        // Send to worklet
+                        if (workletNode) {
+                            const msg = {};
+                            msg[groupId] = parseInt(btn.dataset.value);
+                            workletNode.port.postMessage(msg);
+                        }
+                    });
+                });
+            }
+        });
+
+        // Randomize buttons
+        document.getElementById('createLead').addEventListener('click', randomizeLead);
+        document.getElementById('createPad').addEventListener('click', randomizePad);
+        document.getElementById('createPerc').addEventListener('click', randomizePerc);
+
+        // ============ VISUALIZER ============
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Float32Array(bufferLength);
+            analyser.getFloatTimeDomainData(dataArray);
+
+            ctx.fillStyle = '#080812';
+            ctx.fillRect(0, 0, width, height);
+
+            const gradient = ctx.createLinearGradient(0, 0, width, 0);
+            gradient.addColorStop(0, '#4a90d9');
+            gradient.addColorStop(0.5, '#7b68ee');
+            gradient.addColorStop(1, '#4a90d9');
+
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const sliceWidth = width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i];
+                const y = (v + 1) / 2 * height;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+                x += sliceWidth;
+            }
+
+            ctx.stroke();
+
+            if (isPlaying) {
+                requestAnimationFrame(drawVisualizer);
+            }
+        }
+
+        // ============ PLAY BUTTON ============
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+            }
+
+            if (isPlaying) {
+                await audioContext.suspend();
+                stopSequencer();
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                isPlaying = true;
+                startSequencer();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                status.textContent = 'Playing figured arpeggio';
+                status.classList.add('active');
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Initial setup
+        updateAllDisplays();
+        updateModeDisplay();
+        updateSequenceDisplay();
+        updateStepIndicator();
+    </script>
+</body>
+</html>
