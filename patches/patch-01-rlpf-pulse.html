@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>01 - RLPF Pulse Rhythms</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>01 - RLPF Pulse Rhythms</h1>
+                <p>Resonant lowpass filtered pulses with LFNoise rhythmic patterns</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <div class="visualizer-container">
+                <canvas id="visualizer"></canvas>
+            </div>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Pulse Width</label>
+                    <input type="range" id="pulseWidth" min="0.1" max="0.5" value="0.3" step="0.01">
+                    <span class="param-value" id="pulseWidthVal">0.30</span>
+                </div>
+                <div class="param-group">
+                    <label>Filter Q</label>
+                    <input type="range" id="filterQ" min="0.1" max="0.9" value="0.5" step="0.01">
+                    <span class="param-value" id="filterQVal">0.50</span>
+                </div>
+                <div class="param-group">
+                    <label>Voice 1 Rate</label>
+                    <input type="range" id="voice1Rate" min="0.05" max="2" value="0.1" step="0.01">
+                    <span class="param-value" id="voice1RateVal">0.10</span>
+                </div>
+                <div class="param-group">
+                    <label>Voice 2 Rate</label>
+                    <input type="range" id="voice2Rate" min="0.05" max="2" value="0.15" step="0.01">
+                    <span class="param-value" id="voice2RateVal">0.15</span>
+                </div>
+                <div class="param-group">
+                    <label>Voice 3 Rate</label>
+                    <input type="range" id="voice3Rate" min="0.05" max="2" value="0.2" step="0.01">
+                    <span class="param-value" id="voice3RateVal">0.20</span>
+                </div>
+                <div class="param-group">
+                    <label>Voice 4 Rate</label>
+                    <input type="range" id="voice4Rate" min="0.05" max="2" value="0.3" step="0.01">
+                    <span class="param-value" id="voice4RateVal">0.30</span>
+                </div>
+            </div>
+
+            <div class="quantizer-section">
+                <h3>Pitch Quantizer</h3>
+
+                <div class="scale-controls">
+                    <div class="param-group">
+                        <label>Root</label>
+                        <select id="rootNote">
+                            <option value="0">C</option>
+                            <option value="1">C#</option>
+                            <option value="2">D</option>
+                            <option value="3">D#</option>
+                            <option value="4">E</option>
+                            <option value="5">F</option>
+                            <option value="6">F#</option>
+                            <option value="7">G</option>
+                            <option value="8">G#</option>
+                            <option value="9">A</option>
+                            <option value="10">A#</option>
+                            <option value="11">B</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Scale</label>
+                        <select id="scaleType">
+                            <option value="chromatic">Chromatic</option>
+                            <option value="major">Major</option>
+                            <option value="minor">Natural Minor</option>
+                            <option value="harmonicMinor">Harmonic Minor</option>
+                            <option value="melodicMinor">Melodic Minor</option>
+                            <option value="dorian">Dorian</option>
+                            <option value="phrygian">Phrygian</option>
+                            <option value="lydian">Lydian</option>
+                            <option value="mixolydian">Mixolydian</option>
+                            <option value="locrian">Locrian</option>
+                            <option value="pentatonicMajor">Pentatonic Major</option>
+                            <option value="pentatonicMinor">Pentatonic Minor</option>
+                            <option value="blues">Blues</option>
+                            <option value="wholeHalf">Whole-Half Dim</option>
+                            <option value="halfWhole">Half-Whole Dim</option>
+                            <option value="wholeTone">Whole Tone</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="keyboard-container">
+                    <div class="keyboard" id="keyboard">
+                        <div class="white-key" data-note="0">C</div>
+                        <div class="black-key" data-note="1">C#</div>
+                        <div class="white-key" data-note="2">D</div>
+                        <div class="black-key" data-note="3">D#</div>
+                        <div class="white-key" data-note="4">E</div>
+                        <div class="white-key" data-note="5">F</div>
+                        <div class="black-key" data-note="6">F#</div>
+                        <div class="white-key" data-note="7">G</div>
+                        <div class="black-key" data-note="8">G#</div>
+                        <div class="white-key" data-note="9">A</div>
+                        <div class="black-key" data-note="10">A#</div>
+                        <div class="white-key" data-note="11">B</div>
+                    </div>
+                </div>
+
+                <div class="octave-lfo-controls">
+                    <div class="param-group">
+                        <label>Octave Range</label>
+                        <input type="range" id="octaveRange" min="1" max="6" value="3" step="1">
+                        <span class="param-value" id="octaveRangeVal">3</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Base Octave</label>
+                        <input type="range" id="baseOctave" min="1" max="6" value="2" step="1">
+                        <span class="param-value" id="baseOctaveVal">2</span>
+                    </div>
+                    <div class="param-group">
+                        <label>LFO Rate</label>
+                        <input type="range" id="lfoRate" min="0.01" max="2" value="0.1" step="0.01">
+                        <span class="param-value" id="lfoRateVal">0.10</span>
+                    </div>
+                    <div class="param-group">
+                        <label>LFO Depth</label>
+                        <input type="range" id="lfoDepth" min="0" max="3" value="0" step="0.1">
+                        <span class="param-value" id="lfoDepthVal">0.0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <code>{|j|play{RLPF.ar(Pulse.ar(f=32**sum({|i|1/4**i*abs(LFNoise0.kr(0.25**j/8)>0-LFPulse.ar(2**i/8))}!10)*30,0.3),f.sqrt.lag(2)*30,0.5)!2/5}}!4</code>
+            </div>
+
+            <p class="status" id="status">Click play to start</p>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+
+        <nav class="nav-links">
+            <a href="../index.html">&larr; Index</a>
+            <a href="patch-02-pluck-splay.html">Next &rarr;</a>
+        </nav>
+    </div>
+
+    <script>
+        const processorCode = `
+class RLPFPulseProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.pulseWidth = 0.3;
+        this.filterQ = 0.5;
+
+        // Individual voice rates
+        this.voiceRates = [0.1, 0.15, 0.2, 0.3];
+
+        // Quantizer settings
+        this.allowedNotes = [0,1,2,3,4,5,6,7,8,9,10,11];
+        this.rootNote = 0;
+        this.baseOctave = 2;
+        this.octaveRange = 3;
+
+        // LFO for octave modulation
+        this.lfoRate = 0.1;
+        this.lfoDepth = 0;
+        this.lfoPhase = 0;
+
+        // 4 voices, each with its own state
+        this.voices = [];
+        for (let j = 0; j < 4; j++) {
+            const voice = {
+                // Noise timer and value for pitch selection
+                noiseTimer: 0,
+                noiseValue: Math.random(),
+                // Current quantized MIDI note
+                currentMidiNote: 48 + j * 5,
+                // Main oscillator phase
+                mainPhase: 0,
+                // Filter state (biquad)
+                x1: 0, x2: 0, y1: 0, y2: 0
+            };
+            this.voices.push(voice);
+        }
+
+        this.port.onmessage = (e) => {
+            if (e.data.pulseWidth !== undefined) this.pulseWidth = e.data.pulseWidth;
+            if (e.data.filterQ !== undefined) this.filterQ = e.data.filterQ;
+            if (e.data.voice1Rate !== undefined) this.voiceRates[0] = e.data.voice1Rate;
+            if (e.data.voice2Rate !== undefined) this.voiceRates[1] = e.data.voice2Rate;
+            if (e.data.voice3Rate !== undefined) this.voiceRates[2] = e.data.voice3Rate;
+            if (e.data.voice4Rate !== undefined) this.voiceRates[3] = e.data.voice4Rate;
+            if (e.data.allowedNotes !== undefined) this.allowedNotes = e.data.allowedNotes;
+            if (e.data.rootNote !== undefined) this.rootNote = e.data.rootNote;
+            if (e.data.baseOctave !== undefined) this.baseOctave = e.data.baseOctave;
+            if (e.data.octaveRange !== undefined) this.octaveRange = e.data.octaveRange;
+            if (e.data.lfoRate !== undefined) this.lfoRate = e.data.lfoRate;
+            if (e.data.lfoDepth !== undefined) this.lfoDepth = e.data.lfoDepth;
+        };
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        const dt = 1 / sampleRate;
+
+        for (let s = 0; s < left.length; s++) {
+            // Update LFO phase
+            this.lfoPhase += this.lfoRate * dt;
+            if (this.lfoPhase >= 1) this.lfoPhase -= 1;
+
+            let sum = 0;
+
+            // Process 4 voices
+            for (let j = 0; j < 4; j++) {
+                const voice = this.voices[j];
+
+                // Update noise timer per-voice
+                voice.noiseTimer -= dt;
+                if (voice.noiseTimer <= 0) {
+                    voice.noiseTimer = 1 / this.voiceRates[j];
+                    voice.noiseValue = Math.random();
+
+                    // Quantize to new note
+                    const lfoMod = Math.floor(Math.sin(this.lfoPhase * 2 * Math.PI) * (this.lfoDepth + 0.5));
+                    const octaveOffset = Math.floor(voice.noiseValue * this.octaveRange);
+                    const targetOctave = Math.max(1, Math.min(7, this.baseOctave + octaveOffset + lfoMod));
+
+                    if (this.allowedNotes.length > 0) {
+                        const noteIdx = Math.floor(voice.noiseValue * this.allowedNotes.length);
+                        const note = this.allowedNotes[Math.min(noteIdx, this.allowedNotes.length - 1)];
+                        const adjustedNote = (note + this.rootNote) % 12;
+                        voice.currentMidiNote = adjustedNote + (targetOctave + 1) * 12;
+                    }
+                }
+
+                // Convert MIDI note to frequency
+                const freq = 440 * Math.pow(2, (voice.currentMidiNote - 69) / 12);
+
+                // Main pulse oscillator
+                voice.mainPhase += freq * dt;
+                if (voice.mainPhase >= 1) voice.mainPhase -= 1;
+                const pulseOut = voice.mainPhase < this.pulseWidth ? 1 : -1;
+
+                // RLPF: cutoff based on frequency
+                const cutoff = Math.sqrt(freq) * 30;
+                const clampedCutoff = Math.max(20, Math.min(cutoff, sampleRate * 0.4));
+
+                // Biquad lowpass coefficients
+                const w0 = 2 * Math.PI * clampedCutoff / sampleRate;
+                const cosW0 = Math.cos(w0);
+                const sinW0 = Math.sin(w0);
+                const alpha = sinW0 / (2 * this.filterQ);
+
+                const b0 = (1 - cosW0) / 2;
+                const b1 = 1 - cosW0;
+                const b2 = (1 - cosW0) / 2;
+                const a0 = 1 + alpha;
+                const a1 = -2 * cosW0;
+                const a2 = 1 - alpha;
+
+                // Apply filter (Direct Form I)
+                const filtered = (b0/a0) * pulseOut + (b1/a0) * voice.x1 + (b2/a0) * voice.x2
+                               - (a1/a0) * voice.y1 - (a2/a0) * voice.y2;
+
+                voice.x2 = voice.x1;
+                voice.x1 = pulseOut;
+                voice.y2 = voice.y1;
+                voice.y1 = filtered;
+
+                sum += filtered;
+            }
+
+            // Divide by 5 (from SC code) and output stereo
+            const out = sum / 5;
+            left[s] = out;
+            if (right) right[s] = out;
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('rlpf-pulse-processor', RLPFPulseProcessor);
+`;
+
+        let audioContext = null;
+        let workletNode = null;
+        let analyser = null;
+        let isPlaying = false;
+        let pedalboard = null;
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        // Scale definitions (intervals from root)
+        const scales = {
+            chromatic: [0,1,2,3,4,5,6,7,8,9,10,11],
+            major: [0,2,4,5,7,9,11],
+            minor: [0,2,3,5,7,8,10],
+            harmonicMinor: [0,2,3,5,7,8,11],
+            melodicMinor: [0,2,3,5,7,9,11],
+            dorian: [0,2,3,5,7,9,10],
+            phrygian: [0,1,3,5,7,8,10],
+            lydian: [0,2,4,6,7,9,11],
+            mixolydian: [0,2,4,5,7,9,10],
+            locrian: [0,1,3,5,6,8,10],
+            pentatonicMajor: [0,2,4,7,9],
+            pentatonicMinor: [0,3,5,7,10],
+            blues: [0,3,5,6,7,10],
+            wholeHalf: [0,2,3,5,6,8,9,11],
+            halfWhole: [0,1,3,4,6,7,9,10],
+            wholeTone: [0,2,4,6,8,10],
+            custom: [0,2,4,5,7,9,11]
+        };
+
+        let currentScale = 'chromatic';
+        let allowedNotes = [...scales.chromatic];
+
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        // Basic param controls
+        const params = ['pulseWidth', 'filterQ'];
+        params.forEach(param => {
+            const input = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            input.addEventListener('input', () => {
+                const val = parseFloat(input.value);
+                display.textContent = val.toFixed(2);
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param]: val });
+                }
+                // Update mod matrix base value
+                if (modMatrix) {
+                    modMatrix.setParamBase(`patch_${param}`, val);
+                }
+            });
+        });
+
+        // Voice rate controls
+        const voiceParams = ['voice1Rate', 'voice2Rate', 'voice3Rate', 'voice4Rate'];
+        voiceParams.forEach(param => {
+            const input = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            input.addEventListener('input', () => {
+                const val = parseFloat(input.value);
+                display.textContent = val.toFixed(2);
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param]: val });
+                }
+                // Update mod matrix base value
+                if (modMatrix) {
+                    modMatrix.setParamBase(`patch_${param}`, val);
+                }
+            });
+        });
+
+        // Quantizer param controls
+        const quantParams = ['octaveRange', 'baseOctave', 'lfoRate', 'lfoDepth'];
+        quantParams.forEach(param => {
+            const input = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            input.addEventListener('input', () => {
+                const val = parseFloat(input.value);
+                display.textContent = param === 'lfoRate' ? val.toFixed(2) :
+                                     param === 'lfoDepth' ? val.toFixed(1) : val.toFixed(0);
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param]: val });
+                }
+                // Update mod matrix base value
+                if (modMatrix) {
+                    modMatrix.setParamBase(`patch_${param}`, val);
+                }
+            });
+        });
+
+        // Root note selector
+        const rootNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        document.getElementById('rootNote').addEventListener('change', (e) => {
+            const rootNote = parseInt(e.target.value);
+            if (workletNode) {
+                workletNode.port.postMessage({ rootNote });
+            }
+            updateKeyboardDisplay();
+            // Update sticky header with new key
+            if (stickyHeader) {
+                stickyHeader.updatePatchInfo({ key: rootNames[rootNote] });
+            }
+        });
+
+        // Scale selector
+        document.getElementById('scaleType').addEventListener('change', (e) => {
+            currentScale = e.target.value;
+            if (currentScale !== 'custom') {
+                allowedNotes = [...scales[currentScale]];
+                updateKeyboardDisplay();
+                if (workletNode) {
+                    workletNode.port.postMessage({ allowedNotes });
+                }
+            }
+            // Update sticky header with new scale
+            if (stickyHeader) {
+                stickyHeader.updatePatchInfo({ scale: currentScale });
+            }
+        });
+
+        // Keyboard interaction
+        function updateKeyboardDisplay() {
+            const rootNote = parseInt(document.getElementById('rootNote').value);
+            const keys = document.querySelectorAll('.keyboard > div');
+            keys.forEach(key => {
+                const note = parseInt(key.dataset.note);
+                const relativeNote = ((note - rootNote) % 12 + 12) % 12;
+                if (allowedNotes.includes(relativeNote)) {
+                    key.classList.add('active');
+                } else {
+                    key.classList.remove('active');
+                }
+            });
+        }
+
+        // Click on keyboard keys to toggle notes (custom mode)
+        document.getElementById('keyboard').addEventListener('click', (e) => {
+            const key = e.target.closest('[data-note]');
+            if (!key) return;
+
+            const note = parseInt(key.dataset.note);
+            const rootNote = parseInt(document.getElementById('rootNote').value);
+            const relativeNote = ((note - rootNote) % 12 + 12) % 12;
+
+            document.getElementById('scaleType').value = 'custom';
+            currentScale = 'custom';
+
+            const idx = allowedNotes.indexOf(relativeNote);
+            if (idx >= 0) {
+                allowedNotes.splice(idx, 1);
+            } else {
+                allowedNotes.push(relativeNote);
+                allowedNotes.sort((a, b) => a - b);
+            }
+
+            if (allowedNotes.length === 0) {
+                allowedNotes = [0];
+            }
+
+            updateKeyboardDisplay();
+            if (workletNode) {
+                workletNode.port.postMessage({ allowedNotes });
+            }
+        });
+
+        updateKeyboardDisplay();
+
+        // Register all patch parameters for MIDI Learn and Modulation
+        function registerPatchParams() {
+            if (!midiLearn || !modMatrix) return;
+
+            // Define all parameters with their ranges
+            const paramDefs = {
+                pulseWidth: { min: 0.1, max: 0.5, label: 'Pulse Width' },
+                filterQ: { min: 0.1, max: 0.9, label: 'Filter Q' },
+                voice1Rate: { min: 0.05, max: 2, label: 'Voice 1 Rate' },
+                voice2Rate: { min: 0.05, max: 2, label: 'Voice 2 Rate' },
+                voice3Rate: { min: 0.05, max: 2, label: 'Voice 3 Rate' },
+                voice4Rate: { min: 0.05, max: 2, label: 'Voice 4 Rate' },
+                octaveRange: { min: 1, max: 6, label: 'Octave Range' },
+                baseOctave: { min: 1, max: 6, label: 'Base Octave' },
+                lfoRate: { min: 0.01, max: 2, label: 'LFO Rate' },
+                lfoDepth: { min: 0, max: 3, label: 'LFO Depth' }
+            };
+
+            Object.entries(paramDefs).forEach(([paramId, def]) => {
+                const input = document.getElementById(paramId);
+                const display = document.getElementById(paramId + 'Val');
+                if (!input) return;
+
+                const onChange = (value) => {
+                    input.value = value;
+                    if (display) {
+                        display.textContent = paramId.includes('Rate') ? value.toFixed(2) :
+                                              paramId === 'lfoDepth' ? value.toFixed(1) :
+                                              value.toFixed(2);
+                    }
+                    if (workletNode) {
+                        workletNode.port.postMessage({ [paramId]: value });
+                    }
+                    // Also update mod matrix base value when MIDI changes it
+                    if (modMatrix) {
+                        modMatrix.setParamBase(`patch_${paramId}`, value);
+                    }
+                };
+
+                // Register for MIDI Learn
+                midiLearn.registerElement(input, `patch_${paramId}`, def.min, def.max, onChange);
+
+                // Register as modulation destination
+                modMatrix.registerParam(`patch_${paramId}`, {
+                    label: def.label,
+                    min: def.min,
+                    max: def.max,
+                    default: parseFloat(input.value),
+                    onChange: onChange
+                });
+            });
+
+            // Refresh mod matrix UI to show new destinations
+            if (modMatrixUI) {
+                modMatrixUI.refreshDestinations();
+            }
+        }
+
+        async function initAudio() {
+            try {
+                // Wait for features to load first
+                await featuresLoaded;
+
+                audioContext = new AudioContext();
+                const blob = new Blob([processorCode], { type: 'text/javascript' });
+                const url = URL.createObjectURL(blob);
+                await audioContext.audioWorklet.addModule(url);
+                URL.revokeObjectURL(url);
+
+                workletNode = new AudioWorkletNode(audioContext, 'rlpf-pulse-processor');
+
+                // Get current scale info for recording filename
+                const rootNote = parseInt(document.getElementById('rootNote').value);
+                const scaleType = document.getElementById('scaleType').value;
+
+                // Initialize pedalboard first (always available)
+                pedalboard = new PedalboardUI(
+                    document.getElementById('pedalboard-container'),
+                    audioContext,
+                    { patchId: 'patch-01' }
+                );
+                const fxNode = await pedalboard.init();
+                pedalboard.connect(workletNode);
+                fxNode.connect(audioContext.destination);
+
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+                fxNode.connect(analyser);
+
+                // Initialize features if phonebook-features.js is loaded
+                if (typeof StickyHeader !== 'undefined') {
+                    // Initialize sticky header with recording
+                    stickyHeader = new StickyHeader({
+                        patchName: 'rlpf-pulse',
+                        patchId: 'patch-01',
+                        key: rootNames[rootNote],
+                        scale: scaleType
+                    });
+                    await stickyHeader.init();
+                    await stickyHeader.initRecorder(audioContext, fxNode, audioContext.destination);
+                }
+
+                if (typeof getMidiLearn !== 'undefined') {
+                    midiLearn = await getMidiLearn('patch-01');
+                }
+
+                if (typeof getModulationMatrix !== 'undefined') {
+                    modMatrix = getModulationMatrix();
+
+                    // Create modulation matrix UI
+                    modMatrixUI = new ModMatrixUI(
+                        document.querySelector('.patch-content'),
+                        { modMatrix: modMatrix }
+                    );
+                    modMatrixUI.init();
+                }
+
+                // Auto-register all sliders for MIDI Learn and Mod Matrix
+                if (typeof autoRegisterControls !== 'undefined') {
+                    await autoRegisterControls({
+                        patchId: 'patch-01-rlpf-pulse',
+                        prefix: 'rlpfpulse',
+                        modMatrixUI: modMatrixUI
+                    });
+                }
+
+                params.forEach(param => {
+                    const val = parseFloat(document.getElementById(param).value);
+                    workletNode.port.postMessage({ [param]: val });
+                });
+
+                voiceParams.forEach(param => {
+                    const val = parseFloat(document.getElementById(param).value);
+                    workletNode.port.postMessage({ [param]: val });
+                });
+
+                quantParams.forEach(param => {
+                    const val = parseFloat(document.getElementById(param).value);
+                    workletNode.port.postMessage({ [param]: val });
+                });
+
+                workletNode.port.postMessage({
+                    allowedNotes: allowedNotes,
+                    rootNote: parseInt(document.getElementById('rootNote').value)
+                });
+            } catch (err) {
+                console.error('Audio init error:', err);
+                status.textContent = 'Error: ' + err.message;
+            }
+        }
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteTimeDomainData(dataArray);
+
+            ctx.fillStyle = '#12121a';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#6366f1';
+            ctx.beginPath();
+
+            const sliceWidth = width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = v * height / 2;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+                x += sliceWidth;
+            }
+
+            ctx.stroke();
+
+            if (isPlaying) {
+                requestAnimationFrame(drawVisualizer);
+            }
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+            }
+
+            if (isPlaying) {
+                audioContext.suspend();
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                // Stop modulation matrix
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                status.textContent = 'Playing';
+                status.classList.add('active');
+                isPlaying = true;
+                // Start modulation matrix
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+    </script>
+</body>
+</html>

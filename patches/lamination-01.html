@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lamination - Formant Percussion</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-controls:last-of-type {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Lamination</h1>
+                <p>Formant percussion synthesis with waveshaping and Moog filter</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Formant Oscillator -->
+            <span class="section-label">Formant Oscillator</span>
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Formant Freq</label>
+                    <input type="range" id="formant" min="100" max="4000" value="800" step="1">
+                    <span class="param-value" id="formantVal">800</span>
+                </div>
+                <div class="param-group">
+                    <label>Mode</label>
+                    <input type="range" id="mode" min="0" max="4" value="1" step="0.01">
+                    <span class="param-value" id="modeVal">1.00</span>
+                </div>
+                <div class="param-group">
+                    <label>Slope</label>
+                    <input type="range" id="slope" min="0" max="1" value="0.5" step="0.01">
+                    <span class="param-value" id="slopeVal">0.50</span>
+                </div>
+                <div class="param-group">
+                    <label>Formant Amp</label>
+                    <input type="range" id="formantAmp" min="0" max="1" value="0.7" step="0.01">
+                    <span class="param-value" id="formantAmpVal">0.70</span>
+                </div>
+            </div>
+
+            <!-- Square Wave -->
+            <span class="section-label">Square Wave</span>
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Square Amp</label>
+                    <input type="range" id="squareAmp" min="0" max="1" value="0.3" step="0.01">
+                    <span class="param-value" id="squareAmpVal">0.30</span>
+                </div>
+                <div class="param-group">
+                    <label>AM Depth</label>
+                    <input type="range" id="am" min="0" max="1" value="0.2" step="0.01">
+                    <span class="param-value" id="amVal">0.20</span>
+                </div>
+            </div>
+
+            <!-- Envelope -->
+            <span class="section-label">Envelope</span>
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Release</label>
+                    <input type="range" id="release" min="0.05" max="4" value="1.2" step="0.01">
+                    <span class="param-value" id="releaseVal">1.20</span>
+                </div>
+            </div>
+
+            <!-- Filter -->
+            <span class="section-label">Filter (Moog)</span>
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Cutoff</label>
+                    <input type="range" id="cutoff" min="50" max="12000" value="3000" step="1">
+                    <span class="param-value" id="cutoffVal">3000</span>
+                </div>
+                <div class="param-group">
+                    <label>Resonance</label>
+                    <input type="range" id="resonance" min="0" max="0.95" value="0.2" step="0.01">
+                    <span class="param-value" id="resonanceVal">0.20</span>
+                </div>
+            </div>
+
+            <!-- Output -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Gain</label>
+                    <input type="range" id="gain" min="0.1" max="3" value="1" step="0.01">
+                    <span class="param-value" id="gainVal">1.00</span>
+                </div>
+                <div class="param-group">
+                    <label>Master</label>
+                    <input type="range" id="master" min="0" max="1" value="0.6" step="0.01">
+                    <span class="param-value" id="masterVal">0.60</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <code>Lamination: Formant percussion synthesis by @robbielyman - FormantTriPTR + SineShaper + MoogFF</code>
+            </div>
+
+            <p class="status" id="status">Click play, then press keys A-L or use MIDI</p>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+
+        <nav class="nav-links">
+            <a href="icarus-01.html">&larr; Previous</a>
+            <a href="m18s-01.html">Next &rarr;</a>
+        </nav>
+    </div>
+
+    <script>
+        const processorCode = `
+class LaminationProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+
+        // Formant params
+        this.formant = 800;
+        this.mode = 1;
+        this.slope = 0.5;
+        this.formantAmp = 0.7;
+
+        // Square params
+        this.squareAmp = 0.3;
+        this.am = 0.2;
+
+        // Envelope
+        this.release = 1.2;
+
+        // Filter
+        this.cutoff = 3000;
+        this.resonance = 0.2;
+
+        // Output
+        this.gain = 1;
+        this.master = 0.6;
+
+        // 8 percussion voices
+        this.voices = [];
+        for (let i = 0; i < 8; i++) {
+            this.voices.push({
+                active: false,
+                freq: 440,
+                phase: 0,
+                formantPhase: 0,
+                squarePhase: 0,
+                env: 0,
+                envTime: 0,
+                velocity: 1,
+                // Per-voice Moog filter state
+                moogState: { s1: 0, s2: 0, s3: 0, s4: 0 },
+                // DC blocker state
+                dcPrev: 0,
+                dcOut: 0
+            });
+        }
+
+        this.port.onmessage = (e) => {
+            const data = e.data;
+
+            // Formant params
+            if (data.formant !== undefined) this.formant = data.formant;
+            if (data.mode !== undefined) this.mode = data.mode;
+            if (data.slope !== undefined) this.slope = data.slope;
+            if (data.formantAmp !== undefined) this.formantAmp = data.formantAmp;
+
+            // Square params
+            if (data.squareAmp !== undefined) this.squareAmp = data.squareAmp;
+            if (data.am !== undefined) this.am = data.am;
+
+            // Envelope
+            if (data.release !== undefined) this.release = data.release;
+
+            // Filter
+            if (data.cutoff !== undefined) this.cutoff = data.cutoff;
+            if (data.resonance !== undefined) this.resonance = data.resonance;
+
+            // Output
+            if (data.gain !== undefined) this.gain = data.gain;
+            if (data.master !== undefined) this.master = data.master;
+
+            // Note trigger (percussion - no sustain)
+            if (data.noteOn !== undefined) {
+                this.triggerNote(data.noteOn, data.velocity || 1);
+            }
+        };
+    }
+
+    triggerNote(note, velocity) {
+        // Find free voice
+        let voice = this.voices.find(v => !v.active);
+        if (!voice) {
+            // Steal oldest (lowest envelope)
+            voice = this.voices.reduce((a, b) => a.env < b.env ? a : b);
+        }
+
+        voice.active = true;
+        voice.freq = 440 * Math.pow(2, (note - 69) / 12);
+        voice.phase = 0;
+        voice.formantPhase = 0;
+        voice.squarePhase = 0;
+        voice.env = 1; // Start at peak (percussive)
+        voice.envTime = 0;
+        voice.velocity = velocity;
+
+        // Reset filter state for clean attack
+        voice.moogState = { s1: 0, s2: 0, s3: 0, s4: 0 };
+    }
+
+    // FormantTriPTR - Formant oscillator using polyBLEP-style antialiasing
+    // Creates vowel-like formant tones
+    formantTriPTR(phase, formantPhase, slope) {
+        // Formant is created by amplitude modulating a triangle carrier
+        // with a sinusoidal envelope at the formant frequency
+
+        // Triangle wave at fundamental
+        let tri;
+        if (phase < 0.5) {
+            tri = phase * 4 - 1;
+        } else {
+            tri = 3 - phase * 4;
+        }
+
+        // Formant envelope - creates the vowel characteristic
+        // Slope controls the sharpness of the formant peaks
+        const formantEnv = Math.pow(Math.abs(Math.cos(formantPhase * Math.PI)), slope * 4 + 0.5);
+
+        // Combine with PTR-style soft sync behavior
+        const syncWindow = Math.sin(phase * Math.PI);
+        const formantSig = tri * formantEnv * syncWindow;
+
+        return formantSig;
+    }
+
+    // Sine shaper - adds harmonics through waveshaping
+    sineShaper(input, amount) {
+        // Maps input through sine function for soft saturation
+        // Amount controls the drive into the shaper
+        const clampedAmount = Math.max(0, Math.min(3, amount));
+        return Math.sin(input * clampedAmount * Math.PI * 0.5);
+    }
+
+    // Moog ladder filter
+    moogFF(input, state, cutoff, resonance) {
+        const freq = Math.max(20, Math.min(this.sampleRate * 0.45, cutoff));
+        const f = freq / this.sampleRate;
+        const k = 4 * (resonance * 0.99);
+
+        // Tuning
+        const p = f * (1.8 - 0.8 * f);
+
+        // Feedback
+        const fb = k * state.s4;
+        const inp = input - fb;
+
+        // 4 cascaded one-pole filters
+        state.s1 += p * (inp - state.s1);
+        state.s2 += p * (state.s1 - state.s2);
+        state.s3 += p * (state.s2 - state.s3);
+        state.s4 += p * (state.s3 - state.s4);
+
+        // Check for NaN
+        if (!isFinite(state.s1)) state.s1 = 0;
+        if (!isFinite(state.s2)) state.s2 = 0;
+        if (!isFinite(state.s3)) state.s3 = 0;
+        if (!isFinite(state.s4)) state.s4 = 0;
+
+        return state.s4;
+    }
+
+    // DC blocker (LeakDC)
+    leakDC(input, voice) {
+        const coeff = 0.995;
+        const out = input - voice.dcPrev + coeff * voice.dcOut;
+        voice.dcPrev = input;
+        voice.dcOut = out;
+        return out;
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        const dt = 1 / this.sampleRate;
+
+        for (let s = 0; s < left.length; s++) {
+            let mixL = 0;
+            let mixR = 0;
+
+            for (let i = 0; i < this.voices.length; i++) {
+                const voice = this.voices[i];
+                if (!voice.active) continue;
+
+                // Update percussive envelope (exponential decay)
+                voice.envTime += dt;
+                // Env.perc has very short attack, long release
+                const attackTime = 0.01;
+                if (voice.envTime < attackTime) {
+                    voice.env = voice.envTime / attackTime;
+                } else {
+                    const releaseT = (voice.envTime - attackTime) / this.release;
+                    voice.env = Math.exp(-releaseT * 4);
+                }
+
+                if (voice.env < 0.0001) {
+                    voice.active = false;
+                    continue;
+                }
+
+                // Calculate formant frequency with mode modulation
+                // formant + (0.5 * mode * freq)
+                const formantFreq = this.formant + (0.5 * this.mode * voice.freq);
+
+                // Update phases
+                voice.phase += voice.freq / this.sampleRate;
+                if (voice.phase >= 1) voice.phase -= 1;
+
+                voice.formantPhase += formantFreq / this.sampleRate;
+                if (voice.formantPhase >= 1) voice.formantPhase -= 1;
+
+                voice.squarePhase += voice.freq / this.sampleRate;
+                if (voice.squarePhase >= 1) voice.squarePhase -= 1;
+
+                // Generate formant oscillator
+                let formSig = this.formantTriPTR(voice.phase, voice.formantPhase, this.slope);
+
+                // DC blocking on formant
+                formSig = this.leakDC(formSig, voice);
+
+                // Generate square/pulse wave
+                const squareSig = voice.squarePhase < 0.5 ? 1 : -1;
+
+                // Amplitude modulation: use square to modulate formant
+                // am parameter controls depth
+                const amMod = 1 - this.am + this.am * (squareSig * 0.5 + 0.5);
+                formSig *= amMod;
+
+                // Apply sine shaper to formant for harmonic richness
+                formSig = this.sineShaper(formSig, this.gain);
+
+                // Mix formant and square
+                let snd = (formSig * this.formantAmp) + (squareSig * this.squareAmp * 0.3);
+
+                // Apply Moog filter
+                snd = this.moogFF(snd, voice.moogState, this.cutoff, this.resonance);
+
+                // Apply envelope and velocity
+                snd *= voice.env * voice.velocity;
+
+                // Stereo spread based on voice index
+                const pan = ((i / (this.voices.length - 1)) * 2 - 1) * 0.5;
+                const gainL = Math.cos((pan + 1) * Math.PI / 4);
+                const gainR = Math.sin((pan + 1) * Math.PI / 4);
+
+                mixL += snd * gainL;
+                mixR += snd * gainR;
+            }
+
+            // Output with soft limiting
+            left[s] = Math.tanh(mixL * 2) * this.master;
+            if (right) right[s] = Math.tanh(mixR * 2) * this.master;
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('lamination-processor', LaminationProcessor);
+`;
+
+        let audioContext;
+        let workletNode;
+        let analyser;
+        let isPlaying = false;
+        let pedalboard = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        // Key to MIDI note mapping
+        const keyMap = {
+            'a': 60, 'w': 61, 's': 62, 'e': 63, 'd': 64, 'f': 65,
+            't': 66, 'g': 67, 'y': 68, 'h': 69, 'u': 70, 'j': 71,
+            'k': 72, 'o': 73, 'l': 74, 'p': 75
+        };
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'lamination-processor', {
+                outputChannelCount: [2]
+            });
+
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+
+            // Initialize pedalboard and route audio through it
+            pedalboard = new PedalboardUI(
+                document.getElementById('pedalboard-container'),
+                audioContext
+            );
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(analyser);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'lamination-formant-percussion',
+                    patchId: 'lamination-01'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('lamination-01');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'lamination-01',
+                    prefix: '01',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            sendParams();
+        }
+
+        function sendParams() {
+            if (!workletNode) return;
+            workletNode.port.postMessage({
+                formant: parseFloat(document.getElementById('formant').value),
+                mode: parseFloat(document.getElementById('mode').value),
+                slope: parseFloat(document.getElementById('slope').value),
+                formantAmp: parseFloat(document.getElementById('formantAmp').value),
+                squareAmp: parseFloat(document.getElementById('squareAmp').value),
+                am: parseFloat(document.getElementById('am').value),
+                release: parseFloat(document.getElementById('release').value),
+                cutoff: parseFloat(document.getElementById('cutoff').value),
+                resonance: parseFloat(document.getElementById('resonance').value),
+                gain: parseFloat(document.getElementById('gain').value),
+                master: parseFloat(document.getElementById('master').value)
+            });
+        }
+
+        // Parameter controls
+        const params = [
+            'formant', 'mode', 'slope', 'formantAmp',
+            'squareAmp', 'am',
+            'release',
+            'cutoff', 'resonance',
+            'gain', 'master'
+        ];
+
+        params.forEach(param => {
+            const el = document.getElementById(param);
+            if (el) {
+                el.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value);
+                    const display = document.getElementById(param + 'Val');
+                    if (display) {
+                        display.textContent = val < 10 ? val.toFixed(2) : Math.round(val);
+                    }
+                    sendParams();
+                });
+            }
+        });
+
+        // Keyboard input (percussion - trigger only, no sustain)
+        document.addEventListener('keydown', (e) => {
+            if (!isPlaying) return;
+            // Allow repeated triggers for percussion
+            const note = keyMap[e.key.toLowerCase()];
+            if (note !== undefined && !e.repeat) {
+                workletNode.port.postMessage({ noteOn: note, velocity: 1 });
+            }
+        });
+
+        // MIDI input
+        if (navigator.requestMIDIAccess) {
+            navigator.requestMIDIAccess().then((midi) => {
+                midi.inputs.forEach((input) => {
+                    input.onmidimessage = (msg) => {
+                        const [cmd, note, vel] = msg.data;
+                        if (!isPlaying) return;
+                        // Percussion - only trigger on noteOn, ignore noteOff
+                        if ((cmd & 0xf0) === 0x90 && vel > 0) {
+                            workletNode.port.postMessage({ noteOn: note, velocity: vel / 127 });
+                        }
+                    };
+                });
+            });
+        }
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Float32Array(bufferLength);
+            analyser.getFloatTimeDomainData(dataArray);
+
+            // Dark layered background
+            ctx.fillStyle = '#080812';
+            ctx.fillRect(0, 0, width, height);
+
+            // Waveform with formant colors
+            const gradient = ctx.createLinearGradient(0, 0, width, 0);
+            gradient.addColorStop(0, '#4a90d9');
+            gradient.addColorStop(0.3, '#7b68ee');
+            gradient.addColorStop(0.6, '#9370db');
+            gradient.addColorStop(1, '#4a90d9');
+
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const sliceWidth = width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i];
+                const y = (v + 1) / 2 * height;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+                x += sliceWidth;
+            }
+
+            ctx.stroke();
+
+            if (isPlaying) {
+                requestAnimationFrame(drawVisualizer);
+            }
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+            }
+
+            if (isPlaying) {
+                await audioContext.suspend();
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                status.textContent = 'Layers forming...';
+                status.classList.add('active');
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+    </script>
+</body>
+</html>

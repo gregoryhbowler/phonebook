@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>15 - BPF Latch</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>15 - BPF Latch</h1>
+                <p>Bandpass filter with latched frequency control</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <div class="visualizer-container">
+                <canvas id="visualizer"></canvas>
+            </div>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Drive</label>
+                    <input type="range" id="drive" min="0.5" max="3" value="1.8" step="0.1">
+                    <span class="param-value" id="driveVal">1.80</span>
+                </div>
+                <div class="param-group">
+                    <label>BPF Q</label>
+                    <input type="range" id="bpfQ" min="0.5" max="50" value="10" step="0.5">
+                    <span class="param-value" id="bpfQVal">10.0</span>
+                </div>
+                <div class="param-group">
+                    <label>Base Freq</label>
+                    <input type="range" id="baseFreq" min="50" max="500" value="200" step="10">
+                    <span class="param-value" id="baseFreqVal">200</span>
+                </div>
+                <div class="param-group">
+                    <label>Freq Lag</label>
+                    <input type="range" id="freqLag" min="0.01" max="0.5" value="0.1" step="0.01">
+                    <span class="param-value" id="freqLagVal">0.10</span>
+                </div>
+                <div class="param-group">
+                    <label>Stereo Offset</label>
+                    <input type="range" id="stereoOffset" min="0" max="0.2" value="0.09" step="0.01">
+                    <span class="param-value" id="stereoOffsetVal">0.09</span>
+                </div>
+                <div class="param-group">
+                    <label>Feedback</label>
+                    <input type="range" id="feedback" min="0" max="1" value="0.95" step="0.01">
+                    <span class="param-value" id="feedbackVal">0.95</span>
+                </div>
+            </div>
+
+            <div class="sequencer-section">
+                <h3>Sequencer</h3>
+                <div class="param-controls">
+                    <div class="param-group">
+                        <label>Mode</label>
+                        <select id="seqMode">
+                            <option value="0">Forward</option>
+                            <option value="1">Reverse</option>
+                            <option value="2">Pendulum</option>
+                            <option value="3">Random</option>
+                            <option value="4">Turing Machine</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Length</label>
+                        <input type="range" id="seqLength" min="2" max="16" value="8" step="1">
+                        <span class="param-value" id="seqLengthVal">8</span>
+                    </div>
+                    <div class="param-group">
+                        <label>LFSR Type</label>
+                        <select id="lfsrType">
+                            <option value="0">8-bit Fibonacci</option>
+                            <option value="1">8-bit Galois</option>
+                            <option value="2">16-bit Maximal</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Mutation</label>
+                        <input type="range" id="mutation" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="mutationVal">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Gate Prob</label>
+                        <input type="range" id="gateProb" min="0" max="1" value="1" step="0.01">
+                        <span class="param-value" id="gateProbVal">1.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Step Rate</label>
+                        <input type="range" id="stepRate" min="0.1" max="20" value="3" step="0.1">
+                        <span class="param-value" id="stepRateVal">3.0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Bit Rotate</label>
+                        <input type="range" id="bitRotate" min="0" max="7" value="0" step="1">
+                        <span class="param-value" id="bitRotateVal">0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>XOR Mask</label>
+                        <input type="range" id="xorMask" min="0" max="255" value="0" step="1">
+                        <span class="param-value" id="xorMaskVal">0</span>
+                    </div>
+                </div>
+                <div class="shift-register-display">
+                    <label>Shift Register</label>
+                    <div class="sr-bits" id="srBits"></div>
+                </div>
+            </div>
+
+            <div class="quantizer-section">
+                <h3>Pitch Quantizer</h3>
+                <div class="param-controls">
+                    <div class="param-group">
+                        <label>Root</label>
+                        <select id="rootNote">
+                            <option value="0">C</option>
+                            <option value="1">C#</option>
+                            <option value="2">D</option>
+                            <option value="3">D#</option>
+                            <option value="4">E</option>
+                            <option value="5">F</option>
+                            <option value="6">F#</option>
+                            <option value="7">G</option>
+                            <option value="8">G#</option>
+                            <option value="9">A</option>
+                            <option value="10">A#</option>
+                            <option value="11">B</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Scale</label>
+                        <select id="scale">
+                            <option value="chromatic">Chromatic</option>
+                            <option value="major">Major</option>
+                            <option value="minor">Natural Minor</option>
+                            <option value="harmonicMinor">Harmonic Minor</option>
+                            <option value="melodicMinor">Melodic Minor</option>
+                            <option value="dorian">Dorian</option>
+                            <option value="phrygian">Phrygian</option>
+                            <option value="lydian">Lydian</option>
+                            <option value="mixolydian">Mixolydian</option>
+                            <option value="locrian">Locrian</option>
+                            <option value="pentatonicMajor">Pentatonic Major</option>
+                            <option value="pentatonicMinor">Pentatonic Minor</option>
+                            <option value="blues">Blues</option>
+                            <option value="wholeTone">Whole Tone</option>
+                            <option value="diminished">Diminished</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Octave Range</label>
+                        <input type="range" id="octaveRange" min="1" max="4" value="2" step="1">
+                        <span class="param-value" id="octaveRangeVal">2</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Base Octave</label>
+                        <input type="range" id="baseOctave" min="1" max="6" value="3" step="1">
+                        <span class="param-value" id="baseOctaveVal">3</span>
+                    </div>
+                    <div class="param-group">
+                        <label>LFO Rate</label>
+                        <input type="range" id="lfoRate" min="0.01" max="2" value="0.1" step="0.01">
+                        <span class="param-value" id="lfoRateVal">0.10</span>
+                    </div>
+                    <div class="param-group">
+                        <label>LFO Depth</label>
+                        <input type="range" id="lfoDepth" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="lfoDepthVal">0.00</span>
+                    </div>
+                </div>
+                <div class="keyboard-container">
+                    <div class="keyboard" id="keyboard">
+                        <div class="white-key" data-note="0">C</div>
+                        <div class="black-key" data-note="1">C#</div>
+                        <div class="white-key" data-note="2">D</div>
+                        <div class="black-key" data-note="3">D#</div>
+                        <div class="white-key" data-note="4">E</div>
+                        <div class="white-key" data-note="5">F</div>
+                        <div class="black-key" data-note="6">F#</div>
+                        <div class="white-key" data-note="7">G</div>
+                        <div class="black-key" data-note="8">G#</div>
+                        <div class="white-key" data-note="9">A</div>
+                        <div class="black-key" data-note="10">A#</div>
+                        <div class="white-key" data-note="11">B</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <code>Ndef('x',{x=(Ndef('x').ar*1.8).tanh;BPF.ar(x+[0.01,0.1],12**Latch.ar(x.mean,Impulse.ar(3)).lag(0.1)*200)}).play</code>
+            </div>
+
+            <p class="status" id="status">Click play to start</p>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+
+        <nav class="nav-links">
+            <a href="patch-14-pitch-tracking.html">&larr; Previous</a>
+            <a href="patch-16-resonz-splay.html">Next &rarr;</a>
+        </nav>
+    </div>
+
+    <script>
+        const processorCode = `
+class BPFLatchProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+
+        // Main parameters
+        this.drive = 1.8;
+        this.bpfQ = 10;
+        this.baseFreq = 200;
+        this.freqLag = 0.1;
+        this.stereoOffset = 0.09;
+        this.feedback = 0.95;
+
+        // Feedback state (stereo)
+        this.fbL = 0;
+        this.fbR = 0;
+
+        // BPF state (biquad coefficients and state for L and R)
+        this.bpfStateL = { x1: 0, x2: 0, y1: 0, y2: 0 };
+        this.bpfStateR = { x1: 0, x2: 0, y1: 0, y2: 0 };
+        this.currentFreqL = 200;
+        this.currentFreqR = 200;
+
+        // Latch state - latched frequency value
+        this.latchedValue = 0.5;
+        this.laggedFreq = 200;
+
+        // Sequencer state
+        this.seqMode = 0;
+        this.seqLength = 8;
+        this.lfsrType = 0;
+        this.mutation = 0;
+        this.gateProb = 1;
+        this.stepRate = 3;
+        this.bitRotate = 0;
+        this.xorMask = 0;
+
+        this.seqStep = 0;
+        this.seqDirection = 1;
+        this.stepPhase = 0;
+        this.lfsr = 0b10101010;
+        this.lfsr16 = 0xACE1;
+        this.currentGate = true;
+
+        // Pitch quantizer
+        this.scales = {
+            chromatic: [0,1,2,3,4,5,6,7,8,9,10,11],
+            major: [0,2,4,5,7,9,11],
+            minor: [0,2,3,5,7,8,10],
+            harmonicMinor: [0,2,3,5,7,8,11],
+            melodicMinor: [0,2,3,5,7,9,11],
+            dorian: [0,2,3,5,7,9,10],
+            phrygian: [0,1,3,5,7,8,10],
+            lydian: [0,2,4,6,7,9,11],
+            mixolydian: [0,2,4,5,7,9,10],
+            locrian: [0,1,3,5,6,8,10],
+            pentatonicMajor: [0,2,4,7,9],
+            pentatonicMinor: [0,3,5,7,10],
+            blues: [0,3,5,6,7,10],
+            wholeTone: [0,2,4,6,8,10],
+            diminished: [0,2,3,5,6,8,9,11]
+        };
+
+        this.rootNote = 0;
+        this.currentScale = 'chromatic';
+        this.allowedNotes = this.scales.chromatic;
+        this.octaveRange = 2;
+        this.baseOctave = 3;
+        this.lfoRate = 0.1;
+        this.lfoDepth = 0;
+        this.lfoPhase = 0;
+
+        // Initialize with noise to kickstart feedback
+        this.initialized = false;
+
+        this.port.onmessage = (e) => {
+            if (e.data.drive !== undefined) this.drive = e.data.drive;
+            if (e.data.bpfQ !== undefined) this.bpfQ = e.data.bpfQ;
+            if (e.data.baseFreq !== undefined) this.baseFreq = e.data.baseFreq;
+            if (e.data.freqLag !== undefined) this.freqLag = e.data.freqLag;
+            if (e.data.stereoOffset !== undefined) this.stereoOffset = e.data.stereoOffset;
+            if (e.data.feedback !== undefined) this.feedback = e.data.feedback;
+            if (e.data.seqMode !== undefined) this.seqMode = e.data.seqMode;
+            if (e.data.seqLength !== undefined) this.seqLength = e.data.seqLength;
+            if (e.data.lfsrType !== undefined) this.lfsrType = e.data.lfsrType;
+            if (e.data.mutation !== undefined) this.mutation = e.data.mutation;
+            if (e.data.gateProb !== undefined) this.gateProb = e.data.gateProb;
+            if (e.data.stepRate !== undefined) this.stepRate = e.data.stepRate;
+            if (e.data.bitRotate !== undefined) this.bitRotate = e.data.bitRotate;
+            if (e.data.xorMask !== undefined) this.xorMask = e.data.xorMask;
+            if (e.data.rootNote !== undefined) this.rootNote = e.data.rootNote;
+            if (e.data.allowedNotes !== undefined) this.allowedNotes = e.data.allowedNotes;
+            if (e.data.scale !== undefined) {
+                this.currentScale = e.data.scale;
+                if (e.data.scale !== 'custom') {
+                    this.allowedNotes = this.scales[e.data.scale] || this.scales.chromatic;
+                }
+            }
+            if (e.data.octaveRange !== undefined) this.octaveRange = e.data.octaveRange;
+            if (e.data.baseOctave !== undefined) this.baseOctave = e.data.baseOctave;
+            if (e.data.lfoRate !== undefined) this.lfoRate = e.data.lfoRate;
+            if (e.data.lfoDepth !== undefined) this.lfoDepth = e.data.lfoDepth;
+        };
+    }
+
+    stepLFSR() {
+        if (this.lfsrType === 0) {
+            // 8-bit Fibonacci
+            const bit = ((this.lfsr >> 7) ^ (this.lfsr >> 5) ^ (this.lfsr >> 4) ^ (this.lfsr >> 3)) & 1;
+            this.lfsr = ((this.lfsr << 1) | bit) & 0xFF;
+        } else if (this.lfsrType === 1) {
+            // 8-bit Galois
+            const lsb = this.lfsr & 1;
+            this.lfsr >>= 1;
+            if (lsb) this.lfsr ^= 0xB8;
+        } else {
+            // 16-bit Maximal
+            const bit = ((this.lfsr16 >> 15) ^ (this.lfsr16 >> 14) ^ (this.lfsr16 >> 12) ^ (this.lfsr16 >> 3)) & 1;
+            this.lfsr16 = ((this.lfsr16 << 1) | bit) & 0xFFFF;
+            this.lfsr = (this.lfsr16 >> 8) & 0xFF;
+        }
+
+        // Apply bit rotate
+        if (this.bitRotate > 0) {
+            this.lfsr = ((this.lfsr >> this.bitRotate) | (this.lfsr << (8 - this.bitRotate))) & 0xFF;
+        }
+
+        // Apply XOR mask
+        this.lfsr ^= this.xorMask;
+
+        // Mutation
+        if (Math.random() < this.mutation) {
+            const bitPos = Math.floor(Math.random() * 8);
+            this.lfsr ^= (1 << bitPos);
+        }
+    }
+
+    advanceSequencer() {
+        switch (this.seqMode) {
+            case 0: // Forward
+                this.seqStep = (this.seqStep + 1) % this.seqLength;
+                break;
+            case 1: // Reverse
+                this.seqStep = (this.seqStep - 1 + this.seqLength) % this.seqLength;
+                break;
+            case 2: // Pendulum
+                this.seqStep += this.seqDirection;
+                if (this.seqStep >= this.seqLength - 1) this.seqDirection = -1;
+                if (this.seqStep <= 0) this.seqDirection = 1;
+                break;
+            case 3: // Random
+                this.seqStep = Math.floor(Math.random() * this.seqLength);
+                break;
+            case 4: // Turing Machine
+                this.stepLFSR();
+                this.seqStep = this.lfsr % this.seqLength;
+                break;
+        }
+
+        this.stepLFSR();
+        this.currentGate = Math.random() < this.gateProb;
+
+        // Report shift register state
+        this.port.postMessage({ shiftRegister: this.lfsr });
+    }
+
+    getSequencerValue() {
+        // LFSR value normalized to 0-1
+        return this.lfsr / 255;
+    }
+
+    quantizeToFrequency(value) {
+        if (this.allowedNotes.length === 0) {
+            return this.laggedFreq;
+        }
+
+        const totalNotes = this.allowedNotes.length * this.octaveRange;
+        const noteIdx = Math.floor(value * totalNotes) % totalNotes;
+        const scaleIdx = noteIdx % this.allowedNotes.length;
+        const octaveOffset = Math.floor(noteIdx / this.allowedNotes.length);
+
+        const lfoMod = Math.sin(this.lfoPhase * 2 * Math.PI) * this.lfoDepth;
+        const targetOctave = this.baseOctave + octaveOffset + Math.floor(lfoMod);
+
+        const midiNote = this.rootNote + this.allowedNotes[scaleIdx] + targetOctave * 12;
+        const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+
+        return Math.max(50, Math.min(4000, freq));
+    }
+
+    // Compute BPF biquad coefficients
+    computeBPFCoeffs(freq, Q) {
+        const omega = 2 * Math.PI * freq / this.sampleRate;
+        const sinOmega = Math.sin(omega);
+        const cosOmega = Math.cos(omega);
+        const alpha = sinOmega / (2 * Q);
+
+        const b0 = alpha;
+        const b1 = 0;
+        const b2 = -alpha;
+        const a0 = 1 + alpha;
+        const a1 = -2 * cosOmega;
+        const a2 = 1 - alpha;
+
+        return {
+            b0: b0 / a0,
+            b1: b1 / a0,
+            b2: b2 / a0,
+            a1: a1 / a0,
+            a2: a2 / a0
+        };
+    }
+
+    // Process through BPF
+    processBPF(input, coeffs, state) {
+        const output = coeffs.b0 * input + coeffs.b1 * state.x1 + coeffs.b2 * state.x2
+                     - coeffs.a1 * state.y1 - coeffs.a2 * state.y2;
+
+        state.x2 = state.x1;
+        state.x1 = input;
+        state.y2 = state.y1;
+        state.y1 = output;
+
+        return output;
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        const stepInterval = this.sampleRate / this.stepRate;
+        const lagCoef = 1 - Math.exp(-1 / (this.freqLag * this.sampleRate));
+
+        for (let s = 0; s < left.length; s++) {
+            // Advance sequencer
+            this.stepPhase++;
+            if (this.stepPhase >= stepInterval) {
+                this.stepPhase = 0;
+                this.advanceSequencer();
+
+                // Latch: sample new frequency value on step
+                if (this.currentGate) {
+                    const seqValue = this.getSequencerValue();
+                    const targetFreq = this.quantizeToFrequency(seqValue);
+                    this.latchedValue = targetFreq;
+                }
+            }
+
+            // Update LFO
+            this.lfoPhase += this.lfoRate / this.sampleRate;
+            if (this.lfoPhase >= 1) this.lfoPhase -= 1;
+
+            // Lag the latched frequency (smooth transition)
+            this.laggedFreq += (this.latchedValue - this.laggedFreq) * lagCoef;
+
+            // Initialize with noise burst to kickstart feedback
+            if (!this.initialized) {
+                this.fbL = (Math.random() * 2 - 1) * 0.5;
+                this.fbR = (Math.random() * 2 - 1) * 0.5;
+                this.initialized = true;
+            }
+
+            // Feedback signal with drive and tanh saturation
+            // x = (Ndef('x').ar * 1.8).tanh
+            const drivenL = this.fbL * this.drive;
+            const drivenR = this.fbR * this.drive;
+            const saturatedL = Math.tanh(drivenL);
+            const saturatedR = Math.tanh(drivenR);
+
+            // Add stereo offset to prevent collapse to mono
+            // BPF.ar(x+[0.01,0.1], ...)
+            const offsetL = saturatedL + 0.01;
+            const offsetR = saturatedR + this.stereoOffset + 0.01;
+
+            // Apply BPF with frequency from quantizer
+            // Frequency: 12**latchedValue * baseFreq (in SC: 12**Latch... * 200)
+            // Map latchedValue to exponential range
+            const freqL = this.laggedFreq;
+            const freqR = this.laggedFreq * (1 + this.stereoOffset * 0.5);
+
+            // Smooth frequency changes
+            this.currentFreqL += (freqL - this.currentFreqL) * lagCoef;
+            this.currentFreqR += (freqR - this.currentFreqR) * lagCoef;
+
+            // Clamp frequencies
+            const clampedFreqL = Math.max(50, Math.min(this.sampleRate * 0.45, this.currentFreqL));
+            const clampedFreqR = Math.max(50, Math.min(this.sampleRate * 0.45, this.currentFreqR));
+
+            const coeffsL = this.computeBPFCoeffs(clampedFreqL, this.bpfQ);
+            const coeffsR = this.computeBPFCoeffs(clampedFreqR, this.bpfQ);
+
+            const bpfOutL = this.processBPF(offsetL, coeffsL, this.bpfStateL);
+            const bpfOutR = this.processBPF(offsetR, coeffsR, this.bpfStateR);
+
+            // Gate amplitude
+            const gateAmp = this.currentGate ? 1 : 0.3;
+
+            // Update feedback
+            this.fbL = bpfOutL * this.feedback * gateAmp;
+            this.fbR = bpfOutR * this.feedback * gateAmp;
+
+            // Prevent DC buildup and denormals
+            if (Math.abs(this.fbL) < 1e-10) this.fbL = 0;
+            if (Math.abs(this.fbR) < 1e-10) this.fbR = 0;
+
+            // Output with soft limiting
+            left[s] = Math.tanh(bpfOutL * 0.5);
+            if (right) right[s] = Math.tanh(bpfOutR * 0.5);
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('bpf-latch-processor', BPFLatchProcessor);
+`;
+
+        let audioContext = null;
+        let workletNode = null;
+        let analyser = null;
+        let isPlaying = false;
+        let pedalboard = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        // Main parameter controls
+        const params = ['drive', 'bpfQ', 'baseFreq', 'freqLag', 'stereoOffset', 'feedback'];
+        params.forEach(param => {
+            const input = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            input.addEventListener('input', () => {
+                const val = parseFloat(input.value);
+                if (param === 'baseFreq' || param === 'bpfQ') {
+                    display.textContent = param === 'bpfQ' ? val.toFixed(1) : val;
+                } else {
+                    display.textContent = val.toFixed(2);
+                }
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param]: val });
+                }
+            });
+        });
+
+        // Sequencer controls
+        const seqParams = ['seqLength', 'mutation', 'gateProb', 'stepRate', 'bitRotate', 'xorMask'];
+        seqParams.forEach(param => {
+            const input = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            input.addEventListener('input', () => {
+                const val = parseFloat(input.value);
+                if (param === 'mutation' || param === 'gateProb') {
+                    display.textContent = val.toFixed(2);
+                } else if (param === 'stepRate') {
+                    display.textContent = val.toFixed(1);
+                } else {
+                    display.textContent = val;
+                }
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param]: val });
+                }
+            });
+        });
+
+        document.getElementById('seqMode').addEventListener('change', (e) => {
+            if (workletNode) {
+                workletNode.port.postMessage({ seqMode: parseInt(e.target.value) });
+            }
+        });
+
+        document.getElementById('lfsrType').addEventListener('change', (e) => {
+            if (workletNode) {
+                workletNode.port.postMessage({ lfsrType: parseInt(e.target.value) });
+            }
+        });
+
+        // Quantizer controls
+        const quantParams = ['octaveRange', 'baseOctave', 'lfoRate', 'lfoDepth'];
+        quantParams.forEach(param => {
+            const input = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            input.addEventListener('input', () => {
+                const val = parseFloat(input.value);
+                if (param === 'lfoRate' || param === 'lfoDepth') {
+                    display.textContent = val.toFixed(2);
+                } else {
+                    display.textContent = val;
+                }
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param]: val });
+                }
+            });
+        });
+
+        document.getElementById('rootNote').addEventListener('change', (e) => {
+            if (workletNode) {
+                workletNode.port.postMessage({ rootNote: parseInt(e.target.value) });
+            }
+            updateKeyboardDisplay();
+        });
+
+        document.getElementById('scale').addEventListener('change', (e) => {
+            currentScale = e.target.value;
+            if (currentScale !== 'custom') {
+                allowedNotes = [...scales[currentScale]];
+                updateKeyboardDisplay();
+                if (workletNode) {
+                    workletNode.port.postMessage({ scale: e.target.value, allowedNotes });
+                }
+            }
+        });
+
+        // Shift register display
+        const srBits = document.getElementById('srBits');
+        for (let i = 7; i >= 0; i--) {
+            const bit = document.createElement('div');
+            bit.className = 'sr-bit';
+            bit.dataset.bit = i;
+            srBits.appendChild(bit);
+        }
+
+        function updateShiftRegister(value) {
+            const bits = srBits.querySelectorAll('.sr-bit');
+            bits.forEach(bit => {
+                const bitPos = parseInt(bit.dataset.bit);
+                bit.classList.toggle('active', (value >> bitPos) & 1);
+            });
+        }
+
+        // Piano keyboard display
+        const scales = {
+            chromatic: [0,1,2,3,4,5,6,7,8,9,10,11],
+            major: [0,2,4,5,7,9,11],
+            minor: [0,2,3,5,7,8,10],
+            harmonicMinor: [0,2,3,5,7,8,11],
+            melodicMinor: [0,2,3,5,7,9,11],
+            dorian: [0,2,3,5,7,9,10],
+            phrygian: [0,1,3,5,7,8,10],
+            lydian: [0,2,4,6,7,9,11],
+            mixolydian: [0,2,4,5,7,9,10],
+            locrian: [0,1,3,5,6,8,10],
+            pentatonicMajor: [0,2,4,7,9],
+            pentatonicMinor: [0,3,5,7,10],
+            blues: [0,3,5,6,7,10],
+            wholeTone: [0,2,4,6,8,10],
+            diminished: [0,2,3,5,6,8,9,11],
+            custom: [0,2,4,5,7,9,11]
+        };
+
+        let currentScale = 'chromatic';
+        let allowedNotes = [...scales.chromatic];
+
+        function updateKeyboardDisplay() {
+            const rootNote = parseInt(document.getElementById('rootNote').value);
+            const keys = document.querySelectorAll('.keyboard > div');
+            keys.forEach(key => {
+                const note = parseInt(key.dataset.note);
+                const relativeNote = ((note - rootNote) % 12 + 12) % 12;
+                if (allowedNotes.includes(relativeNote)) {
+                    key.classList.add('active');
+                } else {
+                    key.classList.remove('active');
+                }
+            });
+        }
+
+        // Click on keyboard keys to toggle notes
+        document.getElementById('keyboard').addEventListener('click', (e) => {
+            const key = e.target.closest('[data-note]');
+            if (!key) return;
+
+            const note = parseInt(key.dataset.note);
+            const rootNote = parseInt(document.getElementById('rootNote').value);
+            const relativeNote = ((note - rootNote) % 12 + 12) % 12;
+
+            document.getElementById('scale').value = 'custom';
+            currentScale = 'custom';
+
+            const idx = allowedNotes.indexOf(relativeNote);
+            if (idx >= 0) {
+                allowedNotes.splice(idx, 1);
+            } else {
+                allowedNotes.push(relativeNote);
+                allowedNotes.sort((a, b) => a - b);
+            }
+
+            if (allowedNotes.length === 0) {
+                allowedNotes = [0];
+            }
+
+            updateKeyboardDisplay();
+            if (workletNode) {
+                workletNode.port.postMessage({ allowedNotes });
+            }
+        });
+
+        // Initialize keyboard display
+        updateKeyboardDisplay();
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+            const blob = new Blob([processorCode], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'bpf-latch-processor');
+
+            // Listen for shift register updates
+            workletNode.port.onmessage = (e) => {
+                if (e.data.shiftRegister !== undefined) {
+                    updateShiftRegister(e.data.shiftRegister);
+                }
+            };
+
+            // Initialize pedalboard and route audio through it
+            pedalboard = new PedalboardUI(
+                document.getElementById('pedalboard-container'),
+                audioContext
+            );
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: '15-bpf-latch',
+                    patchId: 'patch-15-bpf-latch'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('patch-15-bpf-latch');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'patch-15-bpf-latch',
+                    prefix: 'latch',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Also connect to analyser for visualization
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            fxNode.connect(analyser);
+
+            // Send initial parameters
+            params.forEach(param => {
+                const val = parseFloat(document.getElementById(param).value);
+                workletNode.port.postMessage({ [param]: val });
+            });
+
+            seqParams.forEach(param => {
+                const val = parseFloat(document.getElementById(param).value);
+                workletNode.port.postMessage({ [param]: val });
+            });
+
+            workletNode.port.postMessage({ seqMode: parseInt(document.getElementById('seqMode').value) });
+            workletNode.port.postMessage({ lfsrType: parseInt(document.getElementById('lfsrType').value) });
+
+            quantParams.forEach(param => {
+                const val = parseFloat(document.getElementById(param).value);
+                workletNode.port.postMessage({ [param]: val });
+            });
+
+            workletNode.port.postMessage({ rootNote: parseInt(document.getElementById('rootNote').value) });
+            workletNode.port.postMessage({ scale: document.getElementById('scale').value });
+            workletNode.port.postMessage({ allowedNotes: allowedNotes });
+        }
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!analyser) return;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const freqData = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(freqData);
+
+            ctx.fillStyle = 'rgba(18, 18, 26, 0.15)';
+            ctx.fillRect(0, 0, width, height);
+
+            // BPF frequency visualization
+            const timeData = new Uint8Array(bufferLength);
+            analyser.getByteTimeDomainData(timeData);
+
+            // Draw frequency spectrum with BPF resonance peaks
+            ctx.fillStyle = '#10b981';
+            for (let i = 0; i < 128; i++) {
+                const v = freqData[i] / 255;
+                const x = (i / 128) * width;
+                const h = v * height * 0.8;
+                ctx.globalAlpha = 0.5 + v * 0.5;
+                ctx.fillRect(x, height - h, width / 128 - 1, h);
+            }
+
+            // Find peak frequency (BPF center indicator)
+            let maxBin = 0;
+            let maxVal = 0;
+            for (let i = 1; i < 128; i++) {
+                if (freqData[i] > maxVal) {
+                    maxVal = freqData[i];
+                    maxBin = i;
+                }
+            }
+
+            // Draw BPF center indicator
+            ctx.globalAlpha = 1;
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 3;
+            const bpfX = (maxBin / 128) * width;
+            ctx.beginPath();
+            ctx.moveTo(bpfX, 0);
+            ctx.lineTo(bpfX, height);
+            ctx.stroke();
+
+            if (isPlaying) requestAnimationFrame(drawVisualizer);
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+            }
+
+            if (isPlaying) {
+                audioContext.suspend();
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                status.textContent = 'Playing';
+                status.classList.add('active');
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+    </script>
+</body>
+</html>

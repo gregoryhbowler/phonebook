@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Høst - Autumn Harvest</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-controls:last-of-type {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Høst</h1>
+                <p>Autumn harvest - drone, leaves, and light</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- JORD (Earth) - Drone -->
+            <span class="section-label">Jord (Earth) - Drone</span>
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Drone Freq</label>
+                    <input type="range" id="droneFreq" min="20" max="2000" value="117" step="0.1">
+                    <span class="param-value" id="droneFreqVal">117</span>
+                </div>
+                <div class="param-group">
+                    <label>Drone Amp</label>
+                    <input type="range" id="droneAmp" min="0" max="1" value="0.5" step="0.01">
+                    <span class="param-value" id="droneAmpVal">0.50</span>
+                </div>
+                <div class="param-group">
+                    <label>Timbre</label>
+                    <input type="range" id="droneTimbre" min="0" max="1" value="0.5" step="0.01">
+                    <span class="param-value" id="droneTimbreVal">0.50</span>
+                </div>
+                <div class="param-group">
+                    <label>Noise</label>
+                    <input type="range" id="droneNoise" min="0" max="1" value="0" step="0.01">
+                    <span class="param-value" id="droneNoiseVal">0.00</span>
+                </div>
+            </div>
+
+            <!-- LØV (Leaves) - Poly -->
+            <span class="section-label">Løv (Leaves) - Polyphonic</span>
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Poly Amp</label>
+                    <input type="range" id="polyAmp" min="0" max="1" value="0.8" step="0.01">
+                    <span class="param-value" id="polyAmpVal">0.80</span>
+                </div>
+                <div class="param-group">
+                    <label>Timbre</label>
+                    <input type="range" id="polyTimbre" min="0" max="1" value="0.2" step="0.01">
+                    <span class="param-value" id="polyTimbreVal">0.20</span>
+                </div>
+                <div class="param-group">
+                    <label>Noise</label>
+                    <input type="range" id="polyNoise" min="0" max="1" value="0.3" step="0.01">
+                    <span class="param-value" id="polyNoiseVal">0.30</span>
+                </div>
+                <div class="param-group">
+                    <label>Bias</label>
+                    <input type="range" id="polyBias" min="0" max="1" value="0.6" step="0.01">
+                    <span class="param-value" id="polyBiasVal">0.60</span>
+                </div>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Attack</label>
+                    <input type="range" id="polyAttack" min="0.001" max="5" value="0.5" step="0.001">
+                    <span class="param-value" id="polyAttackVal">0.50</span>
+                </div>
+                <div class="param-group">
+                    <label>Release</label>
+                    <input type="range" id="polyRelease" min="0.01" max="8" value="3" step="0.01">
+                    <span class="param-value" id="polyReleaseVal">3.00</span>
+                </div>
+                <div class="param-group">
+                    <label>Shape</label>
+                    <input type="range" id="polyShape" min="0" max="1" value="0.1" step="0.01">
+                    <span class="param-value" id="polyShapeVal">0.10</span>
+                </div>
+                <div class="param-group">
+                    <label>Loop</label>
+                    <select id="polyLoop">
+                        <option value="0">Off</option>
+                        <option value="1">On</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- LYS (Light) - Effects -->
+            <span class="section-label">Lys (Light) - Effects</span>
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Peak 1</label>
+                    <input type="range" id="fxPeak1" min="20" max="8000" value="115" step="1">
+                    <span class="param-value" id="fxPeak1Val">115</span>
+                </div>
+                <div class="param-group">
+                    <label>Peak 2</label>
+                    <input type="range" id="fxPeak2" min="20" max="8000" value="218" step="1">
+                    <span class="param-value" id="fxPeak2Val">218</span>
+                </div>
+                <div class="param-group">
+                    <label>Body</label>
+                    <input type="range" id="fxBody" min="0" max="1" value="0.3" step="0.01">
+                    <span class="param-value" id="fxBodyVal">0.30</span>
+                </div>
+                <div class="param-group">
+                    <label>Delay Time</label>
+                    <input type="range" id="fxTime" min="0.01" max="2" value="0.5" step="0.01">
+                    <span class="param-value" id="fxTimeVal">0.50</span>
+                </div>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Gain/Dist</label>
+                    <input type="range" id="fxGain" min="0.5" max="8" value="1" step="0.1">
+                    <span class="param-value" id="fxGainVal">1.0</span>
+                </div>
+                <div class="param-group">
+                    <label>Master</label>
+                    <input type="range" id="fxAmp" min="0" max="1" value="0.5" step="0.01">
+                    <span class="param-value" id="fxAmpVal">0.50</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <code>Høst: Autumn harvest synth by @imminentgloom - jord (earth), løv (leaves), lys (light)</code>
+            </div>
+
+            <p class="status" id="status">Click play, then press keys A-L or use MIDI</p>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+
+        <nav class="nav-links">
+            <a href="haven-01.html">&larr; Previous</a>
+            <a href="icarus-01.html">Next &rarr;</a>
+        </nav>
+    </div>
+
+    <script>
+        const processorCode = `
+class HostProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+
+        // Drone parameters (JORD)
+        this.droneFreq = 117;
+        this.droneAmp = 0.5;
+        this.droneTimbre = 0.5;
+        this.droneNoise = 0;
+        this.droneBias = 0;
+
+        // Poly parameters (LØV)
+        this.polyAmp = 0.8;
+        this.polyTimbre = 0.2;
+        this.polyNoise = 0.3;
+        this.polyBias = 0.6;
+        this.polyShape = 0.1;
+        this.polyAttack = 0.5;
+        this.polyRelease = 3;
+        this.polyLoop = false;
+
+        // FX parameters (LYS)
+        this.fxPeak1 = 115;
+        this.fxPeak2 = 218;
+        this.fxBody = 0.3;
+        this.fxTime = 0.5;
+        this.fxGain = 1;
+        this.fxAmp = 0.5;
+
+        // Drone oscillator state
+        this.dronePhase = 0;
+        this.droneNoiseVal = 0;
+        this.droneLpfState = { s1: 0, s2: 0 };
+
+        // Pink noise state
+        this.pinkB0 = 0; this.pinkB1 = 0; this.pinkB2 = 0;
+        this.pinkB3 = 0; this.pinkB4 = 0; this.pinkB5 = 0; this.pinkB6 = 0;
+
+        // Polyphonic voices (6 max)
+        this.voices = [];
+        for (let i = 0; i < 6; i++) {
+            this.voices.push({
+                active: false,
+                note: 0,
+                freq: 440,
+                phase: 0,
+                env: 0,
+                envStage: 'off', // attack, sustain, release, off
+                envTime: 0,
+                loopPhase: 0,
+                noiseVal: 0,
+                lpfState: { s1: 0, s2: 0 }
+            });
+        }
+
+        // FX state
+        // SVF peak filters
+        this.peak1State = { s1: 0, s2: 0 };
+        this.peak2State = { s1: 0, s2: 0 };
+
+        // Delay line (2 seconds max)
+        this.delayBuffer = new Float32Array(Math.ceil(sampleRate * 2));
+        this.delayIdx = 0;
+        this.feedbackVal = 0;
+
+        // DC blocker
+        this.dcPrev = 0;
+        this.dcOut = 0;
+
+        this.port.onmessage = (e) => {
+            const data = e.data;
+
+            // Drone params
+            if (data.droneFreq !== undefined) this.droneFreq = data.droneFreq;
+            if (data.droneAmp !== undefined) this.droneAmp = data.droneAmp;
+            if (data.droneTimbre !== undefined) this.droneTimbre = data.droneTimbre;
+            if (data.droneNoise !== undefined) this.droneNoise = data.droneNoise;
+
+            // Poly params
+            if (data.polyAmp !== undefined) this.polyAmp = data.polyAmp;
+            if (data.polyTimbre !== undefined) this.polyTimbre = data.polyTimbre;
+            if (data.polyNoise !== undefined) this.polyNoise = data.polyNoise;
+            if (data.polyBias !== undefined) this.polyBias = data.polyBias;
+            if (data.polyShape !== undefined) this.polyShape = data.polyShape;
+            if (data.polyAttack !== undefined) this.polyAttack = data.polyAttack;
+            if (data.polyRelease !== undefined) this.polyRelease = data.polyRelease;
+            if (data.polyLoop !== undefined) this.polyLoop = data.polyLoop;
+
+            // FX params
+            if (data.fxPeak1 !== undefined) this.fxPeak1 = data.fxPeak1;
+            if (data.fxPeak2 !== undefined) this.fxPeak2 = data.fxPeak2;
+            if (data.fxBody !== undefined) this.fxBody = data.fxBody;
+            if (data.fxTime !== undefined) this.fxTime = data.fxTime;
+            if (data.fxGain !== undefined) this.fxGain = data.fxGain;
+            if (data.fxAmp !== undefined) this.fxAmp = data.fxAmp;
+
+            // Note on/off
+            if (data.noteOn !== undefined) {
+                this.noteOn(data.noteOn, data.velocity || 1);
+            }
+            if (data.noteOff !== undefined) {
+                this.noteOff(data.noteOff);
+            }
+        };
+    }
+
+    noteOn(note, velocity) {
+        // Check if this note is already playing - retrigger it instead of allocating new voice
+        let voice = this.voices.find(v => v.active && v.note === note);
+
+        if (!voice) {
+            // Find free voice or steal oldest
+            voice = this.voices.find(v => !v.active);
+            if (!voice) {
+                // Steal oldest (first in array)
+                voice = this.voices[0];
+            }
+        }
+
+        voice.active = true;
+        voice.note = note;
+        voice.freq = 440 * Math.pow(2, (note - 69) / 12);
+        voice.phase = 0;
+        voice.env = 0;
+        voice.envStage = 'attack';
+        voice.envTime = 0;
+        voice.loopPhase = 0;
+        voice.velocity = velocity;
+    }
+
+    noteOff(note) {
+        // Release ALL voices with this note (handles duplicate noteOns)
+        for (const voice of this.voices) {
+            if (voice.active && voice.note === note && voice.envStage !== 'release') {
+                voice.envStage = 'release';
+                voice.envTime = 0;
+            }
+        }
+    }
+
+    // Pink noise generator
+    pinkNoise() {
+        const white = Math.random() * 2 - 1;
+        this.pinkB0 = 0.99886 * this.pinkB0 + white * 0.0555179;
+        this.pinkB1 = 0.99332 * this.pinkB1 + white * 0.0750759;
+        this.pinkB2 = 0.96900 * this.pinkB2 + white * 0.1538520;
+        this.pinkB3 = 0.86650 * this.pinkB3 + white * 0.3104856;
+        this.pinkB4 = 0.55000 * this.pinkB4 + white * 0.5329522;
+        this.pinkB5 = -0.7616 * this.pinkB5 - white * 0.0168980;
+        const pink = this.pinkB0 + this.pinkB1 + this.pinkB2 + this.pinkB3 +
+                     this.pinkB4 + this.pinkB5 + this.pinkB6 + white * 0.5362;
+        this.pinkB6 = white * 0.115926;
+        return pink * 0.11;
+    }
+
+    // Waveform generator based on timbre (VarSaw -> Sine -> Pulse)
+    // timbre 0-0.33: VarSaw, 0.33-0.66: Sine, 0.66-1: Pulse
+    generateWaveform(phase, timbre, noiseVal) {
+        // White noise FM modulation
+        const noiseFM = noiseVal * 0.01;
+        const modPhase = (phase + noiseFM) % 1;
+
+        let sig;
+        if (timbre < 0.33) {
+            // VarSaw (variable width saw)
+            const width = 0.1 + timbre * 2.4; // 0.1 to 0.9
+            if (modPhase < width) {
+                sig = modPhase / width * 2 - 1;
+            } else {
+                sig = (1 - (modPhase - width) / (1 - width)) * 2 - 1;
+            }
+        } else if (timbre < 0.66) {
+            // Sine
+            sig = Math.sin(modPhase * Math.PI * 2);
+        } else {
+            // Pulse with varying width
+            const pw = 0.1 + (timbre - 0.66) * 2.4;
+            sig = modPhase < pw ? 1 : -1;
+        }
+
+        return sig;
+    }
+
+    // SVF Peak filter (peaking EQ)
+    svfPeak(input, state, freq, q) {
+        const w = Math.min(0.49, freq / this.sampleRate);
+        const g = Math.tan(w * Math.PI);
+        const k = 1 / q;
+
+        const a1 = 1 / (1 + g * (g + k));
+        const a2 = g * a1;
+        const a3 = g * a2;
+
+        const v3 = input - state.s2;
+        const v1 = a1 * state.s1 + a2 * v3;
+        const v2 = state.s2 + a2 * state.s1 + a3 * v3;
+
+        state.s1 = 2 * v1 - state.s1;
+        state.s2 = 2 * v2 - state.s2;
+
+        // Peak output = input + k * bandpass
+        return input + k * v1 * 2;
+    }
+
+    // Simple 2-pole LPF
+    lpf(input, state, freq) {
+        const w = Math.min(0.49, freq / this.sampleRate);
+        const g = Math.tan(w * Math.PI);
+        const a = 1 / (1 + g * 1.414 + g * g);
+        const a1 = 2 * a;
+        const a2 = a;
+        const b1 = 2 * (g * g - 1) * a;
+        const b2 = (1 - g * 1.414 + g * g) * a;
+
+        const out = a * input + state.s1;
+        state.s1 = a1 * input - b1 * out + state.s2;
+        state.s2 = a2 * input - b2 * out;
+
+        return out;
+    }
+
+    // LeakDC
+    leakDC(input) {
+        const coeff = 0.995;
+        const out = input - this.dcPrev + coeff * this.dcOut;
+        this.dcPrev = input;
+        this.dcOut = out;
+        return out;
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        for (let s = 0; s < left.length; s++) {
+            let mix = 0;
+
+            // === DRONE (JORD) ===
+            if (this.droneAmp > 0.001) {
+                // White noise for FM
+                this.droneNoiseVal = this.droneNoiseVal * 0.99 + (Math.random() * 2 - 1) * 0.01;
+                const noiseFM = this.droneNoiseVal * this.droneNoise * 50;
+
+                // Update phase with noise FM
+                const droneFreqMod = this.droneFreq + noiseFM;
+                this.dronePhase += droneFreqMod / this.sampleRate;
+                if (this.dronePhase >= 1) this.dronePhase -= 1;
+
+                // Generate waveform
+                let droneSig = this.generateWaveform(this.dronePhase, this.droneTimbre, this.droneNoiseVal);
+
+                // Mix pink noise
+                const pink = this.pinkNoise();
+                droneSig = droneSig * (1 - this.droneNoise * 0.5) + pink * this.droneNoise * 2;
+
+                // Threshold comparator (creates gritty texture) via bias
+                const threshold = this.droneBias * 2 - 1;
+                droneSig = droneSig > threshold ? droneSig : droneSig * 0.3;
+
+                // LeakDC equivalent
+                droneSig = this.leakDC(droneSig);
+
+                // Amplitude-responsive LPF (200-20000 Hz based on amp)
+                const lpfFreq = 200 + Math.abs(droneSig) * 19800;
+                droneSig = this.lpf(droneSig, this.droneLpfState, Math.min(lpfFreq, 15000));
+
+                mix += droneSig * this.droneAmp * 0.5;
+            }
+
+            // === POLY VOICES (LØV) ===
+            for (let i = 0; i < this.voices.length; i++) {
+                const voice = this.voices[i];
+                if (!voice.active && voice.envStage === 'off') continue;
+
+                // Update envelope
+                const dt = 1 / this.sampleRate;
+                voice.envTime += dt;
+
+                // Shape affects envelope curves
+                const attackCurve = -4 + this.polyShape * 8; // -4 to 4
+                const releaseCurve = -4 + this.polyShape * 8;
+
+                if (voice.envStage === 'attack') {
+                    const t = Math.min(1, voice.envTime / this.polyAttack);
+                    if (attackCurve >= 0) {
+                        voice.env = Math.pow(t, 1 + attackCurve);
+                    } else {
+                        voice.env = 1 - Math.pow(1 - t, 1 - attackCurve);
+                    }
+                    if (voice.envTime >= this.polyAttack) {
+                        voice.envStage = 'sustain';
+                        voice.env = 1;
+                    }
+                } else if (voice.envStage === 'sustain') {
+                    voice.env = 1;
+                    // If loop mode, create AR loop
+                    if (this.polyLoop) {
+                        voice.loopPhase += dt / (this.polyAttack + this.polyRelease);
+                        if (voice.loopPhase >= 1) voice.loopPhase -= 1;
+                        const loopT = voice.loopPhase * (this.polyAttack + this.polyRelease);
+                        if (loopT < this.polyAttack) {
+                            const t = loopT / this.polyAttack;
+                            voice.env = attackCurve >= 0 ? Math.pow(t, 1 + attackCurve) : 1 - Math.pow(1 - t, 1 - attackCurve);
+                        } else {
+                            const t = (loopT - this.polyAttack) / this.polyRelease;
+                            voice.env = releaseCurve >= 0 ? 1 - Math.pow(t, 1 + releaseCurve) : Math.pow(1 - t, 1 - releaseCurve);
+                        }
+                    }
+                } else if (voice.envStage === 'release') {
+                    const t = Math.min(1, voice.envTime / this.polyRelease);
+                    if (releaseCurve >= 0) {
+                        voice.env = 1 - Math.pow(t, 1 + releaseCurve);
+                    } else {
+                        voice.env = Math.pow(1 - t, 1 - releaseCurve);
+                    }
+                    if (voice.envTime >= this.polyRelease) {
+                        voice.envStage = 'off';
+                        voice.active = false;
+                        voice.env = 0;
+                    }
+                }
+
+                if (voice.env < 0.0001) continue;
+
+                // White noise for FM
+                voice.noiseVal = voice.noiseVal * 0.99 + (Math.random() * 2 - 1) * 0.01;
+                const noiseFM = voice.noiseVal * this.polyNoise * 30;
+
+                // Update phase
+                voice.phase += (voice.freq + noiseFM) / this.sampleRate;
+                if (voice.phase >= 1) voice.phase -= 1;
+
+                // Generate waveform
+                let sig = this.generateWaveform(voice.phase, this.polyTimbre, voice.noiseVal);
+
+                // Mix pink noise
+                const pink = this.pinkNoise();
+                sig = sig * (1 - this.polyNoise * 0.3) + pink * this.polyNoise;
+
+                // Threshold comparator
+                const threshold = this.polyBias * 2 - 1;
+                sig = sig > threshold ? sig : sig * 0.3;
+
+                // Apply envelope and velocity
+                sig *= voice.env * (voice.velocity || 1);
+
+                // Amplitude-responsive LPF
+                const lpfFreq = 200 + voice.env * 12000;
+                sig = this.lpf(sig, voice.lpfState, lpfFreq);
+
+                mix += sig * this.polyAmp * 0.3;
+            }
+
+            // === EFFECTS (LYS) ===
+            // SVF Peak filters
+            let fx = mix;
+            fx = this.svfPeak(fx, this.peak1State, this.fxPeak1, 2);
+            fx = this.svfPeak(fx, this.peak2State, this.fxPeak2, 2);
+
+            // Crossfade between dry and filtered (body parameter)
+            fx = mix * (1 - this.fxBody) + fx * this.fxBody;
+
+            // Feedback delay
+            const delaySamples = Math.floor(this.fxTime * this.sampleRate);
+            const delayReadIdx = (this.delayIdx - delaySamples + this.delayBuffer.length) % this.delayBuffer.length;
+            const delayed = this.delayBuffer[delayReadIdx];
+
+            // Mix with feedback
+            const feedback = 0.4;
+            const delayInput = fx + delayed * feedback;
+            this.delayBuffer[this.delayIdx] = Math.tanh(delayInput);
+            this.delayIdx = (this.delayIdx + 1) % this.delayBuffer.length;
+
+            fx = fx * 0.7 + delayed * 0.3;
+
+            // Gain/distortion
+            fx = Math.tanh(fx * this.fxGain);
+
+            // Master output
+            const out = fx * this.fxAmp;
+
+            left[s] = out;
+            if (right) right[s] = out;
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('host-processor', HostProcessor);
+`;
+
+        let audioContext;
+        let workletNode;
+        let analyser;
+        let isPlaying = false;
+        let pedalboard = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        // Key to MIDI note mapping (A-L = white keys starting from C4)
+        const keyMap = {
+            'a': 60, 'w': 61, 's': 62, 'e': 63, 'd': 64, 'f': 65,
+            't': 66, 'g': 67, 'y': 68, 'h': 69, 'u': 70, 'j': 71,
+            'k': 72, 'o': 73, 'l': 74, 'p': 75
+        };
+        const activeKeys = new Set();
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'host-processor', {
+                outputChannelCount: [2]
+            });
+
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+
+            // Initialize pedalboard and route audio through it
+            pedalboard = new PedalboardUI(
+                document.getElementById('pedalboard-container'),
+                audioContext
+            );
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(analyser);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'h-st-autumn-harvest',
+                    patchId: 'host-01'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('host-01');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'host-01',
+                    prefix: '01',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            sendParams();
+        }
+
+        function sendParams() {
+            if (!workletNode) return;
+            workletNode.port.postMessage({
+                droneFreq: parseFloat(document.getElementById('droneFreq').value),
+                droneAmp: parseFloat(document.getElementById('droneAmp').value),
+                droneTimbre: parseFloat(document.getElementById('droneTimbre').value),
+                droneNoise: parseFloat(document.getElementById('droneNoise').value),
+                polyAmp: parseFloat(document.getElementById('polyAmp').value),
+                polyTimbre: parseFloat(document.getElementById('polyTimbre').value),
+                polyNoise: parseFloat(document.getElementById('polyNoise').value),
+                polyBias: parseFloat(document.getElementById('polyBias').value),
+                polyShape: parseFloat(document.getElementById('polyShape').value),
+                polyAttack: parseFloat(document.getElementById('polyAttack').value),
+                polyRelease: parseFloat(document.getElementById('polyRelease').value),
+                polyLoop: document.getElementById('polyLoop').value === '1',
+                fxPeak1: parseFloat(document.getElementById('fxPeak1').value),
+                fxPeak2: parseFloat(document.getElementById('fxPeak2').value),
+                fxBody: parseFloat(document.getElementById('fxBody').value),
+                fxTime: parseFloat(document.getElementById('fxTime').value),
+                fxGain: parseFloat(document.getElementById('fxGain').value),
+                fxAmp: parseFloat(document.getElementById('fxAmp').value)
+            });
+        }
+
+        // Parameter controls
+        const params = [
+            'droneFreq', 'droneAmp', 'droneTimbre', 'droneNoise',
+            'polyAmp', 'polyTimbre', 'polyNoise', 'polyBias',
+            'polyShape', 'polyAttack', 'polyRelease',
+            'fxPeak1', 'fxPeak2', 'fxBody', 'fxTime', 'fxGain', 'fxAmp'
+        ];
+
+        params.forEach(param => {
+            const el = document.getElementById(param);
+            if (el) {
+                el.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value);
+                    const display = document.getElementById(param + 'Val');
+                    if (display) {
+                        display.textContent = val < 10 ? val.toFixed(2) : Math.round(val);
+                    }
+                    sendParams();
+                });
+            }
+        });
+
+        document.getElementById('polyLoop').addEventListener('change', sendParams);
+
+        // Keyboard input
+        document.addEventListener('keydown', (e) => {
+            if (!isPlaying || activeKeys.has(e.key)) return;
+            const note = keyMap[e.key.toLowerCase()];
+            if (note !== undefined) {
+                activeKeys.add(e.key);
+                workletNode.port.postMessage({ noteOn: note, velocity: 1 });
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const note = keyMap[e.key.toLowerCase()];
+            if (note !== undefined) {
+                activeKeys.delete(e.key);
+                workletNode.port.postMessage({ noteOff: note });
+            }
+        });
+
+        // MIDI input
+        if (navigator.requestMIDIAccess) {
+            navigator.requestMIDIAccess().then((midi) => {
+                midi.inputs.forEach((input) => {
+                    input.onmidimessage = (msg) => {
+                        const [cmd, note, vel] = msg.data;
+                        if (!isPlaying) return;
+                        if ((cmd & 0xf0) === 0x90 && vel > 0) {
+                            workletNode.port.postMessage({ noteOn: note, velocity: vel / 127 });
+                        } else if ((cmd & 0xf0) === 0x80 || ((cmd & 0xf0) === 0x90 && vel === 0)) {
+                            workletNode.port.postMessage({ noteOff: note });
+                        }
+                    };
+                });
+            });
+        }
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Float32Array(bufferLength);
+            analyser.getFloatTimeDomainData(dataArray);
+
+            // Autumn colors background
+            ctx.fillStyle = '#0d0906';
+            ctx.fillRect(0, 0, width, height);
+
+            // Waveform with autumn gradient
+            const gradient = ctx.createLinearGradient(0, 0, width, 0);
+            gradient.addColorStop(0, '#8b4513'); // saddle brown
+            gradient.addColorStop(0.3, '#d2691e'); // chocolate
+            gradient.addColorStop(0.6, '#cd853f'); // peru
+            gradient.addColorStop(1, '#8b4513');
+
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const sliceWidth = width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i];
+                const y = (v + 1) / 2 * height;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+                x += sliceWidth;
+            }
+
+            ctx.stroke();
+
+            if (isPlaying) {
+                requestAnimationFrame(drawVisualizer);
+            }
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+            }
+
+            if (isPlaying) {
+                await audioContext.suspend();
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                status.textContent = 'Autumn unfolds...';
+                status.classList.add('active');
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+    </script>
+</body>
+</html>

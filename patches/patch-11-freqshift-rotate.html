@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>11 - FreqShift Rotate</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>11 - FreqShift Rotate</h1>
+                <p>Frequency shifting with rotation feedback and dust</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <div class="visualizer-container">
+                <canvas id="visualizer"></canvas>
+            </div>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Shift L</label>
+                    <input type="range" id="shiftL" min="-100" max="0" value="-60" step="5">
+                    <span class="param-value" id="shiftLVal">-60</span>
+                </div>
+                <div class="param-group">
+                    <label>Shift R</label>
+                    <input type="range" id="shiftR" min="0" max="40" value="19.9" step="0.5">
+                    <span class="param-value" id="shiftRVal">19.9</span>
+                </div>
+                <div class="param-group">
+                    <label>Rotation</label>
+                    <input type="range" id="rotation" min="0" max="1" value="0.125" step="0.01">
+                    <span class="param-value" id="rotationVal">0.12</span>
+                </div>
+                <div class="param-group">
+                    <label>Dust</label>
+                    <input type="range" id="dustLevel" min="0.001" max="0.02" value="0.005" step="0.001">
+                    <span class="param-value" id="dustLevelVal">0.005</span>
+                </div>
+            </div>
+
+            <div class="sequencer-section">
+                <h3>Rotation Sequencer</h3>
+                <div class="param-controls">
+                    <div class="param-group">
+                        <label>Mode</label>
+                        <select id="seqMode">
+                            <option value="0">Forward</option>
+                            <option value="1">Reverse</option>
+                            <option value="2">Pendulum</option>
+                            <option value="3">Random</option>
+                            <option value="4" selected>Turing</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Length</label>
+                        <input type="range" id="seqLength" min="4" max="32" value="16" step="1">
+                        <span class="param-value" id="seqLengthVal">16</span>
+                    </div>
+                    <div class="param-group">
+                        <label>LFSR Taps</label>
+                        <select id="lfsrTaps">
+                            <option value="0">8-bit Fibonacci</option>
+                            <option value="1" selected>8-bit Galois</option>
+                            <option value="2">16-bit Maximal</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Mutation</label>
+                        <input type="range" id="mutation" min="0" max="1" value="0.15" step="0.01">
+                        <span class="param-value" id="mutationVal">0.15</span>
+                    </div>
+                </div>
+                <div class="param-controls">
+                    <div class="param-group">
+                        <label>Gate Prob</label>
+                        <input type="range" id="gateProb" min="0" max="1" value="0.8" step="0.05">
+                        <span class="param-value" id="gateProbVal">0.80</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Step Rate</label>
+                        <input type="range" id="stepRate" min="0.5" max="16" value="4" step="0.5">
+                        <span class="param-value" id="stepRateVal">4.0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Bit Rotate</label>
+                        <input type="range" id="bitRotate" min="0" max="7" value="0" step="1">
+                        <span class="param-value" id="bitRotateVal">0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>XOR Mask</label>
+                        <input type="range" id="xorMask" min="0" max="255" value="0" step="1">
+                        <span class="param-value" id="xorMaskVal">0</span>
+                    </div>
+                </div>
+                <div class="shift-register-display">
+                    <span class="register-label">Shift Register:</span>
+                    <span class="register-bits" id="shiftRegister">00000000</span>
+                </div>
+            </div>
+
+            <div class="quantizer-section">
+                <h3>Pitch Quantizer</h3>
+                <div class="param-controls">
+                    <div class="param-group">
+                        <label>Root</label>
+                        <select id="rootNote">
+                            <option value="0">C</option>
+                            <option value="1">C#</option>
+                            <option value="2">D</option>
+                            <option value="3">D#</option>
+                            <option value="4">E</option>
+                            <option value="5">F</option>
+                            <option value="6">F#</option>
+                            <option value="7">G</option>
+                            <option value="8">G#</option>
+                            <option value="9" selected>A</option>
+                            <option value="10">A#</option>
+                            <option value="11">B</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Scale</label>
+                        <select id="scale">
+                            <option value="chromatic">Chromatic</option>
+                            <option value="major">Major</option>
+                            <option value="minor" selected>Minor</option>
+                            <option value="dorian">Dorian</option>
+                            <option value="phrygian">Phrygian</option>
+                            <option value="lydian">Lydian</option>
+                            <option value="mixolydian">Mixolydian</option>
+                            <option value="pentatonic">Pentatonic</option>
+                            <option value="blues">Blues</option>
+                            <option value="whole_tone">Whole Tone</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="keyboard" id="keyboard"></div>
+                <div class="param-controls">
+                    <div class="param-group">
+                        <label>Octave Range</label>
+                        <input type="range" id="octaveRange" min="1" max="4" value="2" step="1">
+                        <span class="param-value" id="octaveRangeVal">2</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Base Octave</label>
+                        <input type="range" id="baseOctave" min="1" max="6" value="3" step="1">
+                        <span class="param-value" id="baseOctaveVal">3</span>
+                    </div>
+                    <div class="param-group">
+                        <label>LFO Rate</label>
+                        <input type="range" id="lfoRate" min="0.1" max="8" value="0.5" step="0.1">
+                        <span class="param-value" id="lfoRateVal">0.5</span>
+                    </div>
+                    <div class="param-group">
+                        <label>LFO Depth</label>
+                        <input type="range" id="lfoDepth" min="0" max="2" value="0" step="0.1">
+                        <span class="param-value" id="lfoDepthVal">0.0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <code>Ndef('x',{Normalizer.ar(FreqShift.ar(Rotate2.ar(*Ndef('x').ar++1/8).tanh,20*[-3,0.995])+Dust.ar(1!2,0.005),1,0.5)}).play</code>
+            </div>
+
+            <p class="status" id="status">Click play to start</p>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+
+        <nav class="nav-links">
+            <a href="patch-10-saw-lpf-pattern.html">&larr; Previous</a>
+            <a href="patch-12-pluck-cusp.html">Next &rarr;</a>
+        </nav>
+    </div>
+
+    <script>
+        const processorCode = `
+class FreqShiftRotateProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+
+        this.shiftL = -60;
+        this.shiftR = 19.9;
+        this.rotation = 0.125;
+        this.dustLevel = 0.005;
+
+        // Sequencer state
+        this.seqMode = 4;
+        this.seqLength = 16;
+        this.lfsrTaps = 1;
+        this.mutation = 0.15;
+        this.gateProb = 0.8;
+        this.stepRate = 4;
+        this.bitRotate = 0;
+        this.xorMask = 0;
+
+        // Quantizer state
+        this.rootNote = 9;
+        this.allowedNotes = [0, 2, 3, 5, 7, 8, 10];
+        this.octaveRange = 2;
+        this.baseOctave = 3;
+        this.lfoRate = 0.5;
+        this.lfoDepth = 0;
+        this.lfoPhase = 0;
+
+        // Sequence
+        this.sequence = new Float32Array(32);
+        for (let i = 0; i < 32; i++) {
+            this.sequence[i] = Math.random();
+        }
+        this.seqPos = 0;
+        this.seqDir = 1;
+        this.stepPhase = 0;
+        this.currentGate = true;
+        this.shiftReg = Math.floor(Math.random() * 255) + 1;
+
+        // Feedback state
+        this.feedbackL = 0;
+        this.feedbackR = 0;
+
+        // FreqShift oscillator phases
+        this.shiftPhaseL = 0;
+        this.shiftPhaseR = 0;
+
+        // Hilbert transform allpass coefficients (for proper frequency shifting)
+        this.hilbertCoeffs = [0.6923878, 0.9360654322959, 0.9882295226860, 0.9987488452737];
+        this.hilbertStateL = [[0,0], [0,0], [0,0], [0,0]];
+        this.hilbertStateR = [[0,0], [0,0], [0,0], [0,0]];
+        this.hilbert90StateL = [[0,0], [0,0], [0,0], [0,0]];
+        this.hilbert90StateR = [[0,0], [0,0], [0,0], [0,0]];
+
+        // Normalizer state
+        this.normPeakL = 0.001;
+        this.normPeakR = 0.001;
+
+        // Smoothing for modulation
+        this.currentRotationMod = 0;
+        this.currentShiftMod = 0;
+
+        this.port.onmessage = (e) => {
+            if (e.data.shiftL !== undefined) this.shiftL = e.data.shiftL;
+            if (e.data.shiftR !== undefined) this.shiftR = e.data.shiftR;
+            if (e.data.rotation !== undefined) this.rotation = e.data.rotation;
+            if (e.data.dustLevel !== undefined) this.dustLevel = e.data.dustLevel;
+            if (e.data.seqMode !== undefined) this.seqMode = e.data.seqMode;
+            if (e.data.seqLength !== undefined) this.seqLength = e.data.seqLength;
+            if (e.data.lfsrTaps !== undefined) this.lfsrTaps = e.data.lfsrTaps;
+            if (e.data.mutation !== undefined) this.mutation = e.data.mutation;
+            if (e.data.gateProb !== undefined) this.gateProb = e.data.gateProb;
+            if (e.data.stepRate !== undefined) this.stepRate = e.data.stepRate;
+            if (e.data.bitRotate !== undefined) this.bitRotate = e.data.bitRotate;
+            if (e.data.xorMask !== undefined) this.xorMask = e.data.xorMask;
+            if (e.data.rootNote !== undefined) this.rootNote = e.data.rootNote;
+            if (e.data.allowedNotes !== undefined) this.allowedNotes = e.data.allowedNotes;
+            if (e.data.octaveRange !== undefined) this.octaveRange = e.data.octaveRange;
+            if (e.data.baseOctave !== undefined) this.baseOctave = e.data.baseOctave;
+            if (e.data.lfoRate !== undefined) this.lfoRate = e.data.lfoRate;
+            if (e.data.lfoDepth !== undefined) this.lfoDepth = e.data.lfoDepth;
+        };
+    }
+
+    stepLFSR() {
+        let bit;
+        switch (this.lfsrTaps) {
+            case 0: // 8-bit Fibonacci
+                bit = ((this.shiftReg >> 7) ^ (this.shiftReg >> 5) ^ (this.shiftReg >> 4) ^ (this.shiftReg >> 3)) & 1;
+                this.shiftReg = ((this.shiftReg << 1) | bit) & 0xFF;
+                break;
+            case 1: // 8-bit Galois
+                bit = this.shiftReg & 1;
+                this.shiftReg >>= 1;
+                if (bit) this.shiftReg ^= 0xB8;
+                break;
+            case 2: // 16-bit maximal
+                bit = ((this.shiftReg >> 15) ^ (this.shiftReg >> 14) ^ (this.shiftReg >> 12) ^ (this.shiftReg >> 3)) & 1;
+                this.shiftReg = ((this.shiftReg << 1) | bit) & 0xFFFF;
+                break;
+        }
+        if (this.shiftReg === 0) this.shiftReg = 1;
+    }
+
+    getSequenceValue() {
+        // Apply bit rotation
+        let reg = this.shiftReg;
+        if (this.bitRotate > 0) {
+            const bits = this.lfsrTaps === 2 ? 16 : 8;
+            const mask = (1 << bits) - 1;
+            reg = ((reg << this.bitRotate) | (reg >> (bits - this.bitRotate))) & mask;
+        }
+
+        // Apply XOR mask
+        reg ^= this.xorMask;
+
+        const maxVal = this.lfsrTaps === 2 ? 65535 : 255;
+        return reg / maxVal;
+    }
+
+    advanceSequence() {
+        switch (this.seqMode) {
+            case 0: // Forward
+                this.seqPos = (this.seqPos + 1) % this.seqLength;
+                break;
+            case 1: // Reverse
+                this.seqPos = (this.seqPos - 1 + this.seqLength) % this.seqLength;
+                break;
+            case 2: // Pendulum
+                this.seqPos += this.seqDir;
+                if (this.seqPos >= this.seqLength - 1 || this.seqPos <= 0) {
+                    this.seqDir *= -1;
+                }
+                break;
+            case 3: // Random
+                this.seqPos = Math.floor(Math.random() * this.seqLength);
+                break;
+            case 4: // Turing machine
+                this.stepLFSR();
+                if (Math.random() < this.mutation) {
+                    const bits = this.lfsrTaps === 2 ? 16 : 8;
+                    const bitPos = Math.floor(Math.random() * bits);
+                    this.shiftReg ^= (1 << bitPos);
+                }
+                break;
+        }
+
+        this.currentGate = Math.random() < this.gateProb;
+
+        // Send shift register state to UI
+        this.port.postMessage({ shiftReg: this.shiftReg, bits: this.lfsrTaps === 2 ? 16 : 8 });
+    }
+
+    // Allpass filter for Hilbert transform
+    allpass(input, coeff, state) {
+        const output = coeff * (input - state[1]) + state[0];
+        state[0] = input;
+        state[1] = output;
+        return output;
+    }
+
+    // Hilbert transform approximation
+    hilbertTransform(input, states, states90) {
+        let real = input;
+        let imag = input;
+
+        // Process through allpass chain
+        for (let i = 0; i < 4; i++) {
+            real = this.allpass(real, this.hilbertCoeffs[i], states[i]);
+        }
+        for (let i = 0; i < 4; i++) {
+            imag = this.allpass(imag, this.hilbertCoeffs[i], states90[i]);
+        }
+
+        return { real, imag };
+    }
+
+    // Proper frequency shifting using Hilbert transform
+    freqShift(sample, shiftHz, statesReal, statesImag, phase) {
+        const hilbert = this.hilbertTransform(sample, statesReal, statesImag);
+
+        // Update phase
+        const newPhase = phase + shiftHz / this.sampleRate;
+
+        // Single sideband modulation
+        const cos = Math.cos(2 * Math.PI * newPhase);
+        const sin = Math.sin(2 * Math.PI * newPhase);
+
+        return hilbert.real * cos - hilbert.imag * sin;
+    }
+
+    quantizeToShift(value, baseShift) {
+        if (this.allowedNotes.length === 0) return baseShift;
+
+        const totalNotes = this.allowedNotes.length * this.octaveRange;
+        const noteIdx = Math.floor(value * totalNotes) % totalNotes;
+        const scaleIdx = noteIdx % this.allowedNotes.length;
+        const octaveOffset = Math.floor(noteIdx / this.allowedNotes.length);
+
+        const lfoMod = Math.sin(this.lfoPhase * 2 * Math.PI) * this.lfoDepth;
+        const targetOctave = this.baseOctave + octaveOffset + Math.floor(lfoMod);
+        const midiNote = this.rootNote + this.allowedNotes[scaleIdx] + targetOctave * 12;
+
+        // Convert MIDI note to frequency, then to shift amount
+        const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+        // Scale shift based on note frequency relative to A4
+        return baseShift * (freq / 440);
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        for (let s = 0; s < left.length; s++) {
+            // Advance sequencer
+            this.stepPhase += this.stepRate / this.sampleRate;
+            if (this.stepPhase >= 1) {
+                this.stepPhase -= 1;
+                this.advanceSequence();
+            }
+
+            // LFO phase
+            this.lfoPhase += this.lfoRate / this.sampleRate;
+            if (this.lfoPhase >= 1) this.lfoPhase -= 1;
+
+            // Get sequence value
+            const seqVal = this.seqMode === 4 ? this.getSequenceValue() : this.sequence[this.seqPos];
+
+            // Smooth the modulation
+            const targetRotationMod = seqVal * 0.5; // Modulate rotation by up to 0.5
+            const targetShiftMod = this.quantizeToShift(seqVal, 1);
+            const smoothing = 0.001;
+            this.currentRotationMod += (targetRotationMod - this.currentRotationMod) * smoothing;
+            this.currentShiftMod += (targetShiftMod - this.currentShiftMod) * smoothing;
+
+            // Calculate modulated parameters
+            const modulatedRotation = this.rotation + this.currentRotationMod * 0.25;
+            const shiftMultiplier = this.currentShiftMod;
+
+            // Rotate2 the feedback signals
+            const angle = modulatedRotation * Math.PI;
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+
+            const rotL = this.feedbackL * cos - this.feedbackR * sin;
+            const rotR = this.feedbackL * sin + this.feedbackR * cos;
+
+            // tanh saturation
+            const satL = Math.tanh(rotL);
+            const satR = Math.tanh(rotR);
+
+            // Modulated frequency shift amounts
+            const shiftAmountL = this.shiftL * shiftMultiplier;
+            const shiftAmountR = this.shiftR * shiftMultiplier;
+
+            // FreqShift using simple ring modulation
+            this.shiftPhaseL += shiftAmountL / this.sampleRate;
+            this.shiftPhaseR += shiftAmountR / this.sampleRate;
+            if (this.shiftPhaseL > 1) this.shiftPhaseL -= 1;
+            if (this.shiftPhaseL < -1) this.shiftPhaseL += 1;
+            if (this.shiftPhaseR > 1) this.shiftPhaseR -= 1;
+
+            const shiftedL = satL * Math.cos(2 * Math.PI * this.shiftPhaseL);
+            const shiftedR = satR * Math.cos(2 * Math.PI * this.shiftPhaseR);
+
+            // Add Dust (gated by sequencer)
+            const dustGate = this.currentGate ? 1 : 0.2;
+            const dustL = Math.random() < (1 / this.sampleRate) ? (Math.random() * 2 - 1) * this.dustLevel * dustGate : 0;
+            const dustR = Math.random() < (1 / this.sampleRate) ? (Math.random() * 2 - 1) * this.dustLevel * dustGate : 0;
+
+            let outL = shiftedL + dustL;
+            let outR = shiftedR + dustR;
+
+            // Normalizer (peak following)
+            const absL = Math.abs(outL);
+            const absR = Math.abs(outR);
+
+            const normAttack = Math.exp(-1 / (0.01 * this.sampleRate));
+            const normRelease = Math.exp(-1 / (0.5 * this.sampleRate));
+
+            if (absL > this.normPeakL) {
+                this.normPeakL = absL;
+            } else {
+                this.normPeakL = this.normPeakL * normRelease + absL * (1 - normRelease);
+            }
+
+            if (absR > this.normPeakR) {
+                this.normPeakR = absR;
+            } else {
+                this.normPeakR = this.normPeakR * normRelease + absR * (1 - normRelease);
+            }
+
+            outL = outL / Math.max(this.normPeakL, 0.001);
+            outR = outR / Math.max(this.normPeakR, 0.001);
+
+            // Clip to +-1
+            outL = Math.max(-1, Math.min(1, outL));
+            outR = Math.max(-1, Math.min(1, outR));
+
+            // Update feedback
+            this.feedbackL = outL;
+            this.feedbackR = outR;
+
+            left[s] = outL * 0.5;
+            if (right) right[s] = outR * 0.5;
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('freqshift-rotate-processor', FreqShiftRotateProcessor);
+`;
+
+        let audioContext = null;
+        let workletNode = null;
+        let analyser = null;
+        let isPlaying = false;
+        let pedalboard = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        // Build keyboard
+        const keyboard = document.getElementById('keyboard');
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const scales = {
+            chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+            major: [0, 2, 4, 5, 7, 9, 11],
+            minor: [0, 2, 3, 5, 7, 8, 10],
+            dorian: [0, 2, 3, 5, 7, 9, 10],
+            phrygian: [0, 1, 3, 5, 7, 8, 10],
+            lydian: [0, 2, 4, 6, 7, 9, 11],
+            mixolydian: [0, 2, 4, 5, 7, 9, 10],
+            pentatonic: [0, 2, 4, 7, 9],
+            blues: [0, 3, 5, 6, 7, 10],
+            whole_tone: [0, 2, 4, 6, 8, 10]
+        };
+        let activeNotes = new Set(scales.minor);
+
+        function buildKeyboard() {
+            keyboard.innerHTML = '';
+            for (let i = 0; i < 12; i++) {
+                const key = document.createElement('div');
+                key.className = 'key' + (noteNames[i].includes('#') ? ' black' : ' white');
+                if (activeNotes.has(i)) key.classList.add('active');
+                key.dataset.note = i;
+                key.textContent = noteNames[i];
+                key.addEventListener('click', () => {
+                    if (activeNotes.has(i)) {
+                        activeNotes.delete(i);
+                        key.classList.remove('active');
+                    } else {
+                        activeNotes.add(i);
+                        key.classList.add('active');
+                    }
+                    updateAllowedNotes();
+                });
+                keyboard.appendChild(key);
+            }
+        }
+
+        function updateAllowedNotes() {
+            const notes = Array.from(activeNotes).sort((a, b) => a - b);
+            if (workletNode) {
+                workletNode.port.postMessage({ allowedNotes: notes });
+            }
+        }
+
+        function setScale(scaleName) {
+            activeNotes = new Set(scales[scaleName] || scales.chromatic);
+            buildKeyboard();
+            updateAllowedNotes();
+        }
+
+        buildKeyboard();
+
+        document.getElementById('scale').addEventListener('change', (e) => {
+            setScale(e.target.value);
+        });
+
+        const params = ['shiftL', 'shiftR', 'rotation', 'dustLevel'];
+        params.forEach(param => {
+            const input = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            input.addEventListener('input', () => {
+                const val = parseFloat(input.value);
+                display.textContent = val.toFixed(param === 'dustLevel' ? 3 : (param === 'rotation' ? 2 : 1));
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param]: val });
+                }
+            });
+        });
+
+        const seqParams = ['seqLength', 'mutation', 'gateProb', 'stepRate', 'bitRotate', 'xorMask'];
+        seqParams.forEach(param => {
+            const input = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            input.addEventListener('input', () => {
+                const val = parseFloat(input.value);
+                display.textContent = param === 'mutation' || param === 'gateProb' ? val.toFixed(2) :
+                                      param === 'stepRate' ? val.toFixed(1) : val.toString();
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param]: val });
+                }
+            });
+        });
+
+        document.getElementById('seqMode').addEventListener('change', (e) => {
+            if (workletNode) workletNode.port.postMessage({ seqMode: parseInt(e.target.value) });
+        });
+
+        document.getElementById('lfsrTaps').addEventListener('change', (e) => {
+            if (workletNode) workletNode.port.postMessage({ lfsrTaps: parseInt(e.target.value) });
+        });
+
+        document.getElementById('rootNote').addEventListener('change', (e) => {
+            if (workletNode) workletNode.port.postMessage({ rootNote: parseInt(e.target.value) });
+        });
+
+        const quantParams = ['octaveRange', 'baseOctave', 'lfoRate', 'lfoDepth'];
+        quantParams.forEach(param => {
+            const input = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            input.addEventListener('input', () => {
+                const val = parseFloat(input.value);
+                display.textContent = param === 'lfoRate' || param === 'lfoDepth' ? val.toFixed(1) : val.toString();
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param]: val });
+                }
+            });
+        });
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+            const blob = new Blob([processorCode], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'freqshift-rotate-processor');
+
+            workletNode.port.onmessage = (e) => {
+                if (e.data.shiftReg !== undefined) {
+                    const bits = e.data.bits || 8;
+                    const binary = e.data.shiftReg.toString(2).padStart(bits, '0');
+                    document.getElementById('shiftRegister').textContent = binary;
+                }
+            };
+
+            // Initialize pedalboard and route audio through it
+            pedalboard = new PedalboardUI(
+                document.getElementById('pedalboard-container'),
+                audioContext
+            );
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: '11-freqshift-rotate',
+                    patchId: 'patch-11-freqshift-rotate'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('patch-11-freqshift-rotate');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'patch-11-freqshift-rotate',
+                    prefix: 'rotate',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            fxNode.connect(analyser);
+
+            // Send initial values
+            params.forEach(param => {
+                const val = parseFloat(document.getElementById(param).value);
+                workletNode.port.postMessage({ [param]: val });
+            });
+            seqParams.forEach(param => {
+                const val = parseFloat(document.getElementById(param).value);
+                workletNode.port.postMessage({ [param]: val });
+            });
+            quantParams.forEach(param => {
+                const val = parseFloat(document.getElementById(param).value);
+                workletNode.port.postMessage({ [param]: val });
+            });
+            workletNode.port.postMessage({ seqMode: parseInt(document.getElementById('seqMode').value) });
+            workletNode.port.postMessage({ lfsrTaps: parseInt(document.getElementById('lfsrTaps').value) });
+            workletNode.port.postMessage({ rootNote: parseInt(document.getElementById('rootNote').value) });
+            updateAllowedNotes();
+        }
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        let rotAngle = 0;
+        function drawVisualizer() {
+            if (!analyser) return;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteTimeDomainData(dataArray);
+
+            ctx.fillStyle = 'rgba(18, 18, 26, 0.05)';
+            ctx.fillRect(0, 0, width, height);
+
+            // Rotating Lissajous
+            rotAngle += 0.01;
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            ctx.strokeStyle = 'rgba(99, 102, 241, 0.5)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+
+            for (let i = 0; i < bufferLength - 1; i += 2) {
+                const x = (dataArray[i] - 128) / 128;
+                const y = (dataArray[i + 1] - 128) / 128;
+
+                // Apply rotation
+                const rx = x * Math.cos(rotAngle) - y * Math.sin(rotAngle);
+                const ry = x * Math.sin(rotAngle) + y * Math.cos(rotAngle);
+
+                const px = centerX + rx * width * 0.4;
+                const py = centerY + ry * height * 0.4;
+
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+
+            ctx.stroke();
+
+            if (isPlaying) requestAnimationFrame(drawVisualizer);
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+            }
+
+            if (isPlaying) {
+                await audioContext.suspend();
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                status.textContent = 'Playing';
+                status.classList.add('active');
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+    </script>
+</body>
+</html>

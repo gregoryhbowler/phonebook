@@ -1,0 +1,1688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dronecaster - Multi-Engine Drone Synthesizer</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Dronecaster</h1>
+                <p>Multi-engine drone synthesizer - northern-information collective</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <div class="visualizer-container">
+                <canvas id="visualizer"></canvas>
+            </div>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group" style="flex: 2;">
+                    <label>Engine</label>
+                    <select id="engine">
+                        <option value="sine">Sine - Pure tone</option>
+                        <option value="triangle">Triangle - Warm harmonics</option>
+                        <option value="square">Square - Pulse wave</option>
+                        <option value="supersaw">Supersaw - Detuned stack</option>
+                        <option value="thx" selected>THX - Deep Note convergence</option>
+                        <option value="eno">Eno - Music for Airports</option>
+                        <option value="sunno">SUNNO - Metal guitar drones</option>
+                        <option value="fieldsteel">Fieldsteel - Pedagogical pads</option>
+                        <option value="starlids">Starlids - Symphonic intervals</option>
+                        <option value="coil">Coil - Tunnel textures</option>
+                        <option value="eliane">Eliane - Phase modulation ring</option>
+                        <option value="gristle">Gristle - Primal sawtooth</option>
+                        <option value="hecker">Hecker - Filtered noise</option>
+                        <option value="nautilus">Nautilus - Lorenz chaos</option>
+                        <option value="malone">Malone - Thick organ</option>
+                        <option value="shields">Shields - Bendy, bloody</option>
+                        <option value="apparatus">Apparatus - Old generators</option>
+                        <option value="toshiya">Toshiya - Resonant space</option>
+                        <option value="mtzion">Mt. Zion - Rusted satellites</option>
+                        <option value="magicicada">Magicicada - No-input chaos</option>
+                    </select>
+                </div>
+                <div class="param-group">
+                    <label>Frequency</label>
+                    <input type="range" id="hz" min="30" max="880" value="110" step="1">
+                    <span class="param-value" id="hzVal">110</span>
+                </div>
+                <div class="param-group">
+                    <label>Amp</label>
+                    <input type="range" id="amp" min="0" max="1" value="0.7" step="0.01">
+                    <span class="param-value" id="ampVal">0.70</span>
+                </div>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Detune</label>
+                    <input type="range" id="detune" min="0" max="1" value="0.5" step="0.01">
+                    <span class="param-value" id="detuneVal">0.50</span>
+                </div>
+                <div class="param-group">
+                    <label>Brightness</label>
+                    <input type="range" id="brightness" min="0" max="1" value="0.5" step="0.01">
+                    <span class="param-value" id="brightnessVal">0.50</span>
+                </div>
+                <div class="param-group">
+                    <label>Movement</label>
+                    <input type="range" id="movement" min="0" max="1" value="0.5" step="0.01">
+                    <span class="param-value" id="movementVal">0.50</span>
+                </div>
+                <div class="param-group">
+                    <label>Reverb</label>
+                    <input type="range" id="reverb" min="0" max="1" value="0.3" step="0.01">
+                    <span class="param-value" id="reverbVal">0.30</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <code>Dronecaster: A collection of drone engines by @infinitedigits, @sixolet, @cfdrake, @taubaland and the northern-information collective</code>
+            </div>
+
+            <p class="status" id="status">Click play to start</p>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+
+        <nav class="nav-links">
+            <a href="blippoo-01.html">&larr; Previous</a>
+            <a href="grendy-01.html">Next &rarr;</a>
+        </nav>
+    </div>
+
+    <script>
+        const processorCode = `
+class DronecasterProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+
+        // Parameters
+        this.engine = 'thx';
+        this.hz = 110;
+        this.amp = 0.7;
+        this.detune = 0.5;
+        this.brightness = 0.5;
+        this.movement = 0.5;
+        this.reverb = 0.3;
+
+        // Common state
+        this.phase = 0;
+        this.phases = new Float32Array(16);
+        this.lfoPhases = new Float32Array(16);
+
+        // Initialize random phases
+        for (let i = 0; i < 16; i++) {
+            this.phases[i] = Math.random();
+            this.lfoPhases[i] = Math.random();
+        }
+
+        // THX state
+        this.thxFundamentals = [];
+        this.thxTargets = [];
+        this.thxSweepFactors = [];
+        this.thxSweepProgress = 0;
+        for (let i = 0; i < 12; i++) {
+            this.thxFundamentals.push(100 + Math.random() * 400);
+            this.thxSweepFactors.push(0.2 + Math.random() * 1.8);
+        }
+
+        // Eliane state - 7 sine oscillators phase-modulating each other
+        this.elianePhases = new Float32Array(7);
+        this.elianeFeedback = new Float32Array(14);
+        this.elianeAmps = new Float32Array(7);
+        for (let i = 0; i < 7; i++) {
+            this.elianePhases[i] = Math.random();
+            this.elianeAmps[i] = 0.5;
+        }
+
+        // Starlids state - 12 oscillators with interval modulation
+        this.starlidPhases = new Float32Array(13);
+        this.starlidLfoPhases = new Float32Array(24);
+        this.starlidPans = new Float32Array(12);
+        for (let i = 0; i < 13; i++) this.starlidPhases[i] = Math.random();
+        for (let i = 0; i < 24; i++) this.starlidLfoPhases[i] = Math.random();
+        for (let i = 0; i < 12; i++) this.starlidPans[i] = Math.random() * 2 - 1;
+
+        // Coil state - 12 SinOscFB voices
+        this.coilPhases = new Float32Array(12);
+        this.coilFeedback = new Float32Array(12);
+        this.coilEnvs = new Float32Array(12);
+        this.coilPans = new Float32Array(12);
+        for (let i = 0; i < 12; i++) {
+            this.coilPhases[i] = Math.random();
+            this.coilEnvs[i] = 0;
+            this.coilPans[i] = Math.random() * 2 - 1;
+        }
+
+        // Magicicada state - feedback delay network
+        this.magicDelayL = new Float32Array(Math.ceil(sampleRate * 3));
+        this.magicDelayR = new Float32Array(Math.ceil(sampleRate * 3));
+        this.magicDelayIdx = 0;
+        this.magicFbL = 0;
+        this.magicFbR = 0;
+
+        // Eno state - Music for Airports style
+        this.enoPhases = new Float32Array(16);
+        this.enoNotes = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16];
+        this.enoChordIdx = 0;
+        this.enoNoteIdx = 0;
+        this.enoEnvs = new Float32Array(16);
+        this.enoPulse = 0;
+        this.enoChordPulse = 0;
+        for (let i = 0; i < 16; i++) {
+            this.enoPhases[i] = Math.random();
+            this.enoEnvs[i] = 0;
+        }
+
+        // SUNNO state - Guitar drone
+        this.sunnoPhases = new Float32Array(8);
+        this.sunnoDelays = [];
+        for (let i = 0; i < 8; i++) {
+            this.sunnoPhases[i] = Math.random();
+            this.sunnoDelays.push({
+                buffer: new Float32Array(Math.ceil(sampleRate * 0.1)),
+                idx: 0
+            });
+        }
+
+        // Fieldsteel state
+        this.fieldPhases = new Float32Array(12);
+        this.fieldEnvs = new Float32Array(12);
+        this.fieldPulse = 0;
+        for (let i = 0; i < 12; i++) {
+            this.fieldPhases[i] = Math.random();
+            this.fieldEnvs[i] = Math.random();
+        }
+
+        // Gristle state
+        this.gristlePhases = new Float32Array(3);
+        this.gristleLpfState = { s1: 0, s2: 0 };
+        for (let i = 0; i < 3; i++) this.gristlePhases[i] = Math.random();
+
+        // Hecker state - noise filters
+        this.heckerLpf = [{ s1: 0, s2: 0 }, { s1: 0, s2: 0 }];
+        this.heckerBpf = [{ s1: 0, s2: 0 }, { s1: 0, s2: 0 }];
+
+        // Nautilus state - Lorenz system
+        this.lorenzX = 0.1;
+        this.lorenzY = 0;
+        this.lorenzZ = 0;
+        this.nautilusPhases = new Float32Array(6);
+        for (let i = 0; i < 6; i++) this.nautilusPhases[i] = Math.random();
+
+        // Malone state - organ
+        this.malonePhases = new Float32Array(24);
+        this.maloneChord = [0, 4, 7, 12];
+        this.maloneChordPulse = 0;
+        for (let i = 0; i < 24; i++) this.malonePhases[i] = Math.random();
+
+        // Shields state - comb filters
+        this.shieldsPhases = new Float32Array(12);
+        this.shieldsCombs = [];
+        for (let i = 0; i < 12; i++) {
+            this.shieldsPhases[i] = Math.random();
+            this.shieldsCombs.push({
+                buffer: new Float32Array(Math.ceil(sampleRate * 0.5)),
+                idx: 0
+            });
+        }
+
+        // Apparatus state - vintage generators
+        this.apparatusPhases = new Float32Array(8);
+        this.apparatusNoise = 0;
+        for (let i = 0; i < 8; i++) this.apparatusPhases[i] = Math.random();
+
+        // Toshiya state
+        this.toshiyaPhases = new Float32Array(16);
+        this.toshiyaChord = [0, 2, 4, 5, 9, 14, 17];
+        this.toshiyaChordIdx = 0;
+        for (let i = 0; i < 16; i++) this.toshiyaPhases[i] = Math.random();
+
+        // Mt. Zion state
+        this.mtzionPhases = new Float32Array(5);
+        this.mtzionDetune = new Float32Array(5);
+        this.mtzionPW = new Float32Array(5);
+        for (let i = 0; i < 5; i++) {
+            this.mtzionPhases[i] = Math.random();
+            this.mtzionDetune[i] = Math.random() * 1 - 0.5;
+            this.mtzionPW[i] = 0.3 + Math.random() * 0.4;
+        }
+
+        // Reverb state (simple FDN)
+        this.reverbDelays = [];
+        this.reverbIdx = 0;
+        const reverbTimes = [0.029, 0.037, 0.041, 0.043, 0.047, 0.053, 0.059, 0.061];
+        for (let i = 0; i < 8; i++) {
+            this.reverbDelays.push({
+                buffer: new Float32Array(Math.ceil(sampleRate * reverbTimes[i])),
+                idx: 0
+            });
+        }
+
+        // LFO states for modulation
+        this.modPhases = new Float32Array(32);
+        for (let i = 0; i < 32; i++) this.modPhases[i] = Math.random();
+
+        // Filter states
+        this.lpfState = { s1: 0, s2: 0 };
+        this.hpfState = { s1: 0, s2: 0 };
+
+        this.port.onmessage = (e) => {
+            const d = e.data;
+            if (d.engine !== undefined) {
+                this.engine = d.engine;
+                // Reset THX sweep when switching to THX
+                if (d.engine === 'thx') {
+                    this.thxSweepProgress = 0;
+                    for (let i = 0; i < 12; i++) {
+                        this.thxFundamentals[i] = 100 + Math.random() * 400;
+                        this.thxSweepFactors[i] = 0.2 + Math.random() * 1.8;
+                    }
+                }
+            }
+            if (d.hz !== undefined) this.hz = d.hz;
+            if (d.amp !== undefined) this.amp = d.amp;
+            if (d.detune !== undefined) this.detune = d.detune;
+            if (d.brightness !== undefined) this.brightness = d.brightness;
+            if (d.movement !== undefined) this.movement = d.movement;
+            if (d.reverb !== undefined) this.reverb = d.reverb;
+        };
+    }
+
+    // LFNoise2-style interpolated noise
+    noise2(idx, rate) {
+        this.modPhases[idx] += rate / this.sampleRate;
+        if (this.modPhases[idx] >= 1) {
+            this.modPhases[idx] -= 1;
+        }
+        return Math.sin(this.modPhases[idx] * Math.PI * 2 + idx);
+    }
+
+    // Simple lowpass filter
+    lpf(input, freq) {
+        const w = Math.min(0.99, Math.PI * freq / this.sampleRate);
+        const g = Math.tan(w / 2);
+        const a = 1 / (1 + g);
+        const out = a * (input + this.lpfState.s1);
+        this.lpfState.s1 = input;
+        return out;
+    }
+
+    // Sine engine - 16 phase-offset voices with detune, movement, and brightness tilt
+    engineSine() {
+        let sumL = 0, sumR = 0;
+        const numVoices = 16;
+        const detuneSpread = this.detune * 15; // Max 15 cents spread
+
+        for (let i = 0; i < numVoices; i++) {
+            // Detune: spread voices symmetrically around center frequency
+            const detuneCents = (i - (numVoices - 1) / 2) * (detuneSpread / numVoices);
+            const baseFreq = this.hz * Math.pow(2, detuneCents / 1200);
+
+            // Movement: individual LFO modulation per voice
+            const lfoRate = 0.05 + (i / numVoices) * 0.15; // 0.05 to 0.2 Hz
+            const lfoDepth = this.movement * 1.5; // Up to 1.5 Hz wobble
+            const lfoMod = this.noise2(i, lfoRate) * lfoDepth;
+            const freq = baseFreq + lfoMod;
+
+            // Update phase
+            this.phases[i] += freq / this.sampleRate;
+            if (this.phases[i] >= 1) this.phases[i] -= 1;
+
+            // Generate sine
+            let sig = Math.sin(this.phases[i] * Math.PI * 2);
+
+            // Brightness: spectral tilt via harmonic weighting
+            // At low brightness, attenuate based on voice position (simulates lowpass)
+            // At high brightness, boost outer voices (simulates highpass emphasis)
+            const voicePosition = Math.abs(i - (numVoices - 1) / 2) / ((numVoices - 1) / 2);
+            const tiltFactor = 0.5 + (this.brightness - 0.5) * voicePosition;
+            sig *= Math.max(0.2, Math.min(1.2, tiltFactor));
+
+            // Stereo spread: voices pan from left to right
+            const pan = (i / (numVoices - 1)) * 2 - 1; // -1 to 1
+            const gainL = Math.cos((pan + 1) * Math.PI / 4);
+            const gainR = Math.sin((pan + 1) * Math.PI / 4);
+
+            sumL += sig * gainL;
+            sumR += sig * gainR;
+        }
+
+        // Normalize and apply amplitude
+        const normFactor = 1 / Math.sqrt(numVoices) * 1.5;
+        return {
+            left: sumL * normFactor * this.amp,
+            right: sumR * normFactor * this.amp
+        };
+    }
+
+    // Triangle engine - 16 phase-offset voices with detune, movement, and brightness tilt
+    engineTriangle() {
+        let sumL = 0, sumR = 0;
+        const numVoices = 16;
+        const detuneSpread = this.detune * 20; // Max 20 cents spread (triangle sounds good slightly wider)
+
+        for (let i = 0; i < numVoices; i++) {
+            // Detune: spread voices symmetrically around center frequency
+            const detuneCents = (i - (numVoices - 1) / 2) * (detuneSpread / numVoices);
+            const baseFreq = this.hz * Math.pow(2, detuneCents / 1200);
+
+            // Movement: individual LFO modulation per voice with phase drift
+            const lfoRate = 0.03 + (i / numVoices) * 0.12; // 0.03 to 0.15 Hz - slower for triangle warmth
+            const lfoDepth = this.movement * 2; // Up to 2 Hz wobble
+            const lfoMod = this.noise2(i, lfoRate) * lfoDepth;
+            const freq = baseFreq + lfoMod;
+
+            // Update phase
+            this.phases[i] += freq / this.sampleRate;
+            if (this.phases[i] >= 1) this.phases[i] -= 1;
+
+            // Generate triangle wave
+            let sig = this.phases[i] < 0.5
+                ? (this.phases[i] * 4 - 1)
+                : (3 - this.phases[i] * 4);
+
+            // Brightness: morphing between triangle and more angular waveform
+            // Low brightness = pure triangle (soft)
+            // High brightness = sharpened triangle (adds odd harmonics)
+            const sharpness = this.brightness * 2;
+            if (sharpness > 0.5) {
+                // Sharpen the peaks by applying soft saturation
+                sig = Math.tanh(sig * (1 + (sharpness - 0.5) * 2));
+            }
+            if (this.brightness < 0.5) {
+                // Soften by gentle smoothing (attenuate based on voice spread)
+                const voicePosition = Math.abs(i - (numVoices - 1) / 2) / ((numVoices - 1) / 2);
+                sig *= 1 - voicePosition * (0.5 - this.brightness);
+            }
+
+            // Stereo spread: voices pan from left to right
+            const pan = (i / (numVoices - 1)) * 2 - 1; // -1 to 1
+            const gainL = Math.cos((pan + 1) * Math.PI / 4);
+            const gainR = Math.sin((pan + 1) * Math.PI / 4);
+
+            sumL += sig * gainL;
+            sumR += sig * gainR;
+        }
+
+        // Normalize and apply amplitude
+        const normFactor = 1 / Math.sqrt(numVoices) * 1.4;
+        return {
+            left: sumL * normFactor * this.amp,
+            right: sumR * normFactor * this.amp
+        };
+    }
+
+    // Supersaw engine - 5 detuned saws with BPF
+    engineSupersaw() {
+        let sum = 0;
+        const detuneAmount = this.detune * 10;
+        const filterMod = this.brightness * 8;
+
+        for (let i = 0; i < 5; i++) {
+            const detuneCents = (i - 2) * detuneAmount;
+            const freq = this.hz * Math.pow(2, detuneCents / 1200);
+            const lfoRate = 0.05 + i * 0.02;
+            const lfoMod = this.noise2(i, lfoRate * this.movement) * 0.5;
+
+            this.phases[i] += (freq + lfoMod) / this.sampleRate;
+            if (this.phases[i] >= 1) this.phases[i] -= 1;
+
+            // Saw wave
+            const saw = this.phases[i] * 2 - 1;
+
+            // BPF approximation
+            const centerFreq = 100 + i * 100 + this.noise2(i + 5, 0.05 * this.movement) * 100;
+            sum += saw;
+        }
+
+        return (sum / 5) * this.amp * 0.7;
+    }
+
+    // THX Deep Note engine
+    engineTHX() {
+        const numVoices = 12;
+        let sum = 0;
+
+        // Slowly sweep from random to final positions
+        this.thxSweepProgress = Math.min(1, this.thxSweepProgress + 0.00001 * this.movement);
+
+        for (let i = 0; i < numVoices; i++) {
+            const octave = Math.floor(i / 2) - 3;
+            const targetFreq = this.hz * Math.pow(2, octave);
+
+            // Interpolate from random fundamental to target
+            const sweepPow = Math.pow(this.thxSweepProgress, this.thxSweepFactors[i]);
+            const freq = (1 - sweepPow) * this.thxFundamentals[i] + sweepPow * targetFreq;
+
+            // Add slight wobble
+            const wobble = this.noise2(i, 0.5) * 6 * (1 - this.thxSweepProgress);
+
+            this.phases[i] += (freq + wobble) / this.sampleRate;
+            if (this.phases[i] >= 1) this.phases[i] -= 1;
+
+            // Saw wave with lowpass
+            const saw = this.phases[i] * 2 - 1;
+            const amp = Math.pow(1 - 1 / (i + 1), 4) + 0.4;
+
+            sum += saw * amp;
+        }
+
+        return (sum / numVoices) * this.amp * 0.5;
+    }
+
+    // Starlids engine - symphonic intervals
+    engineStarlids() {
+        let sumL = 0, sumR = 0;
+        const note = Math.log2(this.hz / 440) * 12 + 69;
+
+        // Suboscillator PWM
+        const pwmWidth = 0.3 + this.noise2(0, 0.5 * this.movement) * 0.3;
+        this.starlidPhases[0] += Math.pow(2, (note - 12 - 69) / 12) * 440 / this.sampleRate;
+        if (this.starlidPhases[0] >= 1) this.starlidPhases[0] -= 1;
+        const subOsc = this.starlidPhases[0] < pwmWidth ? 1 : -1;
+        sumL += subOsc * 0.08;
+        sumR += subOsc * 0.08;
+
+        // 12 interval oscillators
+        for (let i = 0; i < 12; i++) {
+            // Oscillating intervals: +0, +4, +5, +9 semitones
+            const lfo1 = this.noise2(i * 2 + 1, 0.03 * this.movement);
+            const lfo2 = this.noise2(i * 2 + 2, 0.02 * this.movement);
+            const interval1 = lfo1 > 0 ? 4 : 0;
+            const interval2 = lfo2 > 0 ? 5 : 0;
+
+            const oscNote = note + interval1 + interval2;
+            const oscFreq = 440 * Math.pow(2, (oscNote - 69) / 12);
+
+            this.starlidPhases[i + 1] += oscFreq / this.sampleRate;
+            if (this.starlidPhases[i + 1] >= 1) this.starlidPhases[i + 1] -= 1;
+
+            // Saw wave
+            let saw = this.starlidPhases[i + 1] * 2 - 1;
+
+            // LPF modulation
+            const lpfMod = 0.5 + 0.5 * this.noise2(i + 20, 0.05 * this.movement);
+            const cutoff = 20 + lpfMod * this.brightness * 12000;
+
+            // Simple pan modulation
+            const pan = this.noise2(i + 12, 0.3 * this.movement);
+
+            const gainL = Math.cos((pan + 1) * Math.PI / 4);
+            const gainR = Math.sin((pan + 1) * Math.PI / 4);
+
+            sumL += saw * gainL * 0.08;
+            sumR += saw * gainR * 0.08;
+        }
+
+        return { left: sumL * this.amp, right: sumR * this.amp };
+    }
+
+    // Coil engine - SinOscFB with envelopes
+    engineCoil() {
+        let sumL = 0, sumR = 0;
+
+        for (let i = 0; i < 12; i++) {
+            // Slowly evolving envelope
+            const envRate = 0.1 + Math.random() * 0.05;
+            this.coilEnvs[i] += (0.5 + 0.5 * this.noise2(i, envRate * this.movement) - this.coilEnvs[i]) * 0.0001;
+
+            // Detuned frequency
+            const detuneAmt = this.detune * (i - 6);
+            const freq = this.hz + detuneAmt;
+
+            // SinOscFB - sine with feedback
+            const fbAmount = 0.3 * this.movement;
+            this.coilPhases[i] += freq / this.sampleRate;
+            if (this.coilPhases[i] >= 1) this.coilPhases[i] -= 1;
+
+            const sinVal = Math.sin((this.coilPhases[i] + this.coilFeedback[i] * fbAmount) * Math.PI * 2);
+            this.coilFeedback[i] = sinVal;
+
+            // Pan modulation
+            const pan = this.noise2(i + 12, 0.1 * this.movement);
+            const gainL = Math.cos((pan + 1) * Math.PI / 4);
+            const gainR = Math.sin((pan + 1) * Math.PI / 4);
+
+            sumL += sinVal * this.coilEnvs[i] * gainL;
+            sumR += sinVal * this.coilEnvs[i] * gainR;
+        }
+
+        return { left: sumL * this.amp * 0.15, right: sumR * this.amp * 0.15 };
+    }
+
+    // Eliane engine - 7 phase-modulating sines in a ring
+    engineEliane() {
+        let sumL = 0, sumR = 0;
+        const base = Math.pow(2, 1/12);
+        const intervals = [0, 7, 14, 20, 27, 34, 41].map(i => Math.pow(base, i));
+
+        // Read feedback from previous frame
+        const fbk = this.elianeFeedback.slice();
+
+        for (let i = 0; i < 7; i++) {
+            // Get modulation from neighbors in ring
+            const next = (i + 1) % 7;
+            const nextNext = (i + 2) % 7;
+            const modL = (i + 1) * fbk[next * 2] + fbk[nextNext * 2];
+            const modR = (i + 1) * fbk[next * 2 + 1] + fbk[nextNext * 2 + 1];
+
+            // Phase modulation amount varies with noise
+            const pmAmt = Math.pow(0.5 + 0.5 * this.noise2(i, 0.015 * this.movement), 1.3) * Math.PI * this.brightness;
+
+            const freq = this.hz * intervals[i];
+            const wobbleL = this.noise2(i * 2, 0.07 * this.movement) * 1;
+            const wobbleR = this.noise2(i * 2 + 1, 0.07 * this.movement) * 1;
+
+            this.elianePhases[i] += freq / this.sampleRate;
+            if (this.elianePhases[i] >= 1) this.elianePhases[i] -= 1;
+
+            const phaseL = this.elianePhases[i] * Math.PI * 2 + modL * pmAmt;
+            const phaseR = this.elianePhases[i] * Math.PI * 2 + modR * pmAmt;
+
+            let sigL = Math.sin(phaseL + wobbleL);
+            let sigR = Math.sin(phaseR + wobbleR);
+
+            // Attenuate higher partials
+            const attenuation = 1 / (i + 1);
+            sigL *= attenuation;
+            sigR *= attenuation;
+
+            // Amplitude envelope
+            const envMod = 0.2 + 0.8 * Math.max(0, this.noise2(i + 7, 0.008 * this.movement));
+            this.elianeAmps[i] += (envMod - this.elianeAmps[i]) * 0.0005;
+
+            sigL *= this.elianeAmps[i];
+            sigR *= this.elianeAmps[i];
+
+            // Store for feedback
+            this.elianeFeedback[i * 2] = sigL;
+            this.elianeFeedback[i * 2 + 1] = sigR;
+
+            sumL += sigL;
+            sumR += sigR;
+        }
+
+        return { left: sumL * this.amp * 0.3, right: sumR * this.amp * 0.3 };
+    }
+
+    // Square engine - 16 phase-offset voices with detune, movement-driven PWM, and brightness tilt
+    engineSquare() {
+        let sumL = 0, sumR = 0;
+        const numVoices = 16;
+        const detuneSpread = this.detune * 25; // Max 25 cents spread (square benefits from wider spread)
+
+        for (let i = 0; i < numVoices; i++) {
+            // Detune: spread voices symmetrically around center frequency
+            const detuneCents = (i - (numVoices - 1) / 2) * (detuneSpread / numVoices);
+            const baseFreq = this.hz * Math.pow(2, detuneCents / 1200);
+
+            // Movement: individual LFO modulation per voice for frequency wobble
+            const lfoRate = 0.04 + (i / numVoices) * 0.16; // 0.04 to 0.2 Hz
+            const lfoDepth = this.movement * 2.5; // Up to 2.5 Hz wobble
+            const lfoMod = this.noise2(i, lfoRate) * lfoDepth;
+            const freq = baseFreq + lfoMod;
+
+            // Movement also drives pulse width modulation per voice
+            const pwmRate = 0.1 + (i / numVoices) * 0.2;
+            const pwmMod = this.noise2(i + 16, pwmRate) * 0.3 * this.movement;
+            const pulseWidth = 0.5 + pwmMod; // 0.2 to 0.8
+
+            // Update phase
+            this.phases[i] += freq / this.sampleRate;
+            if (this.phases[i] >= 1) this.phases[i] -= 1;
+
+            // Generate square/pulse wave
+            let sig = this.phases[i] < pulseWidth ? 1 : -1;
+
+            // Brightness: controls harmonic content via soft clipping amount
+            // Low brightness = softer square (approaches sine-ish)
+            // High brightness = hard square with edge emphasis
+            if (this.brightness < 0.5) {
+                // Soften by converting towards sine
+                const softness = (0.5 - this.brightness) * 2;
+                const sineSig = Math.sin(this.phases[i] * Math.PI * 2);
+                sig = sig * (1 - softness * 0.7) + sineSig * (softness * 0.7);
+            } else {
+                // Enhance edges with slight harmonic boost
+                const hardness = (this.brightness - 0.5) * 2;
+                // Add 3rd harmonic emphasis
+                const third = Math.sin(this.phases[i] * Math.PI * 6) * 0.15 * hardness;
+                sig = sig + third;
+            }
+
+            // Stereo spread: voices pan from left to right
+            const pan = (i / (numVoices - 1)) * 2 - 1; // -1 to 1
+            const gainL = Math.cos((pan + 1) * Math.PI / 4);
+            const gainR = Math.sin((pan + 1) * Math.PI / 4);
+
+            sumL += sig * gainL;
+            sumR += sig * gainR;
+        }
+
+        // Normalize and apply amplitude (slightly lower due to square energy)
+        const normFactor = 1 / Math.sqrt(numVoices) * 1.0;
+        return {
+            left: sumL * normFactor * this.amp * 0.5,
+            right: sumR * normFactor * this.amp * 0.5
+        };
+    }
+
+    // Eno engine - Music for Airports inspired
+    engineEno() {
+        let sumL = 0, sumR = 0;
+        const note = Math.log2(this.hz / 440) * 12 + 69;
+
+        // Slow pulse for notes
+        this.enoPulse += (0.25 * this.movement + 0.1) / this.sampleRate;
+        if (this.enoPulse >= 1) {
+            this.enoPulse -= 1;
+            // Trigger new envelope
+            const voiceIdx = Math.floor(Math.random() * 8);
+            this.enoEnvs[voiceIdx] = 1;
+            this.enoNoteIdx = Math.floor(Math.random() * this.enoNotes.length);
+        }
+
+        // Chord change
+        this.enoChordPulse += 0.02 / this.sampleRate;
+        if (this.enoChordPulse >= 1) {
+            this.enoChordPulse -= 1;
+        }
+
+        // Generate 8 piano-like voices
+        for (let i = 0; i < 8; i++) {
+            const voiceNote = note + this.enoNotes[i % this.enoNotes.length] - 12;
+            const freq = 440 * Math.pow(2, (voiceNote - 69) / 12);
+
+            this.enoPhases[i] += freq / this.sampleRate;
+            if (this.enoPhases[i] >= 1) this.enoPhases[i] -= 1;
+
+            // Envelope decay
+            this.enoEnvs[i] *= 0.9998;
+
+            // Sine with slight harmonics
+            let sig = Math.sin(this.enoPhases[i] * Math.PI * 2) * 0.8;
+            sig += Math.sin(this.enoPhases[i] * Math.PI * 4) * 0.15;
+            sig += Math.sin(this.enoPhases[i] * Math.PI * 6) * 0.05;
+
+            sig *= this.enoEnvs[i];
+            const pan = (i / 7) * 2 - 1;
+            const gainL = Math.cos((pan + 1) * Math.PI / 4);
+            const gainR = Math.sin((pan + 1) * Math.PI / 4);
+
+            sumL += sig * gainL;
+            sumR += sig * gainR;
+        }
+
+        // Low drone
+        this.enoPhases[8] += (this.hz / 4) / this.sampleRate;
+        if (this.enoPhases[8] >= 1) this.enoPhases[8] -= 1;
+        const drone = Math.sin(this.enoPhases[8] * Math.PI * 2) * 0.15;
+        sumL += drone;
+        sumR += drone;
+
+        return { left: sumL * this.amp * 0.4, right: sumR * this.amp * 0.4 };
+    }
+
+    // SUNNO engine - guitar-like distorted drone
+    engineSunno() {
+        let sumL = 0, sumR = 0;
+        const detuneMod = 1 + this.noise2(0, 0.1) * 0.02;
+
+        // 4 guitar-like voices
+        for (let i = 0; i < 4; i++) {
+            const freqMod = i === 0 ? 1 : (i === 1 ? 1.5 : (i === 2 ? 0.5 : 2));
+            const freq = this.hz * freqMod * detuneMod;
+
+            this.sunnoPhases[i] += freq / this.sampleRate;
+            if (this.sunnoPhases[i] >= 1) this.sunnoPhases[i] -= 1;
+
+            // Pluck-like impulse with decaying envelope
+            let sig = this.sunnoPhases[i] * 2 - 1; // Saw
+
+            // Comb filter for string resonance
+            const delay = this.sunnoDelays[i];
+            const delaySamples = Math.floor(this.sampleRate / freq) % delay.buffer.length;
+            const delayed = delay.buffer[(delay.idx - delaySamples + delay.buffer.length) % delay.buffer.length];
+            sig = sig * 0.3 + delayed * 0.7;
+            delay.buffer[delay.idx] = Math.tanh(sig * 1.5);
+            delay.idx = (delay.idx + 1) % delay.buffer.length;
+
+            // Distortion stages
+            sig = Math.tanh(sig * 3);
+            sig = Math.tanh(sig * 2);
+
+            const pan = this.noise2(i + 10, 0.1 * this.movement);
+            const gainL = Math.cos((pan + 1) * Math.PI / 4);
+            const gainR = Math.sin((pan + 1) * Math.PI / 4);
+
+            sumL += sig * gainL * 0.2;
+            sumR += sig * gainR * 0.2;
+        }
+
+        // Bass
+        this.sunnoPhases[4] += (this.hz / 2) / this.sampleRate;
+        if (this.sunnoPhases[4] >= 1) this.sunnoPhases[4] -= 1;
+        const pw = 0.3 + this.noise2(20, 0.3) * 0.2;
+        const bass = (this.sunnoPhases[4] < pw ? 1 : -1) * 0.15;
+        sumL += bass;
+        sumR += bass;
+
+        return { left: sumL * this.amp, right: sumR * this.amp };
+    }
+
+    // Fieldsteel engine - bandpassed saws with envelopes
+    engineFieldsteel() {
+        let sumL = 0, sumR = 0;
+        const note = Math.log2(this.hz / 440) * 12 + 69;
+        const intervals = [-20, -13, 0, 5];
+
+        // Trigger pulse
+        this.fieldPulse += (0.125 * this.movement + 0.05) / this.sampleRate;
+        if (this.fieldPulse >= 1) {
+            this.fieldPulse -= 1;
+            for (let i = 0; i < 4; i++) {
+                this.fieldEnvs[i] = 1;
+            }
+        }
+
+        for (let i = 0; i < 4; i++) {
+            const voiceNote = note + intervals[i % 4];
+            const freq = 440 * Math.pow(2, (voiceNote - 69) / 12);
+            const detune = this.noise2(i, 0.1) * this.detune * 1.2;
+
+            this.fieldPhases[i] += (freq * (1 + detune / 100)) / this.sampleRate;
+            if (this.fieldPhases[i] >= 1) this.fieldPhases[i] -= 1;
+
+            // Saw wave
+            let sig = this.fieldPhases[i] * 2 - 1;
+
+            // Bandpass filter approximation
+            const centerFreq = this.hz * (0.5 + this.noise2(i + 10, 0.2 * this.movement) * 2);
+            const w = Math.min(0.49, centerFreq / this.sampleRate);
+            sig = sig * (0.5 + 0.5 * Math.sin(w * this.fieldPhases[i] * Math.PI * 20));
+
+            // Envelope
+            this.fieldEnvs[i] *= 0.9995;
+            sig *= this.fieldEnvs[i] * this.fieldEnvs[i]; // Quadratic decay
+
+            sig = Math.tanh(sig * 1.5) * 0.7;
+
+            const pan = (i / 3) * 1.7 - 0.85;
+            const gainL = Math.cos((pan + 1) * Math.PI / 4);
+            const gainR = Math.sin((pan + 1) * Math.PI / 4);
+
+            sumL += sig * gainL;
+            sumR += sig * gainR;
+        }
+
+        return { left: sumL * this.amp * 0.5, right: sumR * this.amp * 0.5 };
+    }
+
+    // Gristle engine - primal sawtooth with filter
+    engineGristle() {
+        let sum = 0;
+        const filterMod = this.noise2(0, 0.1) * 0.5 + 0.5;
+        const cutoff = 30 + filterMod * 2000 * this.brightness;
+
+        for (let i = 0; i < 3; i++) {
+            const octave = Math.pow(2, i);
+            const detuneMod = 1 + this.noise2(i + 1, 1) * 0.01;
+            const freq = this.hz * octave * detuneMod;
+
+            this.gristlePhases[i] += freq / this.sampleRate;
+            if (this.gristlePhases[i] >= 1) this.gristlePhases[i] -= 1;
+
+            // VarSaw approximation
+            const width = 0.5 + this.noise2(i + 5, 0.5) * 0.3;
+            let sig;
+            if (this.gristlePhases[i] < width) {
+                sig = this.gristlePhases[i] / width * 2 - 1;
+            } else {
+                sig = (1 - (this.gristlePhases[i] - width) / (1 - width)) * 2 - 1;
+            }
+
+            sum += sig / Math.pow(2, i);
+        }
+
+        // Simple lowpass
+        const w = Math.min(0.49, Math.PI * cutoff / this.sampleRate);
+        const g = Math.tan(w);
+        const a = 1 / (1 + g);
+        const out = a * (sum * g + this.gristleLpfState.s1);
+        this.gristleLpfState.s1 = sum * g - out * g + out;
+
+        return Math.tanh(out) * this.amp * 0.5;
+    }
+
+    // Hecker engine - filtered noise textures
+    engineHecker() {
+        let outL = 0, outR = 0;
+
+        for (let ch = 0; ch < 2; ch++) {
+            // Mix white and pink noise
+            const white = Math.random() * 2 - 1;
+            const mix = 0.5 + this.noise2(ch, 0.1) * 0.5;
+            let noise = white * mix + this.pinkNoise() * (1 - mix);
+
+            // Lowpass
+            const lpfFreq = 20 + this.noise2(ch + 2, 0.1) * 19980;
+            const lpfW = Math.min(0.49, lpfFreq / this.sampleRate);
+            const lpfG = Math.tan(lpfW * Math.PI);
+            const lpfA = 1 / (1 + lpfG);
+            noise = lpfA * (noise * lpfG + this.heckerLpf[ch].s1);
+            this.heckerLpf[ch].s1 = noise * lpfG - noise * lpfG + noise;
+
+            // Bandpass around hz with very narrow Q
+            const bpfQ = 0.001 + this.noise2(ch + 4, 0.1) * 0.02;
+            const bpfW = Math.min(0.49, this.hz / this.sampleRate);
+
+            // SVF bandpass
+            const bpfG = Math.tan(bpfW * Math.PI);
+            const bpfK = 1 / (bpfQ * 10 + 0.5);
+            const bpfA1 = 1 / (1 + bpfG * (bpfG + bpfK));
+            const bpfA2 = bpfG * bpfA1;
+
+            const v3 = noise - this.heckerBpf[ch].s2;
+            const v1 = bpfA1 * this.heckerBpf[ch].s1 + bpfA2 * v3;
+            const v2 = this.heckerBpf[ch].s2 + bpfA2 * this.heckerBpf[ch].s1 + bpfG * bpfA2 * v3;
+
+            this.heckerBpf[ch].s1 = 2 * v1 - this.heckerBpf[ch].s1;
+            this.heckerBpf[ch].s2 = 2 * v2 - this.heckerBpf[ch].s2;
+
+            const bpOut = bpfK * v1;
+
+            if (ch === 0) outL = Math.tanh(bpOut * 100);
+            else outR = Math.tanh(bpOut * 100);
+        }
+
+        return { left: outL * this.amp * 0.5, right: outR * this.amp * 0.5 };
+    }
+
+    // Pink noise generator
+    pinkNoise() {
+        if (!this.pinkB0) {
+            this.pinkB0 = this.pinkB1 = this.pinkB2 = this.pinkB3 = this.pinkB4 = this.pinkB5 = this.pinkB6 = 0;
+        }
+        const white = Math.random() * 2 - 1;
+        this.pinkB0 = 0.99886 * this.pinkB0 + white * 0.0555179;
+        this.pinkB1 = 0.99332 * this.pinkB1 + white * 0.0750759;
+        this.pinkB2 = 0.96900 * this.pinkB2 + white * 0.1538520;
+        this.pinkB3 = 0.86650 * this.pinkB3 + white * 0.3104856;
+        this.pinkB4 = 0.55000 * this.pinkB4 + white * 0.5329522;
+        this.pinkB5 = -0.7616 * this.pinkB5 - white * 0.0168980;
+        const pink = this.pinkB0 + this.pinkB1 + this.pinkB2 + this.pinkB3 + this.pinkB4 + this.pinkB5 + this.pinkB6 + white * 0.5362;
+        this.pinkB6 = white * 0.115926;
+        return pink * 0.11;
+    }
+
+    // Nautilus engine - Lorenz chaos with DFM1 filter
+    engineNautilus() {
+        let sumL = 0, sumR = 0;
+
+        // Update Lorenz system
+        const dt = this.hz / this.sampleRate * 0.001;
+        const sigma = 10, rho = 28, beta = 8/3;
+        const dx = sigma * (this.lorenzY - this.lorenzX) * dt;
+        const dy = (this.lorenzX * (rho - this.lorenzZ) - this.lorenzY) * dt;
+        const dz = (this.lorenzX * this.lorenzY - beta * this.lorenzZ) * dt;
+        this.lorenzX += dx;
+        this.lorenzY += dy;
+        this.lorenzZ += dz;
+
+        // Normalize Lorenz output
+        const lorenz = this.lorenzX * 0.02;
+
+        for (let i = 0; i < 6; i++) {
+            const freq = this.hz + i * lorenz * 10;
+
+            this.nautilusPhases[i] += freq / this.sampleRate;
+            if (this.nautilusPhases[i] >= 1) this.nautilusPhases[i] -= 1;
+
+            // Sine grain
+            const grainEnv = Math.sin(this.nautilusPhases[i] * Math.PI);
+            let sig = Math.sin(this.nautilusPhases[i] * Math.PI * 2 + i * lorenz) * grainEnv;
+
+            // DFM1-style filter
+            const cutoff = this.hz + i * 10 * lorenz * this.brightness;
+            sig = Math.tanh(sig * (1 + this.movement * lorenz));
+
+            const pan = (i / 5) * 2 - 1;
+            const gainL = Math.cos((pan + 1) * Math.PI / 4);
+            const gainR = Math.sin((pan + 1) * Math.PI / 4);
+
+            sumL += sig * gainL * 0.15;
+            sumR += sig * gainR * 0.15;
+        }
+
+        return { left: sumL * this.amp, right: sumR * this.amp };
+    }
+
+    // Malone engine - thick organ
+    engineMalone() {
+        let sumL = 0, sumR = 0;
+        const note = Math.log2(this.hz / 440) * 12 + 69;
+        const detuning = 0.04 * this.detune;
+
+        // Chord change
+        this.maloneChordPulse += 0.06 / this.sampleRate;
+        if (this.maloneChordPulse >= 1) {
+            this.maloneChordPulse -= 1;
+            const chords = [
+                [0, 12], [0, 4, 7, 12], [-1, 4, 7, 12], [0, 0, 7, 12, 12],
+                [0, 4, 7, 12], [-3, 4, 7, 12], [-3, 4, 7, 11]
+            ];
+            this.maloneChord = chords[Math.floor(Math.random() * chords.length)];
+        }
+
+        for (let i = 0; i < 8; i++) {
+            const chordNote = this.maloneChord[i % this.maloneChord.length];
+            const voiceNote = note + chordNote + this.noise2(i, 0.3) * detuning;
+            const freq = 440 * Math.pow(2, (voiceNote - 69) / 12);
+
+            this.malonePhases[i] += freq / this.sampleRate;
+            if (this.malonePhases[i] >= 1) this.malonePhases[i] -= 1;
+
+            // Pulse wave
+            let sig = this.malonePhases[i] < 0.17 ? 1 : -1;
+            // Add sub
+            this.malonePhases[i + 8] += (freq / 2) / this.sampleRate;
+            if (this.malonePhases[i + 8] >= 1) this.malonePhases[i + 8] -= 1;
+            sig += (this.malonePhases[i + 8] < 0.17 ? 1 : -1) * 0.5;
+            // Add octave up
+            this.malonePhases[i + 16] += (freq * 2) / this.sampleRate;
+            if (this.malonePhases[i + 16] >= 1) this.malonePhases[i + 16] -= 1;
+            sig += (this.malonePhases[i + 16] < 0.17 ? 1 : -1) * 0.3;
+
+            // Triangle sub
+            const triPhase = this.malonePhases[i + 8];
+            sig += (triPhase < 0.5 ? triPhase * 4 - 1 : 3 - triPhase * 4) * 0.4;
+
+            // Tremolo
+            const trem = Math.abs(Math.sin(currentTime * 3.5 * (1 + i * 0.1)));
+            sig *= trem * 0.5 + 0.5;
+
+            const pan = this.noise2(i + 20, 0.33);
+            const gainL = Math.cos((pan + 1) * Math.PI / 4);
+            const gainR = Math.sin((pan + 1) * Math.PI / 4);
+
+            sumL += sig * gainL * 0.08;
+            sumR += sig * gainR * 0.08;
+        }
+
+        return { left: sumL * this.amp * 0.5, right: sumR * this.amp * 0.5 };
+    }
+
+    // Shields engine - bendy, bloody, loud
+    engineShields() {
+        let sumL = 0, sumR = 0;
+        const rate = 0.5 + this.noise2(0, 0.1) * 0.5;
+
+        for (let i = 0; i < 6; i++) {
+            const freqMult = [0.5, 0.5, 1, 1, 2, 3][i];
+            const detuneMod = 0.995 + Math.random() * 0.01;
+            const freq = this.hz * freqMult * detuneMod;
+
+            this.shieldsPhases[i] += freq / this.sampleRate;
+            if (this.shieldsPhases[i] >= 1) this.shieldsPhases[i] -= 1;
+
+            // Saw wave
+            let sig = this.shieldsPhases[i] * 2 - 1;
+
+            // Comb filter
+            const comb = this.shieldsCombs[i];
+            const delayTime = 0.1 + this.noise2(i + 5, 0.2) * 0.4;
+            const delaySamples = Math.floor(delayTime * this.sampleRate) % comb.buffer.length;
+            const delayed = comb.buffer[(comb.idx - delaySamples + comb.buffer.length) % comb.buffer.length];
+            sig = sig + delayed * 0.6;
+            comb.buffer[comb.idx] = sig * 0.8;
+            comb.idx = (comb.idx + 1) % comb.buffer.length;
+
+            // Second comb
+            const comb2 = this.shieldsCombs[i + 6];
+            const delayTime2 = 0.05 + this.noise2(i + 10, 0.2) * 0.35;
+            const delaySamples2 = Math.floor(delayTime2 * this.sampleRate) % comb2.buffer.length;
+            const delayed2 = comb2.buffer[(comb2.idx - delaySamples2 + comb2.buffer.length) % comb2.buffer.length];
+            sig = sig + delayed2 * 0.5;
+            comb2.buffer[comb2.idx] = sig * 0.7;
+            comb2.idx = (comb2.idx + 1) % comb2.buffer.length;
+
+            const pan = this.noise2(i + 15, 0.1);
+            const gainL = Math.cos((pan + 1) * Math.PI / 4);
+            const gainR = Math.sin((pan + 1) * Math.PI / 4);
+
+            sumL += sig * gainL * 0.12;
+            sumR += sig * gainR * 0.12;
+        }
+
+        // Moog filter sweep
+        const filterMod = Math.sin(this.noise2(30, this.movement * 0.02) * Math.PI * 20);
+        const cutoff = 600 + filterMod * 3000 * this.brightness;
+
+        // Simple filter approximation
+        const w = Math.min(0.49, cutoff / this.sampleRate);
+        sumL = sumL * w + sumL * (1 - w) * 0.5;
+        sumR = sumR * w + sumR * (1 - w) * 0.5;
+
+        return {
+            left: Math.tanh(sumL * 2) * this.amp * 0.5,
+            right: Math.tanh(sumR * 2) * this.amp * 0.5
+        };
+    }
+
+    // Apparatus engine - vintage sine generators
+    engineApparatus() {
+        const mainsDepth = 0.5;
+        const mainsHz = this.hz;
+        const noiseAmp = 0.08 * this.movement;
+        const vrate = 0.19, vdepth = 0.007;
+        const sineClip = 0.825;
+
+        // Pink noise with mains hum
+        this.apparatusNoise = this.apparatusNoise * 0.99 + (Math.random() * 2 - 1) * 0.01;
+        const mainsEnv = Math.abs(Math.sin(this.apparatusPhases[7] * Math.PI * 2));
+        this.apparatusPhases[7] += (mainsHz * 2) / this.sampleRate;
+        if (this.apparatusPhases[7] >= 1) this.apparatusPhases[7] -= 1;
+
+        const noise = this.apparatusNoise * noiseAmp * ((1 - mainsDepth) + mainsDepth * mainsEnv);
+
+        // Vibrato
+        this.apparatusPhases[6] += vrate / this.sampleRate;
+        if (this.apparatusPhases[6] >= 1) this.apparatusPhases[6] -= 1;
+        const vibrato = this.hz * (1 + (Math.random() * 2 - 1) * vdepth);
+        const vibrato2 = (this.hz * 3) * (1 + (Math.random() * 2 - 1) * vdepth);
+
+        // Main sine (clipped triangle for vintage character)
+        this.apparatusPhases[0] += vibrato / this.sampleRate;
+        if (this.apparatusPhases[0] >= 1) this.apparatusPhases[0] -= 1;
+        let snd = this.apparatusPhases[0] < 0.5
+            ? this.apparatusPhases[0] * 4 - 1
+            : 3 - this.apparatusPhases[0] * 4;
+        snd = Math.max(-sineClip, Math.min(sineClip, snd));
+        snd = Math.tanh(snd);
+        snd = (snd + noise) * this.amp;
+
+        // 3rd harmonic
+        this.apparatusPhases[1] += vibrato2 / this.sampleRate;
+        if (this.apparatusPhases[1] >= 1) this.apparatusPhases[1] -= 1;
+        let snd2 = this.apparatusPhases[1] < 0.5
+            ? this.apparatusPhases[1] * 4 - 1
+            : 3 - this.apparatusPhases[1] * 4;
+        snd2 = Math.max(-sineClip, Math.min(0.5, snd2));
+        snd2 = Math.tanh(snd2) * (this.amp / 7);
+
+        // LFO-modulated partials
+        const lfo1 = Math.sin(this.noise2(0, 0.009) * Math.PI * 2);
+        const lfo2 = Math.sin(this.noise2(1, 0.011) * Math.PI * 2);
+
+        this.apparatusPhases[2] += (this.hz * 5 - lfo2) / this.sampleRate;
+        if (this.apparatusPhases[2] >= 1) this.apparatusPhases[2] -= 1;
+        let snd3 = Math.sin(this.apparatusPhases[2] * Math.PI * 2);
+        snd3 = Math.max(-sineClip, Math.min(0.65, snd3)) * lfo1 * (this.amp / 10);
+
+        this.apparatusPhases[3] += (this.hz * 2 - lfo1) / this.sampleRate;
+        if (this.apparatusPhases[3] >= 1) this.apparatusPhases[3] -= 1;
+        let snd4 = Math.sin(this.apparatusPhases[3] * Math.PI * 2);
+        snd4 = Math.max(-sineClip, Math.min(0.70, snd4)) * lfo2 * (this.amp / 6);
+
+        // Dust and crackle
+        const dust = (Math.random() < 0.0002 ? (Math.random() * 2 - 1) : 0) * this.brightness;
+
+        const mix = snd + snd2 + snd3 + snd4 + dust;
+        return mix * 0.5;
+    }
+
+    // Toshiya engine - resonant space
+    engineToshiya() {
+        let sumL = 0, sumR = 0;
+        const note = Math.log2(this.hz / 440) * 12 + 69;
+
+        // Low sine foundation
+        this.toshiyaPhases[0] += (this.hz / 2) / this.sampleRate;
+        if (this.toshiyaPhases[0] >= 1) this.toshiyaPhases[0] -= 1;
+        const triMod = 0.2 + this.noise2(0, 0.5) * 0.6;
+        const bassSig = Math.sin(this.toshiyaPhases[0] * Math.PI * 2 * triMod) / 12;
+        const bassPan = Math.sin(this.noise2(1, 0.1) * Math.PI * 0.2);
+        sumL += bassSig * (0.5 - bassPan * 0.2);
+        sumR += bassSig * (0.5 + bassPan * 0.2);
+
+        // 12 resonant voices
+        for (let i = 1; i < 13; i++) {
+            const interval = this.toshiyaChord[Math.floor(this.noise2(i, 0.03) * 0.5 + 0.5) * this.toshiyaChord.length % this.toshiyaChord.length];
+            const voiceNote = note + interval;
+            const freq = 440 * Math.pow(2, (voiceNote - 69) / 12);
+
+            this.toshiyaPhases[i] += freq / this.sampleRate;
+            if (this.toshiyaPhases[i] >= 1) this.toshiyaPhases[i] -= 1;
+
+            let sig = Math.sin(this.toshiyaPhases[i] * Math.PI * 2);
+
+            // Filter modulation
+            const filterMod = this.noise2(i + 20, 0.03 + 0.07 * this.movement);
+            const cutoff = 20 + Math.pow(filterMod * 0.5 + 0.5, 2) * 12000 * this.brightness;
+
+            // Simple lowpass approximation
+            sig = sig * Math.min(1, cutoff / freq);
+
+            const pan = this.noise2(i + 10, 0.33);
+            const gainL = Math.cos((pan + 1) * Math.PI / 4);
+            const gainR = Math.sin((pan + 1) * Math.PI / 4);
+
+            sumL += sig * gainL / 12;
+            sumR += sig * gainR / 12;
+        }
+
+        return { left: Math.tanh(sumL) * this.amp * 0.5, right: Math.tanh(sumR) * this.amp * 0.5 };
+    }
+
+    // Mt. Zion engine - rusted satellites
+    engineMtZion() {
+        let sumL = 0, sumR = 0;
+        const baseNote = Math.round(Math.log2(this.hz / 440) * 12 + 69);
+        const noteDetune = Math.abs(baseNote - (Math.log2(this.hz / 440) * 12 + 69));
+
+        for (let i = 0; i < 5; i++) {
+            // Slowly update detune and pulse width
+            if (Math.random() < 0.0001) {
+                this.mtzionDetune[i] = (Math.random() * 2 - 1) * noteDetune;
+            }
+            if (Math.random() < 0.0005) {
+                this.mtzionPW[i] = 0.25 + Math.random() * 0.5;
+            }
+
+            const voiceNote = baseNote + this.mtzionDetune[i];
+            const freq = 440 * Math.pow(2, (voiceNote - 69) / 12) * (i + 1);
+
+            this.mtzionPhases[i] += freq / this.sampleRate;
+            if (this.mtzionPhases[i] >= 1) this.mtzionPhases[i] -= 1;
+
+            // Pulse wave with variable width
+            let sig = this.mtzionPhases[i] < this.mtzionPW[i] ? 1 : -1;
+
+            // Random amplitude modulation
+            const ampMod = 0.5 + this.noise2(i, 0.1) * 0.5;
+            sig *= ampMod;
+
+            const pan = this.noise2(i + 10, 0.3);
+            const gainL = Math.cos((pan + 1) * Math.PI / 4);
+            const gainR = Math.sin((pan + 1) * Math.PI / 4);
+
+            const voiceAmp = this.amp / 5;
+            sumL += sig * gainL * voiceAmp;
+            sumR += sig * gainR * voiceAmp;
+        }
+
+        return { left: sumL * 0.4, right: sumR * 0.4 };
+    }
+
+    // Magicicada engine - no-input feedback chaos
+    engineMagicicada() {
+        // Add noise
+        const noiseL = (Math.random() * 2 - 1) * 0.01;
+        const noiseR = (Math.random() * 2 - 1) * 0.01;
+
+        // Read from delay lines at varying positions
+        const beat = 0.5 + this.noise2(0, 0.002 * this.movement) * 1.5;
+        const delaySamples1 = Math.floor(beat * this.sampleRate) % this.magicDelayL.length;
+        const delaySamples2 = Math.floor(beat * 0.75 * this.sampleRate) % this.magicDelayL.length;
+        const delaySamples3 = Math.floor(beat * 0.5 * this.sampleRate) % this.magicDelayL.length;
+
+        const readIdx1 = (this.magicDelayIdx - delaySamples1 + this.magicDelayL.length) % this.magicDelayL.length;
+        const readIdx2 = (this.magicDelayIdx - delaySamples2 + this.magicDelayL.length) % this.magicDelayL.length;
+        const readIdx3 = (this.magicDelayIdx - delaySamples3 + this.magicDelayL.length) % this.magicDelayL.length;
+
+        // Mix delays with crossfade
+        const sel1 = 0.5 + 0.5 * this.noise2(1, 0.006);
+        const sel2 = 0.5 + 0.5 * this.noise2(2, 0.005);
+
+        let delayedL = this.magicDelayL[readIdx1] * sel1 + this.magicDelayL[readIdx2] * (1 - sel1);
+        let delayedR = this.magicDelayR[readIdx1] * sel2 + this.magicDelayR[readIdx2] * (1 - sel2);
+
+        // Add folded distortion
+        const distGain = 1 + this.noise2(3, 0.02) * this.brightness;
+        delayedL = Math.sin(delayedL * distGain * Math.PI);
+        delayedR = Math.sin(delayedR * distGain * Math.PI);
+
+        // Feedback amount
+        const fbAmt = 0.48 + this.noise2(4, 0.05 * this.movement) * 0.27;
+
+        // HPF to remove DC
+        const hpfCoef = 0.995;
+        const inputL = noiseL + delayedL * fbAmt;
+        const inputR = noiseR + delayedR * fbAmt;
+
+        this.magicFbL = inputL - this.hpfState.s1 + hpfCoef * this.magicFbL;
+        this.magicFbR = inputR - this.hpfState.s2 + hpfCoef * this.magicFbR;
+        this.hpfState.s1 = inputL;
+        this.hpfState.s2 = inputR;
+
+        // Write to delay
+        this.magicDelayL[this.magicDelayIdx] = this.magicFbL;
+        this.magicDelayR[this.magicDelayIdx] = this.magicFbR;
+        this.magicDelayIdx = (this.magicDelayIdx + 1) % this.magicDelayL.length;
+
+        // Apply LPF and output
+        const cutoff = 3000 + this.noise2(5, 0.02) * 10000 * this.brightness;
+
+        return {
+            left: Math.tanh(this.magicFbL * 2) * this.amp,
+            right: Math.tanh(this.magicFbR * 2) * this.amp
+        };
+    }
+
+    // Simple reverb
+    processReverb(inputL, inputR) {
+        let sumL = 0, sumR = 0;
+
+        for (let i = 0; i < 8; i++) {
+            const delay = this.reverbDelays[i];
+            const delayed = delay.buffer[delay.idx];
+
+            // Mix input and delayed with feedback
+            const input = i < 4 ? inputL : inputR;
+            delay.buffer[delay.idx] = input + delayed * 0.7;
+            delay.idx = (delay.idx + 1) % delay.buffer.length;
+
+            if (i < 4) sumL += delayed;
+            else sumR += delayed;
+        }
+
+        return {
+            left: sumL * 0.25,
+            right: sumR * 0.25
+        };
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        for (let s = 0; s < left.length; s++) {
+            let outL = 0, outR = 0;
+
+            // Run selected engine
+            switch (this.engine) {
+                case 'sine': {
+                    const result = this.engineSine();
+                    outL = result.left;
+                    outR = result.right;
+                    break;
+                }
+                case 'triangle': {
+                    const result = this.engineTriangle();
+                    outL = result.left;
+                    outR = result.right;
+                    break;
+                }
+                case 'square': {
+                    const result = this.engineSquare();
+                    outL = result.left;
+                    outR = result.right;
+                    break;
+                }
+                case 'supersaw': {
+                    const sig = this.engineSupersaw();
+                    outL = outR = sig;
+                    break;
+                }
+                case 'thx': {
+                    const sig = this.engineTHX();
+                    outL = outR = sig;
+                    break;
+                }
+                case 'eno': {
+                    const result = this.engineEno();
+                    outL = result.left;
+                    outR = result.right;
+                    break;
+                }
+                case 'sunno': {
+                    const result = this.engineSunno();
+                    outL = result.left;
+                    outR = result.right;
+                    break;
+                }
+                case 'fieldsteel': {
+                    const result = this.engineFieldsteel();
+                    outL = result.left;
+                    outR = result.right;
+                    break;
+                }
+                case 'starlids': {
+                    const result = this.engineStarlids();
+                    outL = result.left;
+                    outR = result.right;
+                    break;
+                }
+                case 'coil': {
+                    const result = this.engineCoil();
+                    outL = result.left;
+                    outR = result.right;
+                    break;
+                }
+                case 'eliane': {
+                    const result = this.engineEliane();
+                    outL = result.left;
+                    outR = result.right;
+                    break;
+                }
+                case 'gristle': {
+                    const sig = this.engineGristle();
+                    outL = outR = sig;
+                    break;
+                }
+                case 'hecker': {
+                    const result = this.engineHecker();
+                    outL = result.left;
+                    outR = result.right;
+                    break;
+                }
+                case 'nautilus': {
+                    const result = this.engineNautilus();
+                    outL = result.left;
+                    outR = result.right;
+                    break;
+                }
+                case 'malone': {
+                    const result = this.engineMalone();
+                    outL = result.left;
+                    outR = result.right;
+                    break;
+                }
+                case 'shields': {
+                    const result = this.engineShields();
+                    outL = result.left;
+                    outR = result.right;
+                    break;
+                }
+                case 'apparatus': {
+                    const sig = this.engineApparatus();
+                    outL = outR = sig;
+                    break;
+                }
+                case 'toshiya': {
+                    const result = this.engineToshiya();
+                    outL = result.left;
+                    outR = result.right;
+                    break;
+                }
+                case 'mtzion': {
+                    const result = this.engineMtZion();
+                    outL = result.left;
+                    outR = result.right;
+                    break;
+                }
+                case 'magicicada': {
+                    const result = this.engineMagicicada();
+                    outL = result.left;
+                    outR = result.right;
+                    break;
+                }
+            }
+
+            // Apply reverb
+            if (this.reverb > 0) {
+                const rev = this.processReverb(outL, outR);
+                outL = outL * (1 - this.reverb) + rev.left * this.reverb;
+                outR = outR * (1 - this.reverb) + rev.right * this.reverb;
+            }
+
+            // Soft clip output
+            left[s] = Math.tanh(outL * 1.5) * 0.8;
+            if (right) right[s] = Math.tanh(outR * 1.5) * 0.8;
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('dronecaster-processor', DronecasterProcessor);
+`;
+
+        let audioContext = null;
+        let workletNode = null;
+        let analyser = null;
+        let isPlaying = false;
+        let pedalboard = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        // Engine descriptions
+        const engineDescriptions = {
+            sine: 'Pure sine wave - fundamental building block',
+            triangle: 'Triangle wave - warm odd harmonics',
+            square: 'Square wave - hollow pulse tone',
+            supersaw: 'Detuned saw stack - classic trance pad',
+            thx: 'THX Deep Note - chaotic to harmonic convergence',
+            eno: 'Music for Airports - ambient piano textures',
+            sunno: 'SUNNO))) style - distorted guitar drones',
+            fieldsteel: 'Pedagogical pads - bandpassed saws with envelopes',
+            starlids: 'Symphonic intervals - evolving harmonic relationships',
+            coil: 'Tunnel textures - feedback sine with envelopes',
+            eliane: 'Phase modulation ring - 7 sines modulating each other',
+            gristle: 'Primal sawtooth - filtered multi-octave saw',
+            hecker: 'Florian Hecker - narrowband filtered noise',
+            nautilus: 'Lorenz chaos - chaotic attractor modulation',
+            malone: 'Thick organ - stepped chord progressions',
+            shields: 'Kevin Shields - bendy comb-filtered drones',
+            apparatus: 'Vintage generators - old sine oscillator hum',
+            toshiya: 'Resonant space - object-bound resonators',
+            mtzion: 'Rusted satellites - detuned pulse waves',
+            magicicada: 'No-input chaos - organic feedback network'
+        };
+
+        // Engine selector
+        document.getElementById('engine').addEventListener('change', (e) => {
+            const engine = e.target.value;
+            if (workletNode) {
+                workletNode.port.postMessage({ engine });
+            }
+            status.textContent = `Engine: ${engineDescriptions[engine]}`;
+        });
+
+        // Parameter controls
+        const params = ['hz', 'amp', 'detune', 'brightness', 'movement', 'reverb'];
+        params.forEach(param => {
+            const input = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            input.addEventListener('input', () => {
+                const val = parseFloat(input.value);
+                display.textContent = param === 'hz' ? val.toFixed(0) : val.toFixed(2);
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param]: val });
+                }
+            });
+        });
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+            const blob = new Blob([processorCode], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'dronecaster-processor');
+
+            // Initialize pedalboard and route audio through it
+            pedalboard = new PedalboardUI(
+                document.getElementById('pedalboard-container'),
+                audioContext
+            );
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'dronecaster-multi-engine-drone-synthesizer',
+                    patchId: 'dronecaster-01'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('dronecaster-01');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'dronecaster-01',
+                    prefix: '01',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            fxNode.connect(analyser);
+
+            // Send initial parameters
+            params.forEach(param => {
+                const val = parseFloat(document.getElementById(param).value);
+                workletNode.port.postMessage({ [param]: val });
+            });
+            workletNode.port.postMessage({ engine: document.getElementById('engine').value });
+        }
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!analyser) return;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteTimeDomainData(dataArray);
+
+            ctx.fillStyle = 'rgba(18, 18, 26, 0.05)';
+            ctx.fillRect(0, 0, width, height);
+
+            // Waveform with gradient
+            const gradient = ctx.createLinearGradient(0, 0, width, 0);
+            gradient.addColorStop(0, 'rgba(99, 102, 241, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(168, 85, 247, 0.8)');
+            gradient.addColorStop(1, 'rgba(236, 72, 153, 0.8)');
+
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const sliceWidth = width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = v * height / 2;
+
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+                x += sliceWidth;
+            }
+
+            ctx.stroke();
+
+            // Frequency spectrum
+            const freqData = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(freqData);
+
+            ctx.fillStyle = 'rgba(34, 197, 94, 0.3)';
+            const barWidth = width / 128;
+            for (let i = 0; i < 128; i++) {
+                const barHeight = freqData[i * 2] / 255 * height * 0.4;
+                ctx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
+            }
+
+            if (isPlaying) requestAnimationFrame(drawVisualizer);
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+            }
+
+            if (isPlaying) {
+                await audioContext.suspend();
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                const engine = document.getElementById('engine').value;
+                status.textContent = `Engine: ${engineDescriptions[engine]}`;
+                status.classList.add('active');
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+    </script>
+</body>
+</html>

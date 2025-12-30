@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blippoo 01 - Twin Peaks Chaos</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Blippoo 01</h1>
+                <p>Twin Peaks dual filter with rungler modulation - Rob Hordijk's Blippoo Box</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <div class="visualizer-container">
+                <canvas id="visualizer"></canvas>
+            </div>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Osc A Freq</label>
+                    <input type="range" id="freqOscA" min="0.1" max="1000" value="10.46" step="0.01">
+                    <span class="param-value" id="freqOscAVal">10.46</span>
+                </div>
+                <div class="param-group">
+                    <label>Osc B Freq</label>
+                    <input type="range" id="freqOscB" min="0.01" max="100" value="0.32" step="0.01">
+                    <span class="param-value" id="freqOscBVal">0.32</span>
+                </div>
+                <div class="param-group">
+                    <label>FM B→A</label>
+                    <input type="range" id="fm_b_a" min="0" max="500" value="10.02" step="0.1">
+                    <span class="param-value" id="fm_b_aVal">10.02</span>
+                </div>
+                <div class="param-group">
+                    <label>FM A→B</label>
+                    <input type="range" id="fm_a_b" min="0" max="500" value="2.81" step="0.1">
+                    <span class="param-value" id="fm_a_bVal">2.81</span>
+                </div>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>FM Rungler→A</label>
+                    <input type="range" id="fm_r_a" min="0" max="1000" value="160.2" step="1">
+                    <span class="param-value" id="fm_r_aVal">160</span>
+                </div>
+                <div class="param-group">
+                    <label>FM Rungler→B</label>
+                    <input type="range" id="fm_r_b" min="0" max="500" value="16.27" step="0.1">
+                    <span class="param-value" id="fm_r_bVal">16.3</span>
+                </div>
+                <div class="param-group">
+                    <label>FM S&H→A</label>
+                    <input type="range" id="fm_sah_a" min="0" max="500" value="6.14" step="0.1">
+                    <span class="param-value" id="fm_sah_aVal">6.14</span>
+                </div>
+                <div class="param-group">
+                    <label>FM S&H→B</label>
+                    <input type="range" id="fm_sah_b" min="0" max="500" value="6.14" step="0.1">
+                    <span class="param-value" id="fm_sah_bVal">6.14</span>
+                </div>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Peak 1 Freq</label>
+                    <input type="range" id="freqPeak1" min="20" max="4000" value="231.4" step="1">
+                    <span class="param-value" id="freqPeak1Val">231</span>
+                </div>
+                <div class="param-group">
+                    <label>Peak 2 Freq</label>
+                    <input type="range" id="freqPeak2" min="20" max="8000" value="895" step="1">
+                    <span class="param-value" id="freqPeak2Val">895</span>
+                </div>
+                <div class="param-group">
+                    <label>FM Rungler→Peak1</label>
+                    <input type="range" id="fm_r_peak1" min="0" max="5000" value="1000" step="10">
+                    <span class="param-value" id="fm_r_peak1Val">1000</span>
+                </div>
+                <div class="param-group">
+                    <label>FM Rungler→Peak2</label>
+                    <input type="range" id="fm_r_peak2" min="0" max="10000" value="3000" step="10">
+                    <span class="param-value" id="fm_r_peak2Val">3000</span>
+                </div>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>FM S&H→Peak</label>
+                    <input type="range" id="fm_sah_peak" min="0" max="2000" value="272.1" step="1">
+                    <span class="param-value" id="fm_sah_peakVal">272</span>
+                </div>
+                <div class="param-group">
+                    <label>Resonance</label>
+                    <input type="range" id="resonance" min="0.01" max="0.99" value="0.06" step="0.01">
+                    <span class="param-value" id="resonanceVal">0.06</span>
+                </div>
+                <div class="param-group">
+                    <label>Amp</label>
+                    <input type="range" id="amp" min="0" max="2" value="1" step="0.1">
+                    <span class="param-value" id="ampVal">1.0</span>
+                </div>
+            </div>
+
+            <div class="shift-register-display">
+                <label>Rungler States</label>
+                <div class="sr-bits" id="srBits"></div>
+            </div>
+
+            <div class="code-block">
+                <code>Blippoo Box: Dual triangle oscillators with cross-FM, rungler shift registers, sample-and-hold, and twin peaks resonant filter - Rob Hordijk design</code>
+            </div>
+
+            <p class="status" id="status">Click play to start</p>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+
+        <nav class="nav-links">
+            <a href="benjolis-01.html">&larr; Previous</a>
+            <span></span>
+        </nav>
+    </div>
+
+    <script>
+        const processorCode = `
+class BlippooProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+
+        // Main parameters (matching SC defaults)
+        this.freqOscA = 10.46;
+        this.freqOscB = 0.32;
+        this.fm_b_a = 10.02;
+        this.fm_a_b = 2.81;
+        this.fm_r_a = 160.2;
+        this.fm_r_b = 16.27;
+        this.fm_sah_a = 6.14;
+        this.fm_sah_b = 6.14;
+        this.freqPeak1 = 231.4;
+        this.freqPeak2 = 895;
+        this.fm_r_peak1 = 1000;
+        this.fm_r_peak2 = 3000;
+        this.fm_sah_peak = 272.1;
+        this.resonance = 0.06;
+        this.amp = 1.0;
+
+        // Oscillator phases
+        this.phaseA = 0;
+        this.phaseB = 0;
+
+        // Previous triangle values for pulse detection (Delay1)
+        this.prevTri1 = 0;
+        this.prevTri2 = 0;
+
+        // Rungler buffers (8-stage shift registers)
+        this.rungler1Buffer = new Float32Array(8);
+        this.rungler2Buffer = new Float32Array(8);
+        this.rungler1Pos = 0;
+        this.rungler2Pos = 0;
+
+        // Sample and hold state
+        this.sahValue = 0;
+        this.prevPuls2 = 0;
+
+        // Lagged values (for smoothing)
+        this.laggedSah = 0;
+        this.laggedRungler1 = 0;
+        this.laggedRungler2 = 0;
+        this.laggedComparator = 0;
+
+        // Feedback values
+        this.fb_tri1 = 0;
+        this.fb_tri2 = 0;
+        this.fb_rungler1 = 0;
+        this.fb_rungler2 = 0;
+        this.fb_sah = 0;
+
+        // LFNoise2 states for frequency wobble
+        this.noisePhaseA = Math.random();
+        this.noisePhaseB = Math.random();
+        this.noiseTargetA = 0;
+        this.noiseCurrentA = 0;
+        this.noisePrevA = 0;
+        this.noiseTargetB = 0;
+        this.noiseCurrentB = 0;
+        this.noisePrevB = 0;
+
+        // Twin peaks filter states
+        this.lpf1State = { s1: 0, s2: 0 };
+        this.lpf2State = { s1: 0, s2: 0 };
+
+        // State counter for UI updates
+        this.stateCounter = 0;
+
+        this.port.onmessage = (e) => {
+            const d = e.data;
+            if (d.freqOscA !== undefined) this.freqOscA = d.freqOscA;
+            if (d.freqOscB !== undefined) this.freqOscB = d.freqOscB;
+            if (d.fm_b_a !== undefined) this.fm_b_a = d.fm_b_a;
+            if (d.fm_a_b !== undefined) this.fm_a_b = d.fm_a_b;
+            if (d.fm_r_a !== undefined) this.fm_r_a = d.fm_r_a;
+            if (d.fm_r_b !== undefined) this.fm_r_b = d.fm_r_b;
+            if (d.fm_sah_a !== undefined) this.fm_sah_a = d.fm_sah_a;
+            if (d.fm_sah_b !== undefined) this.fm_sah_b = d.fm_sah_b;
+            if (d.freqPeak1 !== undefined) this.freqPeak1 = d.freqPeak1;
+            if (d.freqPeak2 !== undefined) this.freqPeak2 = d.freqPeak2;
+            if (d.fm_r_peak1 !== undefined) this.fm_r_peak1 = d.fm_r_peak1;
+            if (d.fm_r_peak2 !== undefined) this.fm_r_peak2 = d.fm_r_peak2;
+            if (d.fm_sah_peak !== undefined) this.fm_sah_peak = d.fm_sah_peak;
+            if (d.resonance !== undefined) this.resonance = d.resonance;
+            if (d.amp !== undefined) this.amp = d.amp;
+        };
+    }
+
+    // LFTri oscillator (-1 to 1)
+    lftri(phase) {
+        return phase < 0.5 ? (phase * 4 - 1) : (3 - phase * 4);
+    }
+
+    // LFNoise2-style interpolated noise
+    updateNoise(phase, rate, prev, current, target) {
+        const newPhase = phase + rate / this.sampleRate;
+        if (newPhase >= 1) {
+            return {
+                phase: newPhase - 1,
+                prev: current,
+                current: target,
+                target: Math.random() * 2 - 1
+            };
+        }
+        return { phase: newPhase, prev, current, target };
+    }
+
+    cubicInterp(phase, prev, current, target) {
+        // Quadratic interpolation approximating LFNoise2
+        const t = phase;
+        return current + t * (target - prev) * 0.5 + t * t * (prev - 2 * current + target) * 0.5;
+    }
+
+    // Lag filter (one-pole lowpass for smoothing)
+    lag(current, target, time) {
+        if (time <= 0) return target;
+        const coef = Math.exp(-1 / (time * this.sampleRate));
+        return target + coef * (current - target);
+    }
+
+    // Asymmetric lag (lag3ud approximation)
+    lag3ud(current, target, upTime, downTime) {
+        const time = target > current ? upTime : downTime;
+        return this.lag(current, target, time);
+    }
+
+    // Fold value to range
+    fold(value, lo, hi) {
+        const range = hi - lo;
+        if (range <= 0) return lo;
+        let v = value - lo;
+        v = v - Math.floor(v / (2 * range)) * (2 * range);
+        if (v > range) v = 2 * range - v;
+        return v + lo;
+    }
+
+    // Rungler: 8-stage shift register with 3-bit output
+    updateRungler(buffer, pos, clockPulse, inputPulse) {
+        let newPos = pos;
+        if (clockPulse) {
+            // Step the position
+            newPos = (pos + 1) % 8;
+            // Write input to current position
+            buffer[newPos] = inputPulse > 0 ? 1 : 0;
+        }
+
+        // Read 3 bits from positions (pos+5), (pos+6), (pos+7) relative to current
+        const r1 = buffer[(newPos + 5) % 8] > 0 ? 1 : 0;
+        const r2 = buffer[(newPos + 6) % 8] > 0 ? 1 : 0;
+        const r3 = buffer[(newPos + 7) % 8] > 0 ? 1 : 0;
+
+        // Combine to 3-bit value (0-7), normalize to 0-1
+        const value = ((r1 << 0) + (r2 << 1) + (r3 << 2)) / 7;
+
+        return { pos: newPos, value };
+    }
+
+    // Resonant Lowpass Filter (RLPF)
+    rlpf(input, state, freq, q) {
+        const clampedFreq = Math.max(20, Math.min(this.sampleRate * 0.45, freq));
+        const w = 2 * Math.PI * clampedFreq / this.sampleRate;
+        const g = Math.tan(w / 2);
+        const k = 2 * (1 - Math.min(0.99, Math.max(0.01, q)));
+
+        const a1 = 1 / (1 + g * (g + k));
+        const a2 = g * a1;
+        const a3 = g * a2;
+
+        const v3 = input - state.s2;
+        const v1 = a1 * state.s1 + a2 * v3;
+        const v2 = state.s2 + a2 * state.s1 + a3 * v3;
+
+        state.s1 = 2 * v1 - state.s1;
+        state.s2 = 2 * v2 - state.s2;
+
+        if (!isFinite(state.s1)) state.s1 = 0;
+        if (!isFinite(state.s2)) state.s2 = 0;
+
+        return v2;
+    }
+
+    // Twin Peaks: Dual resonant filters
+    twinPeaks(input, f1, f2, r1, r2) {
+        const l1 = this.rlpf(input, this.lpf1State, f1, r1);
+        const l2 = this.rlpf(-input, this.lpf2State, f2, r2);
+        return l1 + l2;
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        for (let s = 0; s < left.length; s++) {
+            this.stateCounter++;
+
+            // Send state periodically
+            if (this.stateCounter >= 2048) {
+                this.stateCounter = 0;
+                // Pack rungler states for display
+                let srValue = 0;
+                for (let i = 0; i < 8; i++) {
+                    srValue |= (this.rungler1Buffer[i] > 0.5 ? 1 : 0) << (7 - i);
+                }
+                this.port.postMessage({ shiftRegister: srValue });
+            }
+
+            // Update LFNoise2 for frequency wobble
+            const noiseRateA = Math.max(1, this.freqOscA) / 10;
+            const noiseRateB = Math.max(0.1, this.freqOscB) / 10;
+
+            const noiseAUpdate = this.updateNoise(
+                this.noisePhaseA, noiseRateA,
+                this.noisePrevA, this.noiseCurrentA, this.noiseTargetA
+            );
+            this.noisePhaseA = noiseAUpdate.phase;
+            this.noisePrevA = noiseAUpdate.prev;
+            this.noiseCurrentA = noiseAUpdate.current;
+            this.noiseTargetA = noiseAUpdate.target;
+
+            const noiseBUpdate = this.updateNoise(
+                this.noisePhaseB, noiseRateB,
+                this.noisePrevB, this.noiseCurrentB, this.noiseTargetB
+            );
+            this.noisePhaseB = noiseBUpdate.phase;
+            this.noisePrevB = noiseBUpdate.prev;
+            this.noiseCurrentB = noiseBUpdate.current;
+            this.noiseTargetB = noiseBUpdate.target;
+
+            // Calculate noise values
+            const noiseA = this.cubicInterp(this.noisePhaseA, this.noisePrevA, this.noiseCurrentA, this.noiseTargetA);
+            const noiseB = this.cubicInterp(this.noisePhaseB, this.noisePrevB, this.noiseCurrentB, this.noiseTargetB);
+
+            // Randomized frequencies (slight wobble like analog oscillators)
+            const rfreqOscA = this.freqOscA + noiseA * Math.max(1, this.freqOscA) / 1000;
+            const rfreqOscB = this.freqOscB + noiseB * Math.max(0.1, this.freqOscB) / 1000;
+
+            // Calculate modulated oscillator frequencies
+            const freqA = this.fold(
+                rfreqOscA + (this.fb_tri2 * this.fm_b_a) + (this.fb_rungler1 * this.fm_r_a) + (this.fb_sah * this.fm_sah_a),
+                0, 20000
+            );
+            const freqB = this.fold(
+                rfreqOscB + (this.fb_tri1 * this.fm_a_b) + (this.fb_rungler2 * this.fm_r_b) + (this.fb_sah * this.fm_sah_b),
+                0, 20000
+            );
+
+            // Update oscillator phases
+            this.phaseA += freqA / this.sampleRate;
+            this.phaseB += freqB / this.sampleRate;
+            if (this.phaseA >= 1) this.phaseA -= 1;
+            if (this.phaseB >= 1) this.phaseB -= 1;
+
+            // Generate triangle waves
+            const tri1 = this.lftri(this.phaseA);
+            const tri2 = this.lftri(this.phaseB);
+
+            // Pulse detection: rising edge of triangle (tri > Delay1(tri))
+            const puls1 = tri1 > this.prevTri1 ? 1 : 0;
+            const puls2 = tri2 > this.prevTri2 ? 1 : 0;
+            this.prevTri1 = tri1;
+            this.prevTri2 = tri2;
+
+            // Sample and Hold: latch tri1 on puls2 rising edge
+            const puls2Edge = puls2 > 0 && this.prevPuls2 <= 0;
+            this.prevPuls2 = puls2;
+            if (puls2Edge) {
+                this.sahValue = tri1;
+            }
+            // Lag the S&H value
+            this.laggedSah = this.lag(this.laggedSah, this.sahValue, 1/10000);
+
+            // Update runglers
+            const r1Result = this.updateRungler(this.rungler1Buffer, this.rungler1Pos, puls1 > 0, puls2);
+            this.rungler1Pos = r1Result.pos;
+            const rungler1Raw = r1Result.value;
+
+            const r2Result = this.updateRungler(this.rungler2Buffer, this.rungler2Pos, puls2 > 0, puls1);
+            this.rungler2Pos = r2Result.pos;
+            const rungler2Raw = r2Result.value;
+
+            // Lag rungler outputs
+            this.laggedRungler1 = this.lag(this.laggedRungler1, rungler1Raw, 1/10000);
+            this.laggedRungler2 = this.lag(this.laggedRungler2, rungler2Raw, 1/10000);
+
+            const rung = this.laggedRungler1 + this.laggedRungler2;
+
+            // Comparator: (tri1 < tri2) - 0.5, with asymmetric lag
+            const comparatorRaw = (tri1 < tri2 ? 1 : 0) - 0.5;
+            this.laggedComparator = this.lag3ud(this.laggedComparator, comparatorRaw, 1/10000, 1/5000);
+
+            // Calculate filter frequencies with modulation
+            const pf1 = Math.abs(this.freqPeak1 + (this.laggedSah * this.fm_sah_peak * -1) + (rung * this.fm_r_peak1));
+            const pf2 = Math.abs(this.freqPeak2 + (this.laggedSah * this.fm_sah_peak) + (rung * this.fm_r_peak2));
+
+            // Twin Peaks filter
+            const sig = this.twinPeaks(this.laggedComparator, pf1, pf2, this.resonance, this.resonance);
+
+            // Update feedback values for next sample
+            this.fb_tri1 = tri1;
+            this.fb_tri2 = tri2;
+            this.fb_rungler1 = this.laggedRungler1;
+            this.fb_rungler2 = this.laggedRungler2;
+            this.fb_sah = this.laggedSah;
+
+            // Output with limiter approximation
+            const out = Math.tanh(sig * 0.5) * this.amp * 0.7;
+
+            left[s] = out;
+            if (right) right[s] = out;
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('blippoo-processor', BlippooProcessor);
+`;
+
+        let audioContext = null;
+        let workletNode = null;
+        let analyser = null;
+        let isPlaying = false;
+        let pedalboard = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        // All parameter controls
+        const params = [
+            'freqOscA', 'freqOscB', 'fm_b_a', 'fm_a_b',
+            'fm_r_a', 'fm_r_b', 'fm_sah_a', 'fm_sah_b',
+            'freqPeak1', 'freqPeak2', 'fm_r_peak1', 'fm_r_peak2',
+            'fm_sah_peak', 'resonance', 'amp'
+        ];
+
+        params.forEach(param => {
+            const input = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            input.addEventListener('input', () => {
+                const val = parseFloat(input.value);
+                // Format display based on parameter
+                if (param === 'freqPeak1' || param === 'freqPeak2' || param === 'fm_r_peak1' || param === 'fm_r_peak2' || param === 'fm_sah_peak' || param === 'fm_r_a') {
+                    display.textContent = val.toFixed(0);
+                } else if (param === 'resonance') {
+                    display.textContent = val.toFixed(2);
+                } else if (param === 'amp') {
+                    display.textContent = val.toFixed(1);
+                } else {
+                    display.textContent = val.toFixed(2);
+                }
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param]: val });
+                }
+            });
+        });
+
+        // Shift register display
+        const srBits = document.getElementById('srBits');
+        for (let i = 7; i >= 0; i--) {
+            const bit = document.createElement('span');
+            bit.className = 'sr-bit';
+            bit.dataset.bit = i;
+            bit.textContent = '0';
+            srBits.appendChild(bit);
+        }
+
+        function updateShiftRegister(value) {
+            const bits = srBits.querySelectorAll('.sr-bit');
+            bits.forEach(bit => {
+                const bitPos = parseInt(bit.dataset.bit);
+                const bitVal = (value >> bitPos) & 1;
+                bit.textContent = bitVal;
+                bit.classList.toggle('active', bitVal === 1);
+            });
+        }
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+            const blob = new Blob([processorCode], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'blippoo-processor');
+
+            workletNode.port.onmessage = (e) => {
+                if (e.data.shiftRegister !== undefined) {
+                    updateShiftRegister(e.data.shiftRegister);
+                }
+            };
+
+            // Initialize pedalboard and route audio through it
+            pedalboard = new PedalboardUI(
+                document.getElementById('pedalboard-container'),
+                audioContext
+            );
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'blippoo-01-twin-peaks-chaos',
+                    patchId: 'blippoo-01'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('blippoo-01');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'blippoo-01',
+                    prefix: '01',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            fxNode.connect(analyser);
+
+            // Send initial parameters
+            params.forEach(param => {
+                const val = parseFloat(document.getElementById(param).value);
+                workletNode.port.postMessage({ [param]: val });
+            });
+        }
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!analyser) return;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteTimeDomainData(dataArray);
+
+            ctx.fillStyle = 'rgba(18, 18, 26, 0.1)';
+            ctx.fillRect(0, 0, width, height);
+
+            // Waveform
+            ctx.strokeStyle = 'rgba(34, 197, 94, 0.9)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const sliceWidth = width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = v * height / 2;
+
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+                x += sliceWidth;
+            }
+
+            ctx.stroke();
+
+            // Frequency spectrum
+            const freqData = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(freqData);
+
+            ctx.fillStyle = 'rgba(251, 146, 60, 0.4)';
+            const barWidth = width / 64;
+            for (let i = 0; i < 64; i++) {
+                const barHeight = freqData[i * 4] / 255 * height * 0.5;
+                ctx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
+            }
+
+            if (isPlaying) requestAnimationFrame(drawVisualizer);
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+            }
+
+            if (isPlaying) {
+                await audioContext.suspend();
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                status.textContent = 'Playing - Twin Peaks chaotic synthesis';
+                status.classList.add('active');
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+    </script>
+</body>
+</html>

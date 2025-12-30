@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Icarus - Super Saw Synth</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-controls:last-of-type {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Icarus</h1>
+                <p>Super saw synth with super feedback - inspired by Korg Monotron Delay</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Oscillator -->
+            <span class="section-label">Oscillator</span>
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Detune</label>
+                    <input type="range" id="detune" min="0" max="1" value="0.3" step="0.01">
+                    <span class="param-value" id="detuneVal">0.30</span>
+                </div>
+                <div class="param-group">
+                    <label>Sub Pitch</label>
+                    <input type="range" id="subPitch" min="1" max="4" value="2" step="1">
+                    <span class="param-value" id="subPitchVal">2</span>
+                </div>
+                <div class="param-group">
+                    <label>Sub Mix</label>
+                    <input type="range" id="subMix" min="0" max="1" value="0.3" step="0.01">
+                    <span class="param-value" id="subMixVal">0.30</span>
+                </div>
+                <div class="param-group">
+                    <label>PWM Width</label>
+                    <input type="range" id="pwmWidth" min="0" max="0.5" value="0.1" step="0.01">
+                    <span class="param-value" id="pwmWidthVal">0.10</span>
+                </div>
+            </div>
+
+            <!-- Envelope -->
+            <span class="section-label">Envelope</span>
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Attack</label>
+                    <input type="range" id="attack" min="0.001" max="2" value="0.01" step="0.001">
+                    <span class="param-value" id="attackVal">0.01</span>
+                </div>
+                <div class="param-group">
+                    <label>Decay</label>
+                    <input type="range" id="decay" min="0.01" max="2" value="0.3" step="0.01">
+                    <span class="param-value" id="decayVal">0.30</span>
+                </div>
+                <div class="param-group">
+                    <label>Sustain</label>
+                    <input type="range" id="sustain" min="0" max="1" value="0.7" step="0.01">
+                    <span class="param-value" id="sustainVal">0.70</span>
+                </div>
+                <div class="param-group">
+                    <label>Release</label>
+                    <input type="range" id="release" min="0.01" max="4" value="0.5" step="0.01">
+                    <span class="param-value" id="releaseVal">0.50</span>
+                </div>
+            </div>
+
+            <!-- Filter -->
+            <span class="section-label">Filter (Moog Ladder)</span>
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Cutoff</label>
+                    <input type="range" id="lpf" min="20" max="12000" value="2000" step="1">
+                    <span class="param-value" id="lpfVal">2000</span>
+                </div>
+                <div class="param-group">
+                    <label>Resonance</label>
+                    <input type="range" id="resonance" min="0" max="1" value="0.3" step="0.01">
+                    <span class="param-value" id="resonanceVal">0.30</span>
+                </div>
+            </div>
+
+            <!-- Delay -->
+            <span class="section-label">Delay</span>
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Time</label>
+                    <input type="range" id="delayTime" min="0.01" max="1" value="0.3" step="0.01">
+                    <span class="param-value" id="delayTimeVal">0.30</span>
+                </div>
+                <div class="param-group">
+                    <label>Feedback</label>
+                    <input type="range" id="feedback" min="0" max="0.98" value="0.5" step="0.01">
+                    <span class="param-value" id="feedbackVal">0.50</span>
+                </div>
+            </div>
+
+            <!-- Effects -->
+            <span class="section-label">Effects</span>
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Destruction</label>
+                    <input type="range" id="destruction" min="0" max="1" value="0" step="0.01">
+                    <span class="param-value" id="destructionVal">0.00</span>
+                </div>
+                <div class="param-group">
+                    <label>Tremolo</label>
+                    <input type="range" id="tremolo" min="0" max="10" value="0" step="0.1">
+                    <span class="param-value" id="tremoloVal">0.0</span>
+                </div>
+                <div class="param-group">
+                    <label>Pan Mod</label>
+                    <input type="range" id="panMod" min="0" max="1" value="0.2" step="0.01">
+                    <span class="param-value" id="panModVal">0.20</span>
+                </div>
+                <div class="param-group">
+                    <label>Master</label>
+                    <input type="range" id="master" min="0" max="1" value="0.6" step="0.01">
+                    <span class="param-value" id="masterVal">0.60</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <code>Icarus: Super saw synth with super feedback by @schollz - inspired by Korg Monotron Delay</code>
+            </div>
+
+            <p class="status" id="status">Click play, then press keys A-L or use MIDI</p>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+
+        <nav class="nav-links">
+            <a href="host-01.html">&larr; Previous</a>
+            <a href="lamination-01.html">Next &rarr;</a>
+        </nav>
+    </div>
+
+    <script>
+        const processorCode = `
+class IcarusProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+
+        // Oscillator params
+        this.detune = 0.3;
+        this.subPitch = 2;
+        this.subMix = 0.3;
+        this.pwmWidth = 0.1;
+        this.pwmFreq = 0.5;
+
+        // Envelope params
+        this.attack = 0.01;
+        this.decay = 0.3;
+        this.sustain = 0.7;
+        this.release = 0.5;
+
+        // Filter params
+        this.lpf = 2000;
+        this.resonance = 0.3;
+
+        // Delay params
+        this.delayTime = 0.3;
+        this.feedback = 0.5;
+
+        // Effects params
+        this.destruction = 0;
+        this.tremolo = 0;
+        this.panMod = 0.2;
+        this.master = 0.6;
+
+        // 6 polyphonic voices
+        this.voices = [];
+        for (let i = 0; i < 6; i++) {
+            this.voices.push({
+                active: false,
+                note: 0,
+                freq: 440,
+                phase: 0,
+                subPhase: 0,
+                env: 0,
+                envStage: 'off',
+                envTime: 0,
+                velocity: 1,
+                // Per-voice detuning LFO
+                detuneLfoPhase: Math.random(),
+                // Per-voice PWM phase
+                pwmPhase: Math.random()
+            });
+        }
+
+        // Moog ladder filter state (per channel)
+        this.moogStateL = { s1: 0, s2: 0, s3: 0, s4: 0 };
+        this.moogStateR = { s1: 0, s2: 0, s3: 0, s4: 0 };
+
+        // Delay line (1 second max)
+        this.delayBufferL = new Float32Array(Math.ceil(sampleRate));
+        this.delayBufferR = new Float32Array(Math.ceil(sampleRate));
+        this.delayIdx = 0;
+
+        // One-pole filter for delay feedback
+        this.onePoleL = 0;
+        this.onePoleR = 0;
+
+        // Tremolo/pan LFO
+        this.tremoloPhase = 0;
+        this.panPhase = 0;
+
+        // Destruction envelope
+        this.destructEnv = 0;
+        this.dustTimer = 0;
+
+        // Global PWM LFO
+        this.pwmLfoPhase = 0;
+
+        this.port.onmessage = (e) => {
+            const data = e.data;
+
+            // Oscillator params
+            if (data.detune !== undefined) this.detune = data.detune;
+            if (data.subPitch !== undefined) this.subPitch = data.subPitch;
+            if (data.subMix !== undefined) this.subMix = data.subMix;
+            if (data.pwmWidth !== undefined) this.pwmWidth = data.pwmWidth;
+
+            // Envelope params
+            if (data.attack !== undefined) this.attack = data.attack;
+            if (data.decay !== undefined) this.decay = data.decay;
+            if (data.sustain !== undefined) this.sustain = data.sustain;
+            if (data.release !== undefined) this.release = data.release;
+
+            // Filter params
+            if (data.lpf !== undefined) this.lpf = data.lpf;
+            if (data.resonance !== undefined) this.resonance = data.resonance;
+
+            // Delay params
+            if (data.delayTime !== undefined) this.delayTime = data.delayTime;
+            if (data.feedback !== undefined) this.feedback = data.feedback;
+
+            // Effects params
+            if (data.destruction !== undefined) this.destruction = data.destruction;
+            if (data.tremolo !== undefined) this.tremolo = data.tremolo;
+            if (data.panMod !== undefined) this.panMod = data.panMod;
+            if (data.master !== undefined) this.master = data.master;
+
+            // Note on/off
+            if (data.noteOn !== undefined) {
+                this.noteOn(data.noteOn, data.velocity || 1);
+            }
+            if (data.noteOff !== undefined) {
+                this.noteOff(data.noteOff);
+            }
+        };
+    }
+
+    noteOn(note, velocity) {
+        // Check if this note is already playing - retrigger it
+        let voice = this.voices.find(v => v.active && v.note === note);
+
+        if (!voice) {
+            // Find free voice or steal oldest
+            voice = this.voices.find(v => !v.active);
+            if (!voice) {
+                voice = this.voices[0];
+            }
+        }
+
+        voice.active = true;
+        voice.note = note;
+        voice.freq = 440 * Math.pow(2, (note - 69) / 12);
+        voice.phase = 0;
+        voice.subPhase = 0;
+        voice.env = 0;
+        voice.envStage = 'attack';
+        voice.envTime = 0;
+        voice.velocity = velocity;
+    }
+
+    noteOff(note) {
+        // Release ALL voices with this note
+        for (const voice of this.voices) {
+            if (voice.active && voice.note === note && voice.envStage !== 'release') {
+                voice.envStage = 'release';
+                voice.envTime = 0;
+            }
+        }
+    }
+
+    // VarSaw oscillator (variable width sawtooth)
+    varSaw(phase, width) {
+        // Width 0-1, where 0.5 is triangle, 0 is saw up, 1 is saw down
+        const w = Math.max(0.01, Math.min(0.99, width));
+        if (phase < w) {
+            return phase / w * 2 - 1;
+        } else {
+            return 1 - (phase - w) / (1 - w) * 2;
+        }
+    }
+
+    // Pulse oscillator
+    pulse(phase, width) {
+        return phase < width ? 1 : -1;
+    }
+
+    // Moog ladder filter (4-pole resonant lowpass)
+    moogLadder(input, state, cutoff, resonance) {
+        // Clamp cutoff
+        const freq = Math.max(20, Math.min(this.sampleRate * 0.45, cutoff));
+
+        // Compute coefficients
+        const f = freq / this.sampleRate;
+        const k = 4 * (resonance * 0.99);
+
+        // Tuning
+        const p = f * (1.8 - 0.8 * f);
+        const q = 1 - p;
+        const a = k * p * p * p * p;
+
+        // Feedback
+        const fb = k * (state.s4 - input * 0.5);
+        const inp = input - fb;
+
+        // 4 cascaded one-pole filters
+        state.s1 += p * (inp - state.s1);
+        state.s2 += p * (state.s1 - state.s2);
+        state.s3 += p * (state.s2 - state.s3);
+        state.s4 += p * (state.s3 - state.s4);
+
+        // Check for NaN
+        if (!isFinite(state.s1)) state.s1 = 0;
+        if (!isFinite(state.s2)) state.s2 = 0;
+        if (!isFinite(state.s3)) state.s3 = 0;
+        if (!isFinite(state.s4)) state.s4 = 0;
+
+        return state.s4;
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        const dt = 1 / this.sampleRate;
+
+        for (let s = 0; s < left.length; s++) {
+            let mixL = 0;
+            let mixR = 0;
+
+            // Update global PWM LFO
+            this.pwmLfoPhase += this.pwmFreq / this.sampleRate;
+            if (this.pwmLfoPhase >= 1) this.pwmLfoPhase -= 1;
+            const pwmLfo = Math.sin(this.pwmLfoPhase * Math.PI * 2);
+
+            // === VOICES ===
+            for (let i = 0; i < this.voices.length; i++) {
+                const voice = this.voices[i];
+                if (voice.envStage === 'off') continue;
+
+                // Update envelope (ADSR)
+                voice.envTime += dt;
+
+                if (voice.envStage === 'attack') {
+                    const t = Math.min(1, voice.envTime / this.attack);
+                    // Cubic curve for natural attack
+                    voice.env = t * t * (3 - 2 * t);
+                    if (voice.envTime >= this.attack) {
+                        voice.envStage = 'decay';
+                        voice.envTime = 0;
+                    }
+                } else if (voice.envStage === 'decay') {
+                    const t = Math.min(1, voice.envTime / this.decay);
+                    voice.env = 1 - (1 - this.sustain) * t * t;
+                    if (voice.envTime >= this.decay) {
+                        voice.envStage = 'sustain';
+                    }
+                } else if (voice.envStage === 'sustain') {
+                    voice.env = this.sustain;
+                } else if (voice.envStage === 'release') {
+                    const t = Math.min(1, voice.envTime / this.release);
+                    const startEnv = voice.env;
+                    voice.env = this.sustain * (1 - t * t);
+                    if (voice.envTime >= this.release || voice.env < 0.0001) {
+                        voice.envStage = 'off';
+                        voice.active = false;
+                        voice.env = 0;
+                    }
+                }
+
+                if (voice.env < 0.0001) continue;
+
+                // Per-voice detuning LFO (LFNoise0 style - stepped random)
+                voice.detuneLfoPhase += 4 / this.sampleRate;
+                if (voice.detuneLfoPhase >= 1) {
+                    voice.detuneLfoPhase -= 1;
+                    voice.detuneVal = (Math.random() * 2 - 1) * this.detune * 20;
+                }
+                const detuneHz = voice.detuneVal || 0;
+
+                // Main VarSaw oscillator
+                const mainFreq = voice.freq + detuneHz;
+                voice.phase += mainFreq / this.sampleRate;
+                if (voice.phase >= 1) voice.phase -= 1;
+
+                // PWM modulation
+                const width = 0.5 + pwmLfo * this.pwmWidth;
+                let sig = this.varSaw(voice.phase, width);
+
+                // Sub oscillator (Pulse wave at divided frequency)
+                const subFreq = voice.freq / this.subPitch;
+                voice.subPhase += subFreq / this.sampleRate;
+                if (voice.subPhase >= 1) voice.subPhase -= 1;
+
+                const subSig = this.pulse(voice.subPhase, 0.5);
+                sig = sig * (1 - this.subMix) + subSig * this.subMix;
+
+                // Apply envelope and velocity
+                sig *= voice.env * voice.velocity;
+
+                // Stereo spread based on voice index
+                const pan = (i / (this.voices.length - 1)) * 2 - 1;
+                const gainL = Math.cos((pan + 1) * Math.PI / 4);
+                const gainR = Math.sin((pan + 1) * Math.PI / 4);
+
+                mixL += sig * gainL;
+                mixR += sig * gainR;
+            }
+
+            // === MOOG LADDER FILTER ===
+            mixL = this.moogLadder(mixL, this.moogStateL, this.lpf, this.resonance);
+            mixR = this.moogLadder(mixR, this.moogStateR, this.lpf, this.resonance);
+
+            // === FEEDBACK DELAY ===
+            const delaySamples = Math.floor(this.delayTime * this.sampleRate);
+            const delayReadIdx = (this.delayIdx - delaySamples + this.delayBufferL.length) % this.delayBufferL.length;
+
+            let delayedL = this.delayBufferL[delayReadIdx];
+            let delayedR = this.delayBufferR[delayReadIdx];
+
+            // One-pole lowpass on feedback (like SC OnePole)
+            const onePoleCoef = 0.3;
+            this.onePoleL = this.onePoleL * onePoleCoef + delayedL * (1 - onePoleCoef);
+            this.onePoleR = this.onePoleR * onePoleCoef + delayedR * (1 - onePoleCoef);
+
+            // Write to delay with feedback
+            this.delayBufferL[this.delayIdx] = Math.tanh(mixL + this.onePoleL * this.feedback);
+            this.delayBufferR[this.delayIdx] = Math.tanh(mixR + this.onePoleR * this.feedback);
+            this.delayIdx = (this.delayIdx + 1) % this.delayBufferL.length;
+
+            // Mix dry and wet
+            mixL = mixL * 0.7 + delayedL * 0.5;
+            mixR = mixR * 0.7 + delayedR * 0.5;
+
+            // === DESTRUCTION ===
+            // Random envelope triggered by Dust
+            if (this.destruction > 0) {
+                this.dustTimer += dt;
+                if (Math.random() < 0.01 * this.destruction) {
+                    this.destructEnv = 1;
+                }
+                this.destructEnv *= 0.995;
+
+                const destructMod = 1 - this.destructEnv * this.destruction * 0.5;
+                mixL *= destructMod;
+                mixR *= destructMod;
+            }
+
+            // === TREMOLO ===
+            if (this.tremolo > 0) {
+                this.tremoloPhase += this.tremolo / this.sampleRate;
+                if (this.tremoloPhase >= 1) this.tremoloPhase -= 1;
+                const trem = 0.5 + 0.5 * Math.sin(this.tremoloPhase * Math.PI * 2);
+                mixL *= trem;
+                mixR *= trem;
+            }
+
+            // === PAN MODULATION ===
+            if (this.panMod > 0) {
+                this.panPhase += 0.3 / this.sampleRate;
+                if (this.panPhase >= 1) this.panPhase -= 1;
+                const panLfo = Math.sin(this.panPhase * Math.PI * 2) * this.panMod;
+                const panL = Math.cos((panLfo + 1) * Math.PI / 4);
+                const panR = Math.sin((panLfo + 1) * Math.PI / 4);
+                const mono = (mixL + mixR) * 0.5;
+                mixL = mono * panL + mixL * (1 - this.panMod);
+                mixR = mono * panR + mixR * (1 - this.panMod);
+            }
+
+            // === OUTPUT ===
+            left[s] = Math.tanh(mixL * 2) * this.master;
+            if (right) right[s] = Math.tanh(mixR * 2) * this.master;
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('icarus-processor', IcarusProcessor);
+`;
+
+        let audioContext;
+        let workletNode;
+        let analyser;
+        let isPlaying = false;
+        let pedalboard = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        // Key to MIDI note mapping
+        const keyMap = {
+            'a': 60, 'w': 61, 's': 62, 'e': 63, 'd': 64, 'f': 65,
+            't': 66, 'g': 67, 'y': 68, 'h': 69, 'u': 70, 'j': 71,
+            'k': 72, 'o': 73, 'l': 74, 'p': 75
+        };
+        const activeKeys = new Set();
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'icarus-processor', {
+                outputChannelCount: [2]
+            });
+
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+
+            // Initialize pedalboard and route audio through it
+            pedalboard = new PedalboardUI(
+                document.getElementById('pedalboard-container'),
+                audioContext
+            );
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(analyser);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'icarus-super-saw-synth',
+                    patchId: 'icarus-01'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('icarus-01');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'icarus-01',
+                    prefix: '01',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            sendParams();
+        }
+
+        function sendParams() {
+            if (!workletNode) return;
+            workletNode.port.postMessage({
+                detune: parseFloat(document.getElementById('detune').value),
+                subPitch: parseInt(document.getElementById('subPitch').value),
+                subMix: parseFloat(document.getElementById('subMix').value),
+                pwmWidth: parseFloat(document.getElementById('pwmWidth').value),
+                attack: parseFloat(document.getElementById('attack').value),
+                decay: parseFloat(document.getElementById('decay').value),
+                sustain: parseFloat(document.getElementById('sustain').value),
+                release: parseFloat(document.getElementById('release').value),
+                lpf: parseFloat(document.getElementById('lpf').value),
+                resonance: parseFloat(document.getElementById('resonance').value),
+                delayTime: parseFloat(document.getElementById('delayTime').value),
+                feedback: parseFloat(document.getElementById('feedback').value),
+                destruction: parseFloat(document.getElementById('destruction').value),
+                tremolo: parseFloat(document.getElementById('tremolo').value),
+                panMod: parseFloat(document.getElementById('panMod').value),
+                master: parseFloat(document.getElementById('master').value)
+            });
+        }
+
+        // Parameter controls
+        const params = [
+            'detune', 'subPitch', 'subMix', 'pwmWidth',
+            'attack', 'decay', 'sustain', 'release',
+            'lpf', 'resonance',
+            'delayTime', 'feedback',
+            'destruction', 'tremolo', 'panMod', 'master'
+        ];
+
+        params.forEach(param => {
+            const el = document.getElementById(param);
+            if (el) {
+                el.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value);
+                    const display = document.getElementById(param + 'Val');
+                    if (display) {
+                        display.textContent = val < 10 ? val.toFixed(2) : Math.round(val);
+                    }
+                    sendParams();
+                });
+            }
+        });
+
+        // Keyboard input
+        document.addEventListener('keydown', (e) => {
+            if (!isPlaying || activeKeys.has(e.key)) return;
+            const note = keyMap[e.key.toLowerCase()];
+            if (note !== undefined) {
+                activeKeys.add(e.key);
+                workletNode.port.postMessage({ noteOn: note, velocity: 1 });
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const note = keyMap[e.key.toLowerCase()];
+            if (note !== undefined) {
+                activeKeys.delete(e.key);
+                workletNode.port.postMessage({ noteOff: note });
+            }
+        });
+
+        // MIDI input
+        if (navigator.requestMIDIAccess) {
+            navigator.requestMIDIAccess().then((midi) => {
+                midi.inputs.forEach((input) => {
+                    input.onmidimessage = (msg) => {
+                        const [cmd, note, vel] = msg.data;
+                        if (!isPlaying) return;
+                        if ((cmd & 0xf0) === 0x90 && vel > 0) {
+                            workletNode.port.postMessage({ noteOn: note, velocity: vel / 127 });
+                        } else if ((cmd & 0xf0) === 0x80 || ((cmd & 0xf0) === 0x90 && vel === 0)) {
+                            workletNode.port.postMessage({ noteOff: note });
+                        }
+                    };
+                });
+            });
+        }
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Float32Array(bufferLength);
+            analyser.getFloatTimeDomainData(dataArray);
+
+            // Sun/sky gradient background
+            ctx.fillStyle = '#0a0810';
+            ctx.fillRect(0, 0, width, height);
+
+            // Waveform with golden/sun colors
+            const gradient = ctx.createLinearGradient(0, 0, width, 0);
+            gradient.addColorStop(0, '#ff6b35');
+            gradient.addColorStop(0.3, '#f7c59f');
+            gradient.addColorStop(0.6, '#ffd700');
+            gradient.addColorStop(1, '#ff6b35');
+
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const sliceWidth = width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i];
+                const y = (v + 1) / 2 * height;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+                x += sliceWidth;
+            }
+
+            ctx.stroke();
+
+            if (isPlaying) {
+                requestAnimationFrame(drawVisualizer);
+            }
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+            }
+
+            if (isPlaying) {
+                await audioContext.suspend();
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                status.textContent = 'Flying toward the sun...';
+                status.classList.add('active');
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+    </script>
+</body>
+</html>

@@ -1,0 +1,1727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mx.synths - Multi-Engine Synthesizer</title>
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            flex: 1;
+        }
+        header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #333;
+            margin-bottom: 20px;
+        }
+        h1 { color: #00ff88; font-size: 1.5em; }
+        .subtitle { color: #888; margin-top: 5px; font-size: 0.9em; }
+        .nav-links {
+            margin-top: 10px;
+        }
+        .nav-links a {
+            color: #00ff88;
+            text-decoration: none;
+            margin: 0 10px;
+            font-size: 0.85em;
+        }
+        .nav-links a:hover { text-decoration: underline; }
+
+        .main-controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .play-btn {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2em;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .play-btn:hover { background: #00cc6a; }
+        .play-btn.active { background: #ff4444; }
+
+        .synth-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #111;
+            border-radius: 8px;
+        }
+        .synth-btn {
+            background: #222;
+            color: #888;
+            border: 1px solid #333;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.85em;
+            transition: all 0.2s;
+            border-radius: 4px;
+        }
+        .synth-btn:hover { background: #333; color: #fff; }
+        .synth-btn.active {
+            background: #00ff88;
+            color: #000;
+            border-color: #00ff88;
+        }
+
+        .synth-info {
+            text-align: center;
+            padding: 10px;
+            margin-bottom: 20px;
+            background: #0d1a0d;
+            border: 1px solid #1a3a1a;
+            border-radius: 4px;
+        }
+        .synth-info h3 { color: #00ff88; margin-bottom: 5px; }
+        .synth-info p { color: #888; font-size: 0.85em; }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .control-section {
+            background: #111;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #222;
+        }
+        .control-section h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .control-row {
+            margin-bottom: 12px;
+        }
+        .control-row label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-size: 0.8em;
+        }
+        .control-row label span:first-child { color: #888; }
+        .control-row label span:last-child { color: #00ff88; }
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            background: #333;
+            border-radius: 3px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            background: #00ff88;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .mod-labels {
+            font-size: 0.75em;
+            color: #666;
+            margin-top: 2px;
+            font-style: italic;
+        }
+
+        .keyboard-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #111;
+            border-radius: 8px;
+        }
+        .keyboard {
+            display: flex;
+            justify-content: center;
+            gap: 2px;
+            flex-wrap: wrap;
+        }
+        .key {
+            width: 36px;
+            height: 100px;
+            background: linear-gradient(to bottom, #f0f0f0, #d0d0d0);
+            border: 1px solid #999;
+            border-radius: 0 0 4px 4px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.1s;
+        }
+        .key:hover { background: linear-gradient(to bottom, #e0e0e0, #c0c0c0); }
+        .key.active { background: linear-gradient(to bottom, #00ff88, #00cc6a); }
+        .key.black {
+            width: 24px;
+            height: 60px;
+            background: linear-gradient(to bottom, #333, #111);
+            margin-left: -12px;
+            margin-right: -12px;
+            z-index: 1;
+            border-color: #000;
+        }
+        .key.black:hover { background: linear-gradient(to bottom, #444, #222); }
+        .key.black.active { background: linear-gradient(to bottom, #00aa55, #008844); }
+        .key-label {
+            position: absolute;
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: #666;
+        }
+        .key.black .key-label { color: #666; bottom: 3px; }
+
+        .voice-indicator {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 0.8em;
+            color: #666;
+        }
+        .voice-indicator span { color: #00ff88; }
+
+        .midi-status {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.75em;
+            color: #666;
+        }
+        .midi-status.connected { color: #00ff88; }
+
+        .preset-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #111;
+            border-radius: 8px;
+        }
+        .preset-section h3 {
+            color: #00ff88;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+        .preset-btns {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .preset-btn {
+            background: #222;
+            color: #888;
+            border: 1px solid #333;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.8em;
+            border-radius: 4px;
+        }
+        .preset-btn:hover { background: #333; color: #fff; }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            border-top: 1px solid #333;
+            color: #666;
+            font-size: 0.8em;
+        }
+        footer a { color: #00ff88; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>mx.synths</h1>
+            <p class="subtitle">Multi-Engine Synthesizer - 10 Synthesis Modes</p>
+            <div class="nav-links">
+                <a href="../index.html">← Back to Index</a>
+                <a href="moln-01.html">Previous: Moln</a>
+            </div>
+        </header>
+
+        <div class="main-controls">
+            <button class="play-btn" id="playBtn">▶ START AUDIO</button>
+        </div>
+
+        <div class="synth-selector" id="synthSelector">
+            <button class="synth-btn active" data-synth="piano">piano</button>
+            <button class="synth-btn" data-synth="epiano">epiano</button>
+            <button class="synth-btn" data-synth="casio">casio</button>
+            <button class="synth-btn" data-synth="malone">malone</button>
+            <button class="synth-btn" data-synth="toshiya">toshiya</button>
+            <button class="synth-btn" data-synth="synthy">synthy</button>
+            <button class="synth-btn" data-synth="PolyPerc">PolyPerc</button>
+            <button class="synth-btn" data-synth="mdapiano">mdapiano</button>
+            <button class="synth-btn" data-synth="kalimba">kalimba</button>
+            <button class="synth-btn" data-synth="triangles">triangles</button>
+        </div>
+
+        <div class="synth-info" id="synthInfo">
+            <h3>piano</h3>
+            <p>Physical modeling piano with filtered noise excitation and detuned delay lines</p>
+        </div>
+
+        <div class="controls-grid">
+            <div class="control-section">
+                <h3>Mod Parameters</h3>
+                <div class="control-row">
+                    <label><span>Mod 1</span><span id="mod1Val">0.00</span></label>
+                    <input type="range" id="mod1" min="-1" max="1" step="0.01" value="0">
+                    <div class="mod-labels" id="mod1Label">string decay</div>
+                </div>
+                <div class="control-row">
+                    <label><span>Mod 2</span><span id="mod2Val">0.00</span></label>
+                    <input type="range" id="mod2" min="-1" max="1" step="0.01" value="0">
+                    <div class="mod-labels" id="mod2Label">noise frequency</div>
+                </div>
+                <div class="control-row">
+                    <label><span>Mod 3</span><span id="mod3Val">0.00</span></label>
+                    <input type="range" id="mod3" min="-1" max="1" step="0.01" value="0">
+                    <div class="mod-labels" id="mod3Label">filter Q</div>
+                </div>
+                <div class="control-row">
+                    <label><span>Mod 4</span><span id="mod4Val">0.00</span></label>
+                    <input type="range" id="mod4" min="-1" max="1" step="0.01" value="0">
+                    <div class="mod-labels" id="mod4Label">pitch variation</div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Envelope (ADSR)</h3>
+                <div class="control-row">
+                    <label><span>Attack</span><span id="attackVal">0.01s</span></label>
+                    <input type="range" id="attack" min="0.001" max="2" step="0.001" value="0.01">
+                </div>
+                <div class="control-row">
+                    <label><span>Decay</span><span id="decayVal">0.20s</span></label>
+                    <input type="range" id="decay" min="0.01" max="2" step="0.01" value="0.2">
+                </div>
+                <div class="control-row">
+                    <label><span>Sustain</span><span id="sustainVal">0.90</span></label>
+                    <input type="range" id="sustain" min="0" max="1" step="0.01" value="0.9">
+                </div>
+                <div class="control-row">
+                    <label><span>Release</span><span id="releaseVal">1.00s</span></label>
+                    <input type="range" id="release" min="0.01" max="5" step="0.01" value="1">
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Global</h3>
+                <div class="control-row">
+                    <label><span>Volume</span><span id="volumeVal">0.5</span></label>
+                    <input type="range" id="volume" min="0" max="1" step="0.01" value="0.5">
+                </div>
+                <div class="control-row">
+                    <label><span>Sub Level</span><span id="subVal">0.3</span></label>
+                    <input type="range" id="sub" min="0" max="1" step="0.01" value="0.3">
+                </div>
+                <div class="control-row">
+                    <label><span>Pan</span><span id="panVal">0.00</span></label>
+                    <input type="range" id="pan" min="-1" max="1" step="0.01" value="0">
+                </div>
+                <div class="control-row">
+                    <label><span>LPF</span><span id="lpfVal">20000 Hz</span></label>
+                    <input type="range" id="lpf" min="100" max="20000" step="10" value="20000">
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Effects</h3>
+                <div class="control-row">
+                    <label><span>Delay Send</span><span id="delayVal">0%</span></label>
+                    <input type="range" id="delay" min="0" max="1" step="0.01" value="0">
+                </div>
+                <div class="control-row">
+                    <label><span>Delay Time</span><span id="delayTimeVal">0.25s</span></label>
+                    <input type="range" id="delayTime" min="0.05" max="1" step="0.01" value="0.25">
+                </div>
+                <div class="control-row">
+                    <label><span>Delay Feedback</span><span id="delayFbVal">0.30</span></label>
+                    <input type="range" id="delayFb" min="0" max="0.9" step="0.01" value="0.3">
+                </div>
+                <div class="control-row">
+                    <label><span>Portamento</span><span id="portamentoVal">0.00s</span></label>
+                    <input type="range" id="portamento" min="0" max="1" step="0.01" value="0">
+                </div>
+            </div>
+        </div>
+
+        <div class="keyboard-section">
+            <div class="keyboard" id="keyboard"></div>
+            <div class="voice-indicator">
+                Active voices: <span id="voiceCount">0</span> / 8
+            </div>
+            <div class="midi-status" id="midiStatus">MIDI: Not connected</div>
+        </div>
+
+        <div class="preset-section">
+            <h3>Presets</h3>
+            <div class="preset-btns">
+                <button class="preset-btn" data-preset="init">Init</button>
+                <button class="preset-btn" data-preset="ambient">Ambient Pad</button>
+                <button class="preset-btn" data-preset="plucky">Plucky</button>
+                <button class="preset-btn" data-preset="bass">Deep Bass</button>
+                <button class="preset-btn" data-preset="keys">Bright Keys</button>
+                <button class="preset-btn" data-preset="lofi">Lo-Fi</button>
+            </div>
+        </div>
+
+        <div id="pedalboard-container" class="pedalboard-container"></div>
+    </div>
+
+    <footer>
+        <p>Based on <a href="https://github.com/schollz/mx.synths" target="_blank">mx.synths by @schollz</a> | Web Audio implementation</p>
+    </footer>
+
+    <script>
+// Synth definitions with mod parameter labels
+const synthDefinitions = {
+    piano: {
+        name: 'piano',
+        desc: 'Karplus-Strong physical modeling with detuned delay lines',
+        mod1: 'string decay',
+        mod2: 'excitation freq',
+        mod3: 'brightness',
+        mod4: 'stereo spread'
+    },
+    epiano: {
+        name: 'epiano',
+        desc: 'DX7-style FM Rhodes with 4-operator synthesis',
+        mod1: 'tremolo depth',
+        mod2: 'tine mix',
+        mod3: 'FM index',
+        mod4: 'tremolo speed'
+    },
+    casio: {
+        name: 'casio',
+        desc: 'CZ-style phase distortion synthesis',
+        mod1: 'harmonics',
+        mod2: 'phase distort',
+        mod3: 'resonance',
+        mod4: 'detune'
+    },
+    malone: {
+        name: 'malone',
+        desc: 'Massive wobble bass with triple oscillators and Moog filter',
+        mod1: 'wobble speed',
+        mod2: 'filter envelope',
+        mod3: 'resonance',
+        mod4: 'detune depth'
+    },
+    toshiya: {
+        name: 'toshiya',
+        desc: 'Lush FM pad with metallic klank resonators',
+        mod1: 'detune',
+        mod2: 'metallic amt',
+        mod3: 'filter freq',
+        mod4: 'shimmer rate'
+    },
+    synthy: {
+        name: 'synthy',
+        desc: '7-oscillator super saw with Moog filter',
+        mod1: 'stereo width',
+        mod2: 'filter cutoff',
+        mod3: 'resonance',
+        mod4: 'detune spread'
+    },
+    PolyPerc: {
+        name: 'PolyPerc',
+        desc: 'Punchy percussive synth with filter envelope',
+        mod1: 'pulse width',
+        mod2: 'filter env amt',
+        mod3: 'resonance',
+        mod4: 'detune'
+    },
+    mdapiano: {
+        name: 'mdapiano',
+        desc: 'Acoustic piano with inharmonicity and hammer noise',
+        mod1: 'brightness',
+        mod2: 'vibrato rate',
+        mod3: 'vibrato depth',
+        mod4: 'hardness'
+    },
+    kalimba: {
+        name: 'kalimba',
+        desc: 'Thumb piano with tine and body resonance',
+        mod1: 'decay time',
+        mod2: 'brightness',
+        mod3: 'tine resonance',
+        mod4: 'body resonance'
+    },
+    triangles: {
+        name: 'triangles',
+        desc: 'Accordion-style triangle waves with lo-fi processing',
+        mod1: 'bellows',
+        mod2: 'lo-fi amount',
+        mod3: 'detune cents',
+        mod4: 'tremolo rate'
+    }
+};
+
+// AudioWorklet processor code
+const workletCode = `
+class MxSynthsProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+        this.voices = [];
+        this.maxVoices = 8;
+        this.currentSynth = 'piano';
+
+        // Global params
+        this.volume = 0.5;
+        this.sub = 0.3;
+        this.pan = 0;
+        this.lpf = 20000;
+        this.delay = 0;
+        this.delayTime = 0.25;
+        this.delayFb = 0.3;
+        this.portamento = 0;
+
+        // Mod params
+        this.mod1 = 0;
+        this.mod2 = 0;
+        this.mod3 = 0;
+        this.mod4 = 0;
+
+        // ADSR
+        this.attack = 0.01;
+        this.decay = 0.2;
+        this.sustain = 0.9;
+        this.release = 1.0;
+
+        // Delay buffer
+        this.delayBufferSize = Math.floor(this.sampleRate * 2);
+        this.delayBufferL = new Float32Array(this.delayBufferSize);
+        this.delayBufferR = new Float32Array(this.delayBufferSize);
+        this.delayWriteIndex = 0;
+
+        // Global LPF state
+        this.lpfStateL = 0;
+        this.lpfStateR = 0;
+
+        this.port.onmessage = (e) => this.handleMessage(e.data);
+    }
+
+    handleMessage(data) {
+        switch(data.type) {
+            case 'noteOn':
+                this.noteOn(data.note, data.velocity);
+                break;
+            case 'noteOff':
+                this.noteOff(data.note);
+                break;
+            case 'setSynth':
+                this.currentSynth = data.synth;
+                break;
+            case 'setParam':
+                this[data.param] = data.value;
+                break;
+        }
+    }
+
+    noteOn(note, velocity = 0.8) {
+        // Check if note already playing
+        const existing = this.voices.find(v => v.note === note && v.active);
+        if (existing) {
+            existing.gate = false;
+            existing.releaseTime = currentTime;
+        }
+
+        // Voice stealing if needed
+        if (this.voices.filter(v => v.active).length >= this.maxVoices) {
+            const oldest = this.voices.find(v => v.active);
+            if (oldest) {
+                oldest.active = false;
+            }
+        }
+
+        const voice = this.createVoice(note, velocity);
+        this.voices.push(voice);
+
+        this.port.postMessage({ type: 'voiceCount', count: this.voices.filter(v => v.active).length });
+    }
+
+    noteOff(note) {
+        const voice = this.voices.find(v => v.note === note && v.gate);
+        if (voice) {
+            voice.gate = false;
+            voice.releaseTime = currentTime;
+        }
+
+        setTimeout(() => {
+            this.port.postMessage({ type: 'voiceCount', count: this.voices.filter(v => v.active).length });
+        }, 100);
+    }
+
+    createVoice(note, velocity) {
+        const hz = 440 * Math.pow(2, (note - 69) / 12);
+
+        return {
+            note,
+            hz,
+            targetHz: hz,
+            velocity,
+            active: true,
+            gate: true,
+            phase: 0,
+            phase2: 0,
+            phase3: 0,
+            phase4: 0,
+            subPhase: 0,
+            envValue: 0,
+            envStage: 'attack',
+            startTime: currentTime,
+            releaseTime: 0,
+
+            // Filter states
+            lpfState: 0,
+            lpfState2: 0,
+
+            // Delay line states for piano
+            delayLine1: new Float32Array(Math.floor(this.sampleRate / 50)),
+            delayLine2: new Float32Array(Math.floor(this.sampleRate / 50)),
+            delayIdx1: 0,
+            delayIdx2: 0,
+
+            // Noise state
+            noiseState: Math.random() * 2 - 1,
+            noisePhase: 0,
+
+            // LFO states
+            lfoPhase: Math.random() * Math.PI * 2,
+            lfoPhase2: Math.random() * Math.PI * 2,
+
+            // Klank resonators for toshiya/kalimba
+            klankStates: [0, 0, 0, 0],
+            klankPhases: [0, 0, 0, 0],
+
+            // FM oscillator phases for epiano
+            fmPhase1: 0,
+            fmPhase2: 0,
+            fmPhase3: 0,
+            fmPhase4: 0,
+            fmEnv1: 1,
+            fmEnv2: 1,
+            fmEnv3: 1,
+            fmEnv4: 1,
+
+            // Phasor states for casio
+            phasorPhase: 0,
+            phasorResPhase: 0,
+
+            // Moog filter state
+            moogState: [0, 0, 0, 0],
+
+            // Triangle states
+            triPhase1: 0,
+            triPhase2: 0,
+            bellowsEnv: 0
+        };
+    }
+
+    processEnvelope(voice, dt) {
+        const a = Math.max(0.001, this.attack);
+        const d = Math.max(0.001, this.decay);
+        const s = this.sustain;
+        const r = Math.max(0.001, this.release);
+
+        if (voice.gate) {
+            if (voice.envStage === 'attack') {
+                voice.envValue += dt / a;
+                if (voice.envValue >= 1) {
+                    voice.envValue = 1;
+                    voice.envStage = 'decay';
+                }
+            } else if (voice.envStage === 'decay') {
+                voice.envValue -= dt * (1 - s) / d;
+                if (voice.envValue <= s) {
+                    voice.envValue = s;
+                    voice.envStage = 'sustain';
+                }
+            }
+        } else {
+            voice.envStage = 'release';
+            voice.envValue -= dt / r;
+            if (voice.envValue <= 0) {
+                voice.envValue = 0;
+                voice.active = false;
+            }
+        }
+
+        return voice.envValue;
+    }
+
+    // Utility functions
+    linlin(x, inMin, inMax, outMin, outMax) {
+        return outMin + (x - inMin) * (outMax - outMin) / (inMax - inMin);
+    }
+
+    linexp(x, inMin, inMax, outMin, outMax) {
+        return outMin * Math.pow(outMax / outMin, (x - inMin) / (inMax - inMin));
+    }
+
+    // One-pole lowpass
+    lpf1(input, state, freq) {
+        const coef = Math.exp(-2 * Math.PI * freq / this.sampleRate);
+        return state * coef + input * (1 - coef);
+    }
+
+    // Moog-style filter
+    moogFilter(input, states, cutoff, resonance) {
+        const f = Math.min(cutoff / this.sampleRate, 0.45);
+        const k = 4 * resonance;
+        const p = f * (1.8 - 0.8 * f);
+        const t = (1 - p) * 1.386249;
+        const t2 = 12 + t * t;
+        const r = resonance * (t2 + 6 * t) / (t2 - 6 * t);
+
+        const x = input - r * states[3];
+        states[0] = x * p + states[0] * (1 - p);
+        states[1] = states[0] * p + states[1] * (1 - p);
+        states[2] = states[1] * p + states[2] * (1 - p);
+        states[3] = states[2] * p + states[3] * (1 - p);
+
+        return states[3];
+    }
+
+    // Noise generators
+    whiteNoise() {
+        return Math.random() * 2 - 1;
+    }
+
+    pinkNoise(voice) {
+        // Approximation using filtered white noise
+        const white = this.whiteNoise();
+        voice.noiseState = voice.noiseState * 0.99 + white * 0.01;
+        return voice.noiseState * 10;
+    }
+
+    // Oscillators
+    sawOsc(phase) {
+        return 2 * (phase - Math.floor(phase + 0.5));
+    }
+
+    pulseOsc(phase, width = 0.5) {
+        return (phase % 1) < width ? 1 : -1;
+    }
+
+    triOsc(phase) {
+        const t = phase % 1;
+        return 4 * Math.abs(t - 0.5) - 1;
+    }
+
+    // Synth engines
+    synthPiano(voice, dt) {
+        // Physical modeling piano - expanded ranges
+        const stringDecay = this.linexp(this.mod1, -1, 1, 0.05, 12);
+        const noiseHz = this.linexp(this.mod2, -1, 1, 100, 20000);
+        const brightness = this.linlin(this.mod3, -1, 1, 0.2, 0.95);
+        const tuneSpread = this.linexp(this.mod4, -1, 1, 1.0001, 1.02);
+
+        const tuneUp = tuneSpread;
+        const tuneDown = 1 / tuneSpread;
+
+        // Noise excitation with frequency control
+        voice.noisePhase += noiseHz * dt;
+        if (voice.noisePhase >= 1) {
+            voice.noisePhase -= 1;
+            voice.noiseState = this.whiteNoise();
+        }
+
+        // Attack impulse - sharper attack
+        const elapsed = currentTime - voice.startTime;
+        const impulseEnv = Math.exp(-50 * elapsed);
+        const noise = voice.noiseState * impulseEnv * 2;
+
+        // Two detuned delay lines (Karplus-Strong)
+        const delay1 = Math.floor(this.sampleRate / (voice.hz * tuneUp));
+        const delay2 = Math.floor(this.sampleRate / (voice.hz * tuneDown));
+
+        const decayCoef = Math.exp(-1 / (stringDecay * this.sampleRate));
+
+        // Read from delay lines
+        const idx1 = (voice.delayIdx1 - delay1 + voice.delayLine1.length) % voice.delayLine1.length;
+        const idx2 = (voice.delayIdx2 - delay2 + voice.delayLine2.length) % voice.delayLine2.length;
+
+        let out1 = voice.delayLine1[Math.floor(idx1)] || 0;
+        let out2 = voice.delayLine2[Math.floor(idx2)] || 0;
+
+        // Variable brightness lowpass in feedback
+        out1 = voice.lpfState = voice.lpfState * brightness + out1 * (1 - brightness);
+        out2 = voice.lpfState2 = voice.lpfState2 * brightness + out2 * (1 - brightness);
+
+        // Write to delay lines
+        voice.delayLine1[voice.delayIdx1] = (noise + out1 * decayCoef) * 0.998;
+        voice.delayLine2[voice.delayIdx2] = (noise + out2 * decayCoef) * 0.998;
+
+        voice.delayIdx1 = (voice.delayIdx1 + 1) % voice.delayLine1.length;
+        voice.delayIdx2 = (voice.delayIdx2 + 1) % voice.delayLine2.length;
+
+        const mixed = (out1 + out2) * 0.7;
+        return [mixed, mixed];
+    }
+
+    synthEpiano(voice, dt) {
+        // DX7-style Rhodes - much wider ranges
+        const lfoDepth = this.linexp(this.mod1, -1, 1, 0.001, 0.8);
+        const mix = this.linlin(this.mod2, -1, 1, 0, 1);
+        const modIndex = this.linexp(this.mod3, -1, 1, 0.1, 12);
+        const lfoSpeed = this.linexp(this.mod4, -1, 1, 0.1, 15);
+
+        const hz = voice.hz;
+        const elapsed = currentTime - voice.startTime;
+
+        // FM envelopes with velocity sensitivity
+        const velScale = 0.5 + voice.velocity * 0.5;
+        voice.fmEnv1 = Math.exp(-elapsed * 0.8) * velScale;
+        voice.fmEnv2 = Math.exp(-elapsed * 1.0) * velScale;
+        voice.fmEnv3 = Math.exp(-elapsed * 0.5) * velScale;
+        voice.fmEnv4 = Math.exp(-elapsed * 0.67) * velScale;
+
+        // Oscillator 4 modulates Oscillator 3 (carrier:modulator = 1:0.5)
+        voice.fmPhase4 += hz * 0.5 * dt;
+        const osc4 = Math.sin(voice.fmPhase4 * 2 * Math.PI) * modIndex * voice.fmEnv4;
+
+        voice.fmPhase3 += hz * dt;
+        const osc3 = Math.sin(voice.fmPhase3 * 2 * Math.PI + osc4) * voice.fmEnv3;
+
+        // Oscillator 2 modulates Oscillator 1 (carrier:modulator = 1:14)
+        voice.fmPhase2 += hz * 14 * dt;
+        const osc2 = Math.sin(voice.fmPhase2 * 2 * Math.PI) * modIndex * 0.3 * voice.fmEnv2;
+
+        voice.fmPhase1 += hz * dt;
+        const osc1 = Math.sin(voice.fmPhase1 * 2 * Math.PI + osc2) * voice.fmEnv1;
+
+        // Mix both tine models
+        let snd = osc3 * (1 - mix) + osc1 * mix;
+
+        // Tremolo LFO
+        voice.lfoPhase += lfoSpeed * dt;
+        const tremolo = 1 - lfoDepth + lfoDepth * (0.5 + 0.5 * Math.sin(voice.lfoPhase * 2 * Math.PI));
+        snd *= tremolo;
+
+        return [snd * 0.5, snd * 0.5];
+    }
+
+    synthCasio(voice, dt) {
+        // CZ/Phase distortion style - more dramatic ranges
+        const harmonics = this.linexp(this.mod1, -1, 1, 1, 32);
+        const phaseDistort = this.linlin(this.mod2, -1, 1, 0.1, 0.95);
+        const resonance = this.linexp(this.mod3, -1, 1, 0.5, 20);
+        const detune = this.linexp(this.mod4, -1, 1, 1, 1.05);
+
+        const hz = voice.hz;
+
+        // Two detuned oscillators
+        voice.phase += hz * dt;
+        voice.phase2 += hz * detune * dt;
+
+        // Phase distortion waveshaping
+        let p1 = voice.phase % 1;
+        let p2 = voice.phase2 % 1;
+
+        // Apply phase distortion (CZ-style)
+        if (p1 < phaseDistort) {
+            p1 = p1 / phaseDistort * 0.5;
+        } else {
+            p1 = 0.5 + (p1 - phaseDistort) / (1 - phaseDistort) * 0.5;
+        }
+        if (p2 < phaseDistort) {
+            p2 = p2 / phaseDistort * 0.5;
+        } else {
+            p2 = 0.5 + (p2 - phaseDistort) / (1 - phaseDistort) * 0.5;
+        }
+
+        // Harmonic content via waveshaping
+        let snd1 = Math.sin(p1 * 2 * Math.PI * harmonics);
+        let snd2 = Math.sin(p2 * 2 * Math.PI * harmonics);
+
+        // Resonant self-oscillation simulation
+        voice.lfoPhase += (hz * resonance * 0.01) * dt;
+        const resPing = Math.sin(voice.lfoPhase * 2 * Math.PI) * 0.3 * (resonance / 20);
+
+        let snd = (snd1 + snd2) * 0.4 + resPing;
+
+        // Lowpass to tame harmonics
+        const lpfFreq = Math.min(hz * 8, 16000);
+        snd = voice.lpfState = this.lpf1(snd, voice.lpfState, lpfFreq);
+
+        return [snd * 0.5, snd * 0.5];
+    }
+
+    synthMalone(voice, dt) {
+        // Aggressive bass - massive sound
+        const detuneSpeed = this.linexp(this.mod1, -1, 1, 0.05, 20);
+        const filterMod = this.linexp(this.mod2, -1, 1, 0.5, 16);
+        const resonance = this.linlin(this.mod3, -1, 1, 0.1, 0.9);
+        const detuning = this.linexp(this.mod4, -1, 1, 0.001, 0.5);
+
+        // LFO for detuning wobble
+        voice.lfoPhase += detuneSpeed * dt;
+        const detuneMod = Math.sin(voice.lfoPhase * 2 * Math.PI) * detuning;
+
+        const hz = voice.hz * (1 + detuneMod);
+
+        // Triple oscillator stack at different octaves
+        voice.phase += hz * dt;
+        voice.phase2 += (hz * 2) * dt;
+        voice.phase3 += (hz * 0.5) * dt;
+        voice.phase4 += (hz * 0.25) * dt;
+
+        // Pulse width modulation
+        const pwm = 0.15 + 0.35 * (0.5 + 0.5 * Math.sin(voice.lfoPhase * 0.3 * 2 * Math.PI));
+
+        let snd = this.pulseOsc(voice.phase, pwm) * 0.4;
+        snd += this.pulseOsc(voice.phase2, 0.5 - pwm * 0.3) * 0.25;
+        snd += this.triOsc(voice.phase3) * 0.5;
+        snd += Math.sin(voice.phase4 * 2 * Math.PI) * 0.4 * this.sub;
+
+        // Filter envelope
+        const elapsed = currentTime - voice.startTime;
+        const filterEnv = Math.exp(-elapsed * 3) * 4 + 1;
+
+        // Resonant filter with envelope
+        const filterFreq = Math.min(hz * filterMod * filterEnv, 18000);
+        snd = this.moogFilter(snd, voice.moogState, filterFreq, resonance);
+
+        // Soft saturation
+        snd = Math.tanh(snd * 1.5) * 0.7;
+
+        return [snd * 0.35, snd * 0.35];
+    }
+
+    synthToshiya(voice, dt) {
+        // Shimmering FM sines with metallic resonators
+        const detune = this.linexp(this.mod1, -1, 1, 0.0001, 0.15);
+        const metallicVol = this.linlin(this.mod2, -1, 1, 0, 1);
+        const filterFreq = this.linexp(this.mod3, -1, 1, 200, 16000);
+        const shimmer = this.linexp(this.mod4, -1, 1, 0.5, 12);
+
+        const hz = voice.hz;
+
+        // Multiple detuned sines for lush pad
+        voice.phase += hz * (1 - detune) * dt;
+        voice.phase2 += hz * (1 + detune) * dt;
+        voice.phase3 += hz * (1 - detune * 2) * dt;
+        voice.phase4 += hz * (1 + detune * 2) * dt;
+
+        // Shimmer LFO for movement
+        voice.lfoPhase += shimmer * dt;
+        const shimmerMod = Math.sin(voice.lfoPhase * 2 * Math.PI) * 0.003;
+
+        let snd = Math.sin((voice.phase + shimmerMod) * 2 * Math.PI) * 0.3;
+        snd += Math.sin((voice.phase2 - shimmerMod) * 2 * Math.PI) * 0.3;
+        snd += Math.sin(voice.phase3 * 2 * Math.PI) * 0.2;
+        snd += Math.sin(voice.phase4 * 2 * Math.PI) * 0.2;
+
+        // Metallic klank resonators
+        const elapsed = currentTime - voice.startTime;
+        const klankFreqs = [hz * 2.01, hz * 3.02, hz * 5.03, hz * 7.05];
+        const klankDecays = [2, 1.5, 1, 0.5];
+        let klank = 0;
+        for (let i = 0; i < 4; i++) {
+            voice.klankPhases[i] += klankFreqs[i] * dt;
+            const decay = Math.exp(-elapsed / klankDecays[i]);
+            klank += Math.sin(voice.klankPhases[i] * 2 * Math.PI) * decay * 0.15;
+        }
+
+        snd += klank * metallicVol;
+
+        // Stereo spread
+        const panMod = Math.sin(voice.lfoPhase * 0.1 * 2 * Math.PI) * 0.5;
+        let sndL = voice.lpfState = this.lpf1(snd, voice.lpfState, filterFreq);
+        let sndR = voice.lpfState2 = this.lpf1(snd, voice.lpfState2, filterFreq * 1.1);
+
+        return [sndL * (1 - panMod) * 0.4, sndR * (1 + panMod) * 0.4];
+    }
+
+    synthSynthy(voice, dt) {
+        // Super saw style - 7 detuned oscillators
+        const stereoWidth = this.linlin(this.mod1, -1, 1, 0, 1);
+        const filterCutoff = this.linexp(this.mod2, -1, 1, 100, 16000);
+        const resonance = this.linlin(this.mod3, -1, 1, 0.1, 0.85);
+        const detune = this.linexp(this.mod4, -1, 1, 0.0001, 0.08);
+
+        const hz = voice.hz;
+
+        // Sub oscillator with PWM
+        voice.subPhase += (hz * 0.5) * dt;
+        voice.lfoPhase += 0.3 * dt;
+        const pw = 0.3 + 0.4 * (0.5 + 0.5 * Math.sin(voice.lfoPhase * 2 * Math.PI));
+        let subSnd = this.pulseOsc(voice.subPhase, pw) * this.sub * 0.5;
+
+        // 7 detuned saws (super saw)
+        const detuneAmounts = [-3, -2, -1, 0, 1, 2, 3];
+        let sndL = 0, sndR = 0;
+
+        for (let i = 0; i < 7; i++) {
+            const d = detuneAmounts[i] * detune;
+            if (!voice['sawPhase' + i]) voice['sawPhase' + i] = Math.random();
+            voice['sawPhase' + i] += hz * (1 + d) * dt;
+
+            const saw = this.sawOsc(voice['sawPhase' + i]);
+            const panPos = (i - 3) / 3 * stereoWidth;
+            sndL += saw * (0.5 - panPos * 0.5) * 0.18;
+            sndR += saw * (0.5 + panPos * 0.5) * 0.18;
+        }
+
+        // Resonant filter
+        sndL = this.moogFilter(sndL, voice.moogState, filterCutoff, resonance);
+        // Use separate state for right channel
+        if (!voice.moogStateR) voice.moogStateR = [0, 0, 0, 0];
+        sndR = this.moogFilter(sndR, voice.moogStateR, filterCutoff, resonance);
+
+        return [(sndL + subSnd) * 0.4, (sndR + subSnd) * 0.4];
+    }
+
+    synthPolyPerc(voice, dt) {
+        // PolyPerc - punchy percussive synth
+        const pw = this.linlin(this.mod1, -1, 1, 0.1, 0.9);
+        const filterEnvAmt = this.linexp(this.mod2, -1, 1, 1, 30);
+        const resonance = this.linlin(this.mod3, -1, 1, 0, 0.95);
+        const detune = this.linexp(this.mod4, -1, 1, 1, 1.03);
+
+        const hz = voice.hz;
+
+        // Detuned pulses
+        voice.phase += hz * dt;
+        voice.phase2 += hz * detune * dt;
+        voice.phase3 += hz / detune * dt;
+
+        let snd = this.pulseOsc(voice.phase, pw) * 0.4;
+        snd += this.pulseOsc(voice.phase2, pw) * 0.3;
+        snd += this.pulseOsc(voice.phase3, 1 - pw) * 0.3;
+
+        // Filter envelope - fast attack, variable decay
+        const elapsed = currentTime - voice.startTime;
+        const filterEnv = Math.exp(-elapsed * 8) * filterEnvAmt + 1;
+        const filterFreq = Math.min(hz * filterEnv, 18000);
+
+        // Moog filter with high resonance capability
+        snd = this.moogFilter(snd, voice.moogState, filterFreq, resonance);
+
+        // Add some punch with soft saturation
+        snd = Math.tanh(snd * 2) * 0.5;
+
+        return [snd * 0.35, snd * 0.35];
+    }
+
+    synthMdapiano(voice, dt) {
+        // Acoustic piano model - more realistic
+        const brightness = this.linlin(this.mod1, -1, 1, 0.3, 1);
+        const vibratoRate = this.linexp(this.mod2, -1, 1, 0.1, 8);
+        const vibratoDepth = this.linexp(this.mod3, -1, 1, 0.0001, 0.02);
+        const hardness = this.linlin(this.mod4, -1, 1, 0.2, 1);
+
+        const elapsed = currentTime - voice.startTime;
+
+        // Vibrato
+        voice.lfoPhase += vibratoRate * dt;
+        const vibrato = Math.sin(voice.lfoPhase * 2 * Math.PI) * vibratoDepth;
+        const hz = voice.hz * (1 + vibrato);
+
+        // Hammer strike - velocity and hardness affect this
+        const hammerDecay = 30 + hardness * 50;
+        const hammer = Math.exp(-hammerDecay * elapsed) * voice.velocity;
+
+        // Multiple harmonics with inharmonicity (piano strings aren't perfect)
+        let snd = 0;
+        const inharmonicity = 0.0001 * (1 + hardness);
+        for (let h = 1; h <= 12; h++) {
+            const harmonicFreq = hz * h * (1 + inharmonicity * h * h);
+            const harmonicDecay = Math.exp(-elapsed * h * 0.3 * (1 + hardness));
+            const harmonicAmp = Math.pow(brightness, h - 1) / h;
+
+            if (!voice['harmPhase' + h]) voice['harmPhase' + h] = 0;
+            voice['harmPhase' + h] += harmonicFreq * dt;
+            snd += Math.sin(voice['harmPhase' + h] * 2 * Math.PI) * harmonicDecay * harmonicAmp;
+        }
+
+        // Add hammer noise
+        snd += this.whiteNoise() * hammer * 0.15 * hardness;
+
+        // Slight stereo spread based on note
+        const stereoPan = (voice.note - 60) / 40;
+        const panL = Math.cos((stereoPan + 1) * Math.PI / 4);
+        const panR = Math.sin((stereoPan + 1) * Math.PI / 4);
+
+        return [snd * panL * 0.35, snd * panR * 0.35];
+    }
+
+    synthKalimba(voice, dt) {
+        // Kalimba/thumb piano - with tine resonance
+        const decay = this.linexp(this.mod1, -1, 1, 0.5, 8);
+        const brightness = this.linexp(this.mod2, -1, 1, 0.3, 3);
+        const tineResonance = this.linlin(this.mod3, -1, 1, 0, 1);
+        const bodyResonance = this.linlin(this.mod4, -1, 1, 0, 1);
+
+        const hz = voice.hz;
+        const elapsed = currentTime - voice.startTime;
+
+        // Main tine - sine with quick pluck
+        voice.phase += hz * dt;
+        const tineDecay = Math.exp(-elapsed / decay);
+        let snd = Math.sin(voice.phase * 2 * Math.PI) * tineDecay;
+
+        // Harmonics for brightness
+        voice.phase2 += hz * 2 * dt;
+        voice.phase3 += hz * 3 * dt;
+        snd += Math.sin(voice.phase2 * 2 * Math.PI) * tineDecay * 0.3 * brightness;
+        snd += Math.sin(voice.phase3 * 2 * Math.PI) * tineDecay * 0.15 * brightness;
+
+        // Initial attack click/pluck
+        const clickEnv = Math.exp(-80 * elapsed);
+        const clickFreqs = [hz * 4.1, hz * 6.2, hz * 9.3];
+        let click = 0;
+        for (let i = 0; i < 3; i++) {
+            voice.klankPhases[i] += clickFreqs[i] * dt;
+            const clickDecay = Math.exp(-elapsed * 20);
+            click += Math.sin(voice.klankPhases[i] * 2 * Math.PI) * clickDecay * 0.2;
+        }
+        snd += click * tineResonance;
+
+        // Body resonance (lower frequencies)
+        if (!voice.bodyPhase) voice.bodyPhase = 0;
+        voice.bodyPhase += (hz * 0.5) * dt;
+        const bodyTone = Math.sin(voice.bodyPhase * 2 * Math.PI) * Math.exp(-elapsed * 2) * bodyResonance * 0.4;
+        snd += bodyTone;
+
+        // Slight random pan for organic feel
+        if (!voice.panOffset) voice.panOffset = (Math.random() - 0.5) * 0.3;
+        const panL = 0.5 - voice.panOffset;
+        const panR = 0.5 + voice.panOffset;
+
+        return [snd * panL * 0.5, snd * panR * 0.5];
+    }
+
+    synthTriangles(voice, dt) {
+        // Accordion/organ style triangle waves
+        const bellows = this.linlin(this.mod1, -1, 1, 0, 1);
+        const lofi = this.linlin(this.mod2, -1, 1, 0, 1);
+        const detuneCents = this.linlin(this.mod3, -1, 1, -50, 50);
+        const tremolo = this.linexp(this.mod4, -1, 1, 0.1, 12);
+
+        const hz = voice.hz;
+        const elapsed = currentTime - voice.startTime;
+
+        // Bellows dynamics - slow swell
+        const bellowsEnv = bellows * (1 - Math.exp(-elapsed * 2)) + (1 - bellows);
+
+        // Tremolo LFO
+        voice.lfoPhase += tremolo * dt;
+        const tremoloMod = 0.7 + 0.3 * Math.sin(voice.lfoPhase * 2 * Math.PI);
+
+        // Multiple triangle oscillators with detuning
+        const detuneRatio = Math.pow(2, detuneCents / 1200);
+        voice.triPhase1 += hz * dt;
+        voice.triPhase2 += hz * detuneRatio * dt;
+        voice.phase3 += hz / detuneRatio * dt;
+        voice.phase4 += hz * 2 * dt; // Octave up
+
+        let snd = this.triOsc(voice.triPhase1) * 0.4;
+        snd += this.triOsc(voice.triPhase2) * 0.3;
+        snd += this.triOsc(voice.phase3) * 0.3;
+        snd += this.triOsc(voice.phase4) * 0.15; // Higher octave quieter
+
+        snd *= bellowsEnv * tremoloMod;
+
+        // Lo-fi processing
+        if (lofi > 0.01) {
+            // Bit crushing
+            const bits = Math.floor(16 - lofi * 12);
+            const levels = Math.pow(2, bits);
+            snd = Math.round(snd * levels) / levels;
+
+            // Sample rate reduction simulation
+            if (!voice.lofiHold) voice.lofiHold = 0;
+            if (!voice.lofiCounter) voice.lofiCounter = 0;
+            voice.lofiCounter++;
+            const holdSamples = Math.floor(1 + lofi * 8);
+            if (voice.lofiCounter >= holdSamples) {
+                voice.lofiHold = snd;
+                voice.lofiCounter = 0;
+            }
+            snd = voice.lofiHold;
+        }
+
+        return [snd * 0.4, snd * 0.4];
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        const dt = 1 / this.sampleRate;
+
+        for (let i = 0; i < left.length; i++) {
+            let sumL = 0, sumR = 0;
+
+            // Process each voice
+            for (const voice of this.voices) {
+                if (!voice.active) continue;
+
+                const env = this.processEnvelope(voice, dt);
+                if (env <= 0) continue;
+
+                let sample;
+                switch (this.currentSynth) {
+                    case 'piano': sample = this.synthPiano(voice, dt); break;
+                    case 'epiano': sample = this.synthEpiano(voice, dt); break;
+                    case 'casio': sample = this.synthCasio(voice, dt); break;
+                    case 'malone': sample = this.synthMalone(voice, dt); break;
+                    case 'toshiya': sample = this.synthToshiya(voice, dt); break;
+                    case 'synthy': sample = this.synthSynthy(voice, dt); break;
+                    case 'PolyPerc': sample = this.synthPolyPerc(voice, dt); break;
+                    case 'mdapiano': sample = this.synthMdapiano(voice, dt); break;
+                    case 'kalimba': sample = this.synthKalimba(voice, dt); break;
+                    case 'triangles': sample = this.synthTriangles(voice, dt); break;
+                    default: sample = this.synthPiano(voice, dt);
+                }
+
+                sumL += sample[0] * env * voice.velocity;
+                sumR += sample[1] * env * voice.velocity;
+            }
+
+            // Apply pan
+            const panL = Math.cos((this.pan + 1) * Math.PI / 4);
+            const panR = Math.sin((this.pan + 1) * Math.PI / 4);
+            sumL *= panL;
+            sumR *= panR;
+
+            // Global LPF
+            const lpfCoef = Math.exp(-2 * Math.PI * this.lpf / this.sampleRate);
+            this.lpfStateL = this.lpfStateL * lpfCoef + sumL * (1 - lpfCoef);
+            this.lpfStateR = this.lpfStateR * lpfCoef + sumR * (1 - lpfCoef);
+            sumL = this.lpfStateL;
+            sumR = this.lpfStateR;
+
+            // Delay effect
+            if (this.delay > 0) {
+                const delaySamples = Math.floor(this.delayTime * this.sampleRate);
+                const readIdx = (this.delayWriteIndex - delaySamples + this.delayBufferSize) % this.delayBufferSize;
+
+                const delayL = this.delayBufferL[readIdx];
+                const delayR = this.delayBufferR[readIdx];
+
+                this.delayBufferL[this.delayWriteIndex] = sumL + delayL * this.delayFb;
+                this.delayBufferR[this.delayWriteIndex] = sumR + delayR * this.delayFb;
+
+                sumL += delayL * this.delay;
+                sumR += delayR * this.delay;
+
+                this.delayWriteIndex = (this.delayWriteIndex + 1) % this.delayBufferSize;
+            }
+
+            // Soft clip and output
+            left[i] = Math.tanh(sumL * this.volume * 2);
+            right[i] = Math.tanh(sumR * this.volume * 2);
+        }
+
+        // Clean up inactive voices
+        this.voices = this.voices.filter(v => v.active);
+
+        return true;
+    }
+}
+
+registerProcessor('mxsynths-processor', MxSynthsProcessor);
+`;
+
+let audioContext = null;
+let workletNode = null;
+let isPlaying = false;
+let pedalboard = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+const playBtn = document.getElementById('playBtn');
+const synthSelector = document.getElementById('synthSelector');
+const synthInfo = document.getElementById('synthInfo');
+const keyboard = document.getElementById('keyboard');
+const voiceCount = document.getElementById('voiceCount');
+
+// Current synth
+let currentSynth = 'piano';
+
+// Initialize keyboard
+function createKeyboard() {
+    const notes = [
+        { note: 48, label: 'C3', black: false },
+        { note: 49, label: '', black: true },
+        { note: 50, label: 'D', black: false },
+        { note: 51, label: '', black: true },
+        { note: 52, label: 'E', black: false },
+        { note: 53, label: 'F', black: false },
+        { note: 54, label: '', black: true },
+        { note: 55, label: 'G', black: false },
+        { note: 56, label: '', black: true },
+        { note: 57, label: 'A', black: false },
+        { note: 58, label: '', black: true },
+        { note: 59, label: 'B', black: false },
+        { note: 60, label: 'C4', black: false },
+        { note: 61, label: '', black: true },
+        { note: 62, label: 'D', black: false },
+        { note: 63, label: '', black: true },
+        { note: 64, label: 'E', black: false },
+        { note: 65, label: 'F', black: false },
+        { note: 66, label: '', black: true },
+        { note: 67, label: 'G', black: false },
+        { note: 68, label: '', black: true },
+        { note: 69, label: 'A', black: false },
+        { note: 70, label: '', black: true },
+        { note: 71, label: 'B', black: false },
+        { note: 72, label: 'C5', black: false }
+    ];
+
+    notes.forEach(n => {
+        const key = document.createElement('div');
+        key.className = `key ${n.black ? 'black' : ''}`;
+        key.dataset.note = n.note;
+        if (n.label) {
+            const label = document.createElement('span');
+            label.className = 'key-label';
+            label.textContent = n.label;
+            key.appendChild(label);
+        }
+
+        key.addEventListener('mousedown', () => noteOn(n.note));
+        key.addEventListener('mouseup', () => noteOff(n.note));
+        key.addEventListener('mouseleave', () => noteOff(n.note));
+        key.addEventListener('touchstart', (e) => { e.preventDefault(); noteOn(n.note); });
+        key.addEventListener('touchend', (e) => { e.preventDefault(); noteOff(n.note); });
+
+        keyboard.appendChild(key);
+    });
+}
+
+// Computer keyboard mapping
+const keyMap = {
+    'a': 48, 'w': 49, 's': 50, 'e': 51, 'd': 52, 'f': 53, 't': 54,
+    'g': 55, 'y': 56, 'h': 57, 'u': 58, 'j': 59, 'k': 60, 'o': 61,
+    'l': 62, 'p': 63, ';': 64, "'": 65
+};
+const activeKeys = new Set();
+
+document.addEventListener('keydown', (e) => {
+    if (!isPlaying || e.repeat) return;
+    const note = keyMap[e.key.toLowerCase()];
+    if (note && !activeKeys.has(e.key)) {
+        activeKeys.add(e.key);
+        noteOn(note);
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    const note = keyMap[e.key.toLowerCase()];
+    if (note) {
+        activeKeys.delete(e.key);
+        noteOff(note);
+    }
+});
+
+function noteOn(note) {
+    if (!workletNode) return;
+    workletNode.port.postMessage({ type: 'noteOn', note, velocity: 0.8 });
+
+    const key = keyboard.querySelector(`[data-note="${note}"]`);
+    if (key) key.classList.add('active');
+}
+
+function noteOff(note) {
+    if (!workletNode) return;
+    workletNode.port.postMessage({ type: 'noteOff', note });
+
+    const key = keyboard.querySelector(`[data-note="${note}"]`);
+    if (key) key.classList.remove('active');
+}
+
+// Audio initialization
+
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+    if (audioContext) return;
+
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+    const blob = new Blob([workletCode], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+
+    await audioContext.audioWorklet.addModule(url);
+    URL.revokeObjectURL(url);
+
+    workletNode = new AudioWorkletNode(audioContext, 'mxsynths-processor', {
+        numberOfInputs: 0,
+        numberOfOutputs: 1,
+        outputChannelCount: [2]
+    });
+
+    // Initialize pedalboard and route audio through it
+    pedalboard = new PedalboardUI(
+        document.getElementById('pedalboard-container'),
+        audioContext
+    );
+    const fxNode = await pedalboard.init();
+    pedalboard.connect(workletNode);
+    fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'mx-synths-multi-engine-synthesizer',
+                    patchId: 'mxsynths-01'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('mxsynths-01');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'mxsynths-01',
+                    prefix: '01',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+    workletNode.port.onmessage = (e) => {
+        if (e.data.type === 'voiceCount') {
+            voiceCount.textContent = e.data.count;
+        }
+    };
+
+    // Set initial synth
+    workletNode.port.postMessage({ type: 'setSynth', synth: currentSynth });
+}
+
+// Play button
+playBtn.addEventListener('click', async () => {
+    if (!isPlaying) {
+        await initAudio();
+        await audioContext.resume();
+        isPlaying = true;
+                if (modMatrix) modMatrix.start();
+        playBtn.textContent = '⏹ STOP';
+        playBtn.classList.add('active');
+    } else {
+        if (audioContext) {
+            await audioContext.suspend();
+        }
+        isPlaying = false;
+        playBtn.textContent = '▶ START AUDIO';
+        playBtn.classList.remove('active');
+    }
+});
+
+// Synth selector
+synthSelector.addEventListener('click', (e) => {
+    if (e.target.classList.contains('synth-btn')) {
+        document.querySelectorAll('.synth-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+
+        currentSynth = e.target.dataset.synth;
+
+        if (workletNode) {
+            workletNode.port.postMessage({ type: 'setSynth', synth: currentSynth });
+        }
+
+        updateSynthInfo();
+    }
+});
+
+function updateSynthInfo() {
+    const info = synthDefinitions[currentSynth];
+    synthInfo.innerHTML = `<h3>${info.name}</h3><p>${info.desc}</p>`;
+
+    document.getElementById('mod1Label').textContent = info.mod1;
+    document.getElementById('mod2Label').textContent = info.mod2;
+    document.getElementById('mod3Label').textContent = info.mod3;
+    document.getElementById('mod4Label').textContent = info.mod4;
+}
+
+// Parameter controls
+function setupControls() {
+    const controls = [
+        { id: 'mod1', param: 'mod1', display: v => v.toFixed(2) },
+        { id: 'mod2', param: 'mod2', display: v => v.toFixed(2) },
+        { id: 'mod3', param: 'mod3', display: v => v.toFixed(2) },
+        { id: 'mod4', param: 'mod4', display: v => v.toFixed(2) },
+        { id: 'attack', param: 'attack', display: v => v.toFixed(2) + 's' },
+        { id: 'decay', param: 'decay', display: v => v.toFixed(2) + 's' },
+        { id: 'sustain', param: 'sustain', display: v => v.toFixed(2) },
+        { id: 'release', param: 'release', display: v => v.toFixed(2) + 's' },
+        { id: 'volume', param: 'volume', display: v => v.toFixed(2) },
+        { id: 'sub', param: 'sub', display: v => v.toFixed(2) },
+        { id: 'pan', param: 'pan', display: v => v.toFixed(2) },
+        { id: 'lpf', param: 'lpf', display: v => Math.round(v) + ' Hz' },
+        { id: 'delay', param: 'delay', display: v => Math.round(v * 100) + '%' },
+        { id: 'delayTime', param: 'delayTime', display: v => v.toFixed(2) + 's' },
+        { id: 'delayFb', param: 'delayFb', display: v => v.toFixed(2) },
+        { id: 'portamento', param: 'portamento', display: v => v.toFixed(2) + 's' }
+    ];
+
+    controls.forEach(ctrl => {
+        const el = document.getElementById(ctrl.id);
+        const valEl = document.getElementById(ctrl.id + 'Val');
+
+        if (el && valEl) {
+            el.addEventListener('input', () => {
+                const value = parseFloat(el.value);
+                valEl.textContent = ctrl.display(value);
+
+                if (workletNode) {
+                    workletNode.port.postMessage({
+                        type: 'setParam',
+                        param: ctrl.param,
+                        value
+                    });
+                }
+            });
+        }
+    });
+}
+
+// Presets
+const presets = {
+    init: {
+        mod1: 0, mod2: 0, mod3: 0, mod4: 0,
+        attack: 0.01, decay: 0.2, sustain: 0.9, release: 1,
+        volume: 0.5, sub: 0.3, pan: 0, lpf: 20000,
+        delay: 0, delayTime: 0.25, delayFb: 0.3, portamento: 0
+    },
+    ambient: {
+        mod1: 0.5, mod2: -0.3, mod3: 0.2, mod4: 0.4,
+        attack: 0.8, decay: 0.5, sustain: 0.8, release: 3,
+        volume: 0.4, sub: 0.2, pan: 0, lpf: 8000,
+        delay: 0.4, delayTime: 0.5, delayFb: 0.5, portamento: 0.1
+    },
+    plucky: {
+        mod1: -0.5, mod2: 0.3, mod3: -0.2, mod4: 0,
+        attack: 0.001, decay: 0.3, sustain: 0.2, release: 0.5,
+        volume: 0.6, sub: 0, pan: 0, lpf: 12000,
+        delay: 0.2, delayTime: 0.15, delayFb: 0.3, portamento: 0
+    },
+    bass: {
+        mod1: 0, mod2: -0.5, mod3: 0.5, mod4: 0.2,
+        attack: 0.01, decay: 0.3, sustain: 0.7, release: 0.3,
+        volume: 0.7, sub: 0.8, pan: 0, lpf: 2000,
+        delay: 0, delayTime: 0.25, delayFb: 0.2, portamento: 0.05
+    },
+    keys: {
+        mod1: 0.3, mod2: 0.5, mod3: 0, mod4: 0.2,
+        attack: 0.01, decay: 0.4, sustain: 0.6, release: 1,
+        volume: 0.5, sub: 0.1, pan: 0, lpf: 15000,
+        delay: 0.15, delayTime: 0.3, delayFb: 0.25, portamento: 0
+    },
+    lofi: {
+        mod1: -0.3, mod2: 0.7, mod3: -0.4, mod4: 0.5,
+        attack: 0.05, decay: 0.4, sustain: 0.5, release: 0.8,
+        volume: 0.45, sub: 0.2, pan: 0, lpf: 4000,
+        delay: 0.3, delayTime: 0.4, delayFb: 0.4, portamento: 0
+    }
+};
+
+document.querySelector('.preset-btns').addEventListener('click', (e) => {
+    if (e.target.classList.contains('preset-btn')) {
+        const preset = presets[e.target.dataset.preset];
+        if (preset) {
+            Object.entries(preset).forEach(([param, value]) => {
+                const el = document.getElementById(param);
+                if (el) {
+                    el.value = value;
+                    el.dispatchEvent(new Event('input'));
+                }
+            });
+        }
+    }
+});
+
+// MIDI Support
+let midiAccess = null;
+const midiStatus = document.getElementById('midiStatus');
+
+async function initMIDI() {
+    if (!navigator.requestMIDIAccess) {
+        midiStatus.textContent = 'MIDI: Not supported';
+        return;
+    }
+
+    try {
+        midiAccess = await navigator.requestMIDIAccess();
+        midiAccess.onstatechange = updateMIDIDevices;
+        updateMIDIDevices();
+    } catch (err) {
+        midiStatus.textContent = 'MIDI: Access denied';
+        console.error('MIDI access denied:', err);
+    }
+}
+
+function updateMIDIDevices() {
+    const inputs = Array.from(midiAccess.inputs.values());
+
+    if (inputs.length === 0) {
+        midiStatus.textContent = 'MIDI: No devices';
+        midiStatus.classList.remove('connected');
+        return;
+    }
+
+    // Connect to all inputs
+    let connectedCount = 0;
+    inputs.forEach(input => {
+        input.onmidimessage = handleMIDIMessage;
+        connectedCount++;
+    });
+
+    const deviceNames = inputs.map(i => i.name).join(', ');
+    midiStatus.textContent = `MIDI: ${deviceNames}`;
+    midiStatus.classList.add('connected');
+}
+
+function handleMIDIMessage(event) {
+    const [status, data1, data2] = event.data;
+    const command = status >> 4;
+    const channel = status & 0x0f;
+
+    // Note On
+    if (command === 9 && data2 > 0) {
+        const velocity = data2 / 127;
+        noteOn(data1, velocity);
+    }
+    // Note Off (or Note On with velocity 0)
+    else if (command === 8 || (command === 9 && data2 === 0)) {
+        noteOff(data1);
+    }
+    // Control Change
+    else if (command === 11) {
+        handleMIDICC(data1, data2 / 127);
+    }
+    // Pitch Bend
+    else if (command === 14) {
+        // Could be implemented for pitch bend
+    }
+}
+
+function handleMIDICC(cc, value) {
+    // Map common CCs to parameters
+    switch (cc) {
+        case 1: // Mod wheel -> mod1
+            document.getElementById('mod1').value = value * 2 - 1;
+            document.getElementById('mod1').dispatchEvent(new Event('input'));
+            break;
+        case 74: // Filter cutoff (CC74) -> mod2
+            document.getElementById('mod2').value = value * 2 - 1;
+            document.getElementById('mod2').dispatchEvent(new Event('input'));
+            break;
+        case 71: // Resonance (CC71) -> mod3
+            document.getElementById('mod3').value = value * 2 - 1;
+            document.getElementById('mod3').dispatchEvent(new Event('input'));
+            break;
+        case 73: // Attack
+            document.getElementById('attack').value = value * 2;
+            document.getElementById('attack').dispatchEvent(new Event('input'));
+            break;
+        case 75: // Decay
+            document.getElementById('decay').value = value * 2;
+            document.getElementById('decay').dispatchEvent(new Event('input'));
+            break;
+        case 79: // Sustain level
+            document.getElementById('sustain').value = value;
+            document.getElementById('sustain').dispatchEvent(new Event('input'));
+            break;
+        case 72: // Release
+            document.getElementById('release').value = value * 5;
+            document.getElementById('release').dispatchEvent(new Event('input'));
+            break;
+        case 7: // Volume
+            document.getElementById('volume').value = value;
+            document.getElementById('volume').dispatchEvent(new Event('input'));
+            break;
+        case 10: // Pan
+            document.getElementById('pan').value = value * 2 - 1;
+            document.getElementById('pan').dispatchEvent(new Event('input'));
+            break;
+        case 91: // Reverb -> Delay send
+            document.getElementById('delay').value = value;
+            document.getElementById('delay').dispatchEvent(new Event('input'));
+            break;
+    }
+}
+
+// Update noteOn to accept velocity
+function noteOnWithVelocity(note, velocity = 0.8) {
+    if (!workletNode) return;
+    workletNode.port.postMessage({ type: 'noteOn', note, velocity });
+
+    const key = keyboard.querySelector(`[data-note="${note}"]`);
+    if (key) key.classList.add('active');
+}
+
+// Replace the original noteOn function
+const originalNoteOn = noteOn;
+noteOn = function(note, velocity) {
+    if (typeof velocity === 'undefined') velocity = 0.8;
+    noteOnWithVelocity(note, velocity);
+};
+
+// Initialize MIDI on page load
+initMIDI();
+
+// Initialize
+createKeyboard();
+setupControls();
+updateSynthInfo();
+    </script>
+</body>
+</html>

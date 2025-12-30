@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grendy - Drone Commander Synth</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Grendy</h1>
+                <p>Grendel Drone Commander inspired dual-oscillator drone synth</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <div class="visualizer-container">
+                <canvas id="visualizer"></canvas>
+            </div>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Pitch 1</label>
+                    <input type="range" id="pitch1" min="30" max="500" value="60" step="1">
+                    <span class="param-value" id="pitch1Val">60</span>
+                </div>
+                <div class="param-group">
+                    <label>Pitch 2</label>
+                    <input type="range" id="pitch2" min="30" max="500" value="90" step="1">
+                    <span class="param-value" id="pitch2Val">90</span>
+                </div>
+                <div class="param-group">
+                    <label>Shape 1</label>
+                    <select id="shape1">
+                        <option value="0">Square</option>
+                        <option value="1" selected>Saw</option>
+                    </select>
+                </div>
+                <div class="param-group">
+                    <label>Shape 2</label>
+                    <select id="shape2">
+                        <option value="0">Square</option>
+                        <option value="1" selected>Saw</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Osc Mix</label>
+                    <input type="range" id="mix" min="0" max="1" value="0.5" step="0.01">
+                    <span class="param-value" id="mixVal">0.50</span>
+                </div>
+                <div class="param-group">
+                    <label>Slop</label>
+                    <input type="range" id="slop" min="0" max="1" value="0.1" step="0.01">
+                    <span class="param-value" id="slopVal">0.10</span>
+                </div>
+                <div class="param-group">
+                    <label>Filter Freq</label>
+                    <input type="range" id="filterFreq" min="50" max="8000" value="300" step="1">
+                    <span class="param-value" id="filterFreqVal">300</span>
+                </div>
+                <div class="param-group">
+                    <label>Resonance</label>
+                    <input type="range" id="resonance" min="0" max="1" value="0.5" step="0.01">
+                    <span class="param-value" id="resonanceVal">0.50</span>
+                </div>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>LFO Rate</label>
+                    <input type="range" id="lfoRate" min="0.01" max="10" value="0.5" step="0.01">
+                    <span class="param-value" id="lfoRateVal">0.50</span>
+                </div>
+                <div class="param-group">
+                    <label>LFO Depth</label>
+                    <input type="range" id="lfoDepth" min="0" max="1" value="0.4" step="0.01">
+                    <span class="param-value" id="lfoDepthVal">0.40</span>
+                </div>
+                <div class="param-group">
+                    <label>LFO2 Mult</label>
+                    <select id="lfo2Mult">
+                        <option value="2">2x</option>
+                        <option value="4" selected>4x</option>
+                        <option value="8">8x</option>
+                        <option value="16">16x</option>
+                    </select>
+                </div>
+                <div class="param-group">
+                    <label>LFO2 Level</label>
+                    <input type="range" id="lfo2Level" min="0" max="1" value="0.5" step="0.01">
+                    <span class="param-value" id="lfo2LevelVal">0.50</span>
+                </div>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Pan Rate</label>
+                    <input type="range" id="panRate" min="0.01" max="2" value="0.1" step="0.01">
+                    <span class="param-value" id="panRateVal">0.10</span>
+                </div>
+                <div class="param-group">
+                    <label>Pan Amt</label>
+                    <input type="range" id="panAmt" min="0" max="1" value="0.3" step="0.01">
+                    <span class="param-value" id="panAmtVal">0.30</span>
+                </div>
+                <div class="param-group">
+                    <label>Volume</label>
+                    <input type="range" id="volume" min="0" max="1" value="0.7" step="0.01">
+                    <span class="param-value" id="volumeVal">0.70</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <code>Grendy: Grendel Drone Commander inspired - dual VCO, Moog filter, dual LFO modulation, auto-pan</code>
+            </div>
+
+            <p class="status" id="status">Click play to start</p>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+
+        <nav class="nav-links">
+            <a href="dronecaster-01.html">&larr; Previous</a>
+            <a href="fall-01.html">Next &rarr;</a>
+        </nav>
+    </div>
+
+    <script>
+        const processorCode = `
+class GrendyProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+
+        // Oscillator parameters
+        this.pitch1 = 60;
+        this.pitch2 = 90;
+        this.shape1 = 1; // 0 = square, 1 = saw
+        this.shape2 = 1;
+        this.mix = 0.5;
+        this.slop = 0.1;
+
+        // Filter parameters
+        this.filterFreq = 300;
+        this.resonance = 0.5;
+
+        // LFO parameters
+        this.lfoRate = 0.5;
+        this.lfoDepth = 0.4;
+        this.lfo2Mult = 4;
+        this.lfo2Level = 0.5;
+
+        // Pan parameters
+        this.panRate = 0.1;
+        this.panAmt = 0.3;
+        this.volume = 0.7;
+
+        // Oscillator state
+        this.osc1Phase = 0;
+        this.osc2Phase = 0;
+
+        // Slop LFOs (random drift per oscillator)
+        this.slop1Phase = Math.random();
+        this.slop2Phase = Math.random();
+        this.slop1Value = 0;
+        this.slop2Value = 0;
+        this.slop1Target = (Math.random() * 2 - 1);
+        this.slop2Target = (Math.random() * 2 - 1);
+
+        // LFO state
+        this.lfoPhase = 0;
+        this.lfo2Phase = 0;
+
+        // Pan LFO
+        this.panPhase = 0;
+
+        // Moog-style 4-pole ladder filter state
+        this.filterState = [0, 0, 0, 0];
+        this.filterDelay = [0, 0, 0, 0];
+
+        this.port.onmessage = (e) => {
+            const d = e.data;
+            if (d.pitch1 !== undefined) this.pitch1 = d.pitch1;
+            if (d.pitch2 !== undefined) this.pitch2 = d.pitch2;
+            if (d.shape1 !== undefined) this.shape1 = d.shape1;
+            if (d.shape2 !== undefined) this.shape2 = d.shape2;
+            if (d.mix !== undefined) this.mix = d.mix;
+            if (d.slop !== undefined) this.slop = d.slop;
+            if (d.filterFreq !== undefined) this.filterFreq = d.filterFreq;
+            if (d.resonance !== undefined) this.resonance = d.resonance;
+            if (d.lfoRate !== undefined) this.lfoRate = d.lfoRate;
+            if (d.lfoDepth !== undefined) this.lfoDepth = d.lfoDepth;
+            if (d.lfo2Mult !== undefined) this.lfo2Mult = d.lfo2Mult;
+            if (d.lfo2Level !== undefined) this.lfo2Level = d.lfo2Level;
+            if (d.panRate !== undefined) this.panRate = d.panRate;
+            if (d.panAmt !== undefined) this.panAmt = d.panAmt;
+            if (d.volume !== undefined) this.volume = d.volume;
+        };
+    }
+
+    // Generate oscillator with morphable waveform
+    oscillator(phase, shape) {
+        // shape: 0 = square, 1 = saw
+        // Morph between them for intermediate values
+        const saw = phase * 2 - 1;
+        const square = phase < 0.5 ? 1 : -1;
+        return saw * shape + square * (1 - shape);
+    }
+
+    // Moog-style ladder filter (4-pole lowpass with resonance)
+    moogFilter(input, cutoff, resonance) {
+        // Clamp cutoff to safe range
+        const fc = Math.max(20, Math.min(this.sampleRate * 0.45, cutoff));
+
+        // Calculate filter coefficients
+        const f = 2 * fc / this.sampleRate;
+        const k = 3.6 * f - 1.6 * f * f - 1;
+        const p = (k + 1) * 0.5;
+        const scale = Math.exp((1 - p) * 1.386249);
+        const r = resonance * scale;
+
+        // Feedback with resonance
+        const feedback = r * this.filterState[3];
+        let x = input - feedback;
+
+        // Prevent filter from blowing up
+        x = Math.tanh(x);
+
+        // 4-pole cascade
+        for (let i = 0; i < 4; i++) {
+            const oldState = this.filterState[i];
+            this.filterState[i] = x * p + this.filterDelay[i] * p - k * this.filterState[i];
+            this.filterDelay[i] = x;
+            x = this.filterState[i];
+        }
+
+        return this.filterState[3];
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        for (let s = 0; s < left.length; s++) {
+            // Update slop (random pitch drift) - smooth interpolation to new targets
+            this.slop1Phase += 0.3 / this.sampleRate;
+            this.slop2Phase += 0.25 / this.sampleRate;
+
+            if (this.slop1Phase >= 1) {
+                this.slop1Phase -= 1;
+                this.slop1Target = (Math.random() * 2 - 1);
+            }
+            if (this.slop2Phase >= 1) {
+                this.slop2Phase -= 1;
+                this.slop2Target = (Math.random() * 2 - 1);
+            }
+
+            // Smooth interpolation towards target
+            this.slop1Value += (this.slop1Target - this.slop1Value) * 0.001;
+            this.slop2Value += (this.slop2Target - this.slop2Value) * 0.001;
+
+            // Calculate oscillator frequencies with slop
+            const slopAmount = this.slop * 5; // Up to 5 Hz drift
+            const freq1 = this.pitch1 + this.slop1Value * slopAmount;
+            const freq2 = this.pitch2 + this.slop2Value * slopAmount;
+
+            // Update oscillator phases
+            this.osc1Phase += freq1 / this.sampleRate;
+            this.osc2Phase += freq2 / this.sampleRate;
+            if (this.osc1Phase >= 1) this.osc1Phase -= 1;
+            if (this.osc2Phase >= 1) this.osc2Phase -= 1;
+
+            // Generate oscillators
+            const osc1 = this.oscillator(this.osc1Phase, this.shape1);
+            const osc2 = this.oscillator(this.osc2Phase, this.shape2);
+
+            // Mix oscillators using crossfade
+            // mix = 0: all osc1, mix = 1: all osc2, mix = 0.5: equal blend
+            const mixedOsc = osc1 * (1 - this.mix) + osc2 * this.mix;
+
+            // Update LFOs
+            // LFO1: main saw LFO
+            this.lfoPhase += this.lfoRate / this.sampleRate;
+            if (this.lfoPhase >= 1) this.lfoPhase -= 1;
+            const lfo1 = this.lfoPhase * 2 - 1; // Saw wave -1 to 1
+
+            // LFO2: pulse LFO at multiplied rate (like Drone Commander PLL)
+            this.lfo2Phase += (this.lfoRate * this.lfo2Mult) / this.sampleRate;
+            if (this.lfo2Phase >= 1) this.lfo2Phase -= 1;
+            const lfo2 = this.lfo2Phase < 0.5 ? 1 : -1; // Pulse wave
+
+            // Combined LFO for filter modulation
+            const combinedLfo = lfo1 * (1 - this.lfo2Level) + lfo2 * this.lfo2Level;
+
+            // Filter cutoff modulation
+            const lfoMod = combinedLfo * this.lfoDepth * this.filterFreq * 2;
+            const modulatedCutoff = this.filterFreq + lfoMod;
+
+            // Apply Moog filter
+            // Resonance scaled to 0-4 range for Moog filter
+            const filtered = this.moogFilter(mixedOsc, modulatedCutoff, this.resonance * 4);
+
+            // Auto-pan LFO
+            this.panPhase += this.panRate / this.sampleRate;
+            if (this.panPhase >= 1) this.panPhase -= 1;
+            const panLfo = Math.sin(this.panPhase * Math.PI * 2);
+            const pan = panLfo * this.panAmt;
+
+            // Calculate stereo gains
+            const gainL = Math.cos((pan + 1) * Math.PI / 4);
+            const gainR = Math.sin((pan + 1) * Math.PI / 4);
+
+            // Output with soft limiting
+            const out = Math.tanh(filtered * 1.5) * this.volume;
+            left[s] = out * gainL;
+            if (right) right[s] = out * gainR;
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('grendy-processor', GrendyProcessor);
+`;
+
+        let audioContext;
+        let workletNode;
+        let analyser;
+        let isPlaying = false;
+        let pedalboard = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'grendy-processor');
+
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+
+            // Initialize pedalboard and route audio through it
+            pedalboard = new PedalboardUI(
+                document.getElementById('pedalboard-container'),
+                audioContext
+            );
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(analyser);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'grendy-drone-commander-synth',
+                    patchId: 'grendy-01'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('grendy-01');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'grendy-01',
+                    prefix: '01',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Send initial parameters
+            workletNode.port.postMessage({
+                pitch1: parseFloat(document.getElementById('pitch1').value),
+                pitch2: parseFloat(document.getElementById('pitch2').value),
+                shape1: parseFloat(document.getElementById('shape1').value),
+                shape2: parseFloat(document.getElementById('shape2').value),
+                mix: parseFloat(document.getElementById('mix').value),
+                slop: parseFloat(document.getElementById('slop').value),
+                filterFreq: parseFloat(document.getElementById('filterFreq').value),
+                resonance: parseFloat(document.getElementById('resonance').value),
+                lfoRate: parseFloat(document.getElementById('lfoRate').value),
+                lfoDepth: parseFloat(document.getElementById('lfoDepth').value),
+                lfo2Mult: parseFloat(document.getElementById('lfo2Mult').value),
+                lfo2Level: parseFloat(document.getElementById('lfo2Level').value),
+                panRate: parseFloat(document.getElementById('panRate').value),
+                panAmt: parseFloat(document.getElementById('panAmt').value),
+                volume: parseFloat(document.getElementById('volume').value)
+            });
+        }
+
+        // Parameter controls
+        const params = [
+            { id: 'pitch1', type: 'float' },
+            { id: 'pitch2', type: 'float' },
+            { id: 'shape1', type: 'float' },
+            { id: 'shape2', type: 'float' },
+            { id: 'mix', type: 'float' },
+            { id: 'slop', type: 'float' },
+            { id: 'filterFreq', type: 'float' },
+            { id: 'resonance', type: 'float' },
+            { id: 'lfoRate', type: 'float' },
+            { id: 'lfoDepth', type: 'float' },
+            { id: 'lfo2Mult', type: 'float' },
+            { id: 'lfo2Level', type: 'float' },
+            { id: 'panRate', type: 'float' },
+            { id: 'panAmt', type: 'float' },
+            { id: 'volume', type: 'float' }
+        ];
+
+        params.forEach(param => {
+            const el = document.getElementById(param.id);
+            const valEl = document.getElementById(param.id + 'Val');
+
+            el.addEventListener('input', () => {
+                const value = parseFloat(el.value);
+                if (valEl) valEl.textContent = value.toFixed(2);
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param.id]: value });
+                }
+            });
+        });
+
+        // Visualizer
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!isPlaying) return;
+
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, width, height);
+
+            if (analyser) {
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                analyser.getByteTimeDomainData(dataArray);
+
+                // Draw waveform
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#e94560';
+                ctx.beginPath();
+
+                const sliceWidth = width / bufferLength;
+                let x = 0;
+
+                for (let i = 0; i < bufferLength; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * height / 2;
+
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                    x += sliceWidth;
+                }
+
+                ctx.stroke();
+
+                // Draw frequency spectrum as bars
+                analyser.getByteFrequencyData(dataArray);
+                const barCount = 64;
+                const barWidth = width / barCount;
+
+                ctx.fillStyle = 'rgba(233, 69, 96, 0.3)';
+                for (let i = 0; i < barCount; i++) {
+                    const idx = Math.floor(i * bufferLength / barCount);
+                    const barHeight = (dataArray[idx] / 255) * height * 0.5;
+                    ctx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
+                }
+            }
+
+            requestAnimationFrame(drawVisualizer);
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+            }
+
+            if (isPlaying) {
+                await audioContext.suspend();
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                status.textContent = 'Droning...';
+                status.classList.add('active');
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+    </script>
+</body>
+</html>

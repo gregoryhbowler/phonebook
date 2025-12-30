@@ -1,0 +1,1808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>m18s - Two Voice Sequencer</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-controls:last-of-type {
+            border-bottom: none;
+        }
+        .sequencer-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 8px;
+            margin: 1em 0;
+        }
+        .step-cell {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .step-cell.active {
+            background: #2a2a4e;
+            border-color: #4a90d9;
+            box-shadow: 0 0 8px rgba(74, 144, 217, 0.3);
+        }
+        .step-cell.current {
+            background: #3a3a5e;
+            border-color: #7b68ee;
+        }
+        .step-number {
+            font-size: 0.7em;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        .step-note {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #4a90d9;
+        }
+        .step-stages {
+            font-size: 0.8em;
+            color: #888;
+        }
+        .step-gate {
+            font-size: 0.65em;
+            color: #7b68ee;
+            margin-top: 2px;
+        }
+        .voice-section {
+            margin-bottom: 1.5em;
+        }
+        .voice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5em;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .voice-title {
+            font-weight: bold;
+            color: #4a90d9;
+        }
+        .voice-title.v2 {
+            color: #7b68ee;
+        }
+        .voice-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .voice-controls select {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #ccc;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+        .midi-toggle {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            color: #888;
+            transition: all 0.15s;
+        }
+        .midi-toggle.active {
+            background: #2a2a4e;
+            border-color: #4a90d9;
+            color: #4a90d9;
+        }
+        .midi-toggle .indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #444;
+            transition: all 0.15s;
+        }
+        .midi-toggle.active .indicator {
+            background: #4a90d9;
+            box-shadow: 0 0 6px rgba(74, 144, 217, 0.5);
+        }
+        .transpose-display {
+            font-size: 0.8em;
+            color: #7b68ee;
+            min-width: 60px;
+            text-align: center;
+        }
+        .transport-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 1em 0;
+        }
+        .transport-btn {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #ccc;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .transport-btn:hover {
+            background: #2a2a4e;
+            border-color: #4a90d9;
+        }
+        .transport-btn.active {
+            background: #2a2a4e;
+            border-color: #4a90d9;
+            color: #4a90d9;
+        }
+        .step-editor {
+            background: #0a0a14;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 1em;
+            margin-top: 1em;
+            display: none;
+        }
+        .step-editor.visible {
+            display: block;
+        }
+        .step-editor-title {
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 0.5em;
+        }
+        .select-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .select-group select {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #ccc;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 150px;
+        }
+        .synth-params {
+            display: none;
+        }
+        .synth-params.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>m18s</h1>
+                <p>Two-voice step sequencer inspired by Ryk M-185</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="transport-controls">
+                <button class="transport-btn" id="startSeq">Start</button>
+                <button class="transport-btn" id="stopSeq">Stop</button>
+                <button class="transport-btn" id="resetSeq">Reset</button>
+            </div>
+
+            <!-- Global Sequencer -->
+            <span class="section-label">Sequencer</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Tempo (BPM)</label>
+                        <input type="range" id="tempo" min="30" max="300" value="120" step="1">
+                        <span class="param-value" id="tempoVal">120</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Clock Div</label>
+                        <input type="range" id="clockDiv" min="1" max="16" value="4" step="1">
+                        <span class="param-value" id="clockDivVal">4</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Root Note</label>
+                        <select id="rootNote">
+                            <option value="0">C</option>
+                            <option value="1">C#</option>
+                            <option value="2">D</option>
+                            <option value="3">D#</option>
+                            <option value="4">E</option>
+                            <option value="5">F</option>
+                            <option value="6">F#</option>
+                            <option value="7">G</option>
+                            <option value="8">G#</option>
+                            <option value="9">A</option>
+                            <option value="10">A#</option>
+                            <option value="11">B</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Octave</label>
+                        <input type="range" id="octave" min="2" max="6" value="4" step="1">
+                        <span class="param-value" id="octaveVal">4</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Scale</label>
+                        <select id="scale">
+                            <option value="major">Major</option>
+                            <option value="minor">Minor</option>
+                            <option value="dorian">Dorian</option>
+                            <option value="phrygian">Phrygian</option>
+                            <option value="lydian">Lydian</option>
+                            <option value="mixolydian">Mixolydian</option>
+                            <option value="aeolian">Aeolian</option>
+                            <option value="locrian">Locrian</option>
+                            <option value="pentatonic">Pentatonic</option>
+                            <option value="chromatic">Chromatic</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice 1 Sequence -->
+            <div class="voice-section">
+                <div class="voice-header">
+                    <span class="voice-title" id="v1Title">Voice 1 - PolySub</span>
+                    <div class="voice-controls">
+                        <select id="v1Synth">
+                            <option value="polysub">PolySub</option>
+                            <option value="lamination">Lamination</option>
+                        </select>
+                        <select id="v1Mode">
+                            <option value="forward">Forward</option>
+                            <option value="pingPong">Ping Pong</option>
+                            <option value="random">Random</option>
+                            <option value="fixedLength">Fixed Length</option>
+                        </select>
+                        <div class="midi-toggle" id="v1MidiToggle">
+                            <span class="indicator"></span>
+                            <span>MIDI</span>
+                        </div>
+                        <span class="transpose-display" id="v1Transpose">+0 semi</span>
+                    </div>
+                </div>
+                <div class="sequencer-grid" id="v1Grid"></div>
+            </div>
+
+            <!-- Voice 2 Sequence -->
+            <div class="voice-section">
+                <div class="voice-header">
+                    <span class="voice-title v2" id="v2Title">Voice 2 - Lamination</span>
+                    <div class="voice-controls">
+                        <select id="v2Synth">
+                            <option value="polysub">PolySub</option>
+                            <option value="lamination" selected>Lamination</option>
+                        </select>
+                        <select id="v2Mode">
+                            <option value="forward">Forward</option>
+                            <option value="pingPong">Ping Pong</option>
+                            <option value="random">Random</option>
+                            <option value="fixedLength">Fixed Length</option>
+                        </select>
+                        <div class="midi-toggle" id="v2MidiToggle">
+                            <span class="indicator"></span>
+                            <span>MIDI</span>
+                        </div>
+                        <span class="transpose-display" id="v2Transpose">+0 semi</span>
+                    </div>
+                </div>
+                <div class="sequencer-grid" id="v2Grid"></div>
+            </div>
+
+            <!-- Step Editor -->
+            <div class="step-editor" id="stepEditor">
+                <div class="step-editor-title" id="editorTitle">Edit Step</div>
+                <div class="select-group">
+                    <div>
+                        <label>Note</label>
+                        <select id="editNote">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Stages</label>
+                        <select id="editStages">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Gate</label>
+                        <select id="editGate">
+                            <option value="off">Off</option>
+                            <option value="single">Single</option>
+                            <option value="all">All</option>
+                            <option value="every2">Every 2</option>
+                            <option value="every3">Every 3</option>
+                            <option value="every4">Every 4</option>
+                            <option value="random">Random</option>
+                            <option value="long">Long</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice 1 PolySub Params -->
+            <div class="synth-params visible" id="v1PolysubParams">
+                <span class="section-label">Voice 1 - PolySub Synth</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Shape</label>
+                            <input type="range" id="v1Shape" min="0" max="1" value="0.5" step="0.01">
+                            <span class="param-value" id="v1ShapeVal">0.50</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Detune</label>
+                            <input type="range" id="v1Detune" min="0" max="1" value="0.1" step="0.01">
+                            <span class="param-value" id="v1DetuneVal">0.10</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Cutoff</label>
+                            <input type="range" id="v1Cutoff" min="50" max="8000" value="2000" step="1">
+                            <span class="param-value" id="v1CutoffVal">2000</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Resonance</label>
+                            <input type="range" id="v1Resonance" min="0" max="0.95" value="0.2" step="0.01">
+                            <span class="param-value" id="v1ResonanceVal">0.20</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Attack</label>
+                            <input type="range" id="v1Attack" min="0.001" max="2" value="0.01" step="0.001">
+                            <span class="param-value" id="v1AttackVal">0.01</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Decay</label>
+                            <input type="range" id="v1Decay" min="0.01" max="2" value="0.3" step="0.01">
+                            <span class="param-value" id="v1DecayVal">0.30</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Sustain</label>
+                            <input type="range" id="v1Sustain" min="0" max="1" value="0.5" step="0.01">
+                            <span class="param-value" id="v1SustainVal">0.50</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Release</label>
+                            <input type="range" id="v1Release" min="0.01" max="4" value="0.5" step="0.01">
+                            <span class="param-value" id="v1ReleaseVal">0.50</span>
+                        </div>
+                    </div>
+                    <div class="param-group">
+                        <label>Level</label>
+                        <input type="range" id="v1Level" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="v1LevelVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice 1 Lamination Params -->
+            <div class="synth-params" id="v1LaminationParams">
+                <span class="section-label">Voice 1 - Lamination Synth</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Formant</label>
+                            <input type="range" id="v1Formant" min="100" max="4000" value="800" step="1">
+                            <span class="param-value" id="v1FormantVal">800</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Mode</label>
+                            <input type="range" id="v1LamMode" min="0" max="4" value="1" step="0.01">
+                            <span class="param-value" id="v1LamModeVal">1.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Slope</label>
+                            <input type="range" id="v1Slope" min="0" max="1" value="0.5" step="0.01">
+                            <span class="param-value" id="v1SlopeVal">0.50</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Formant Amp</label>
+                            <input type="range" id="v1FormantAmp" min="0" max="1" value="0.8" step="0.01">
+                            <span class="param-value" id="v1FormantAmpVal">0.80</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Square Amp</label>
+                            <input type="range" id="v1SquareAmp" min="0" max="1" value="0.2" step="0.01">
+                            <span class="param-value" id="v1SquareAmpVal">0.20</span>
+                        </div>
+                        <div class="param-group">
+                            <label>AM Depth</label>
+                            <input type="range" id="v1AM" min="0" max="1" value="0.3" step="0.01">
+                            <span class="param-value" id="v1AMVal">0.30</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Cutoff</label>
+                            <input type="range" id="v1LamCutoff" min="50" max="12000" value="3000" step="1">
+                            <span class="param-value" id="v1LamCutoffVal">3000</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Resonance</label>
+                            <input type="range" id="v1LamResonance" min="0" max="0.95" value="0.2" step="0.01">
+                            <span class="param-value" id="v1LamResonanceVal">0.20</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Attack</label>
+                            <input type="range" id="v1LamAttack" min="0.001" max="2" value="0.01" step="0.001">
+                            <span class="param-value" id="v1LamAttackVal">0.01</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Decay</label>
+                            <input type="range" id="v1LamDecay" min="0.01" max="2" value="0.3" step="0.01">
+                            <span class="param-value" id="v1LamDecayVal">0.30</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Sustain</label>
+                            <input type="range" id="v1LamSustain" min="0" max="1" value="0.5" step="0.01">
+                            <span class="param-value" id="v1LamSustainVal">0.50</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Release</label>
+                            <input type="range" id="v1LamRelease" min="0.01" max="4" value="0.8" step="0.01">
+                            <span class="param-value" id="v1LamReleaseVal">0.80</span>
+                        </div>
+                    </div>
+                    <div class="param-group">
+                        <label>Level</label>
+                        <input type="range" id="v1LamLevel" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="v1LamLevelVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice 2 PolySub Params -->
+            <div class="synth-params" id="v2PolysubParams">
+                <span class="section-label">Voice 2 - PolySub Synth</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Shape</label>
+                            <input type="range" id="v2Shape" min="0" max="1" value="0.5" step="0.01">
+                            <span class="param-value" id="v2ShapeVal">0.50</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Detune</label>
+                            <input type="range" id="v2Detune" min="0" max="1" value="0.1" step="0.01">
+                            <span class="param-value" id="v2DetuneVal">0.10</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Cutoff</label>
+                            <input type="range" id="v2Cutoff" min="50" max="8000" value="2000" step="1">
+                            <span class="param-value" id="v2CutoffVal">2000</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Resonance</label>
+                            <input type="range" id="v2Resonance" min="0" max="0.95" value="0.2" step="0.01">
+                            <span class="param-value" id="v2ResonanceVal">0.20</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Attack</label>
+                            <input type="range" id="v2Attack" min="0.001" max="2" value="0.01" step="0.001">
+                            <span class="param-value" id="v2AttackVal">0.01</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Decay</label>
+                            <input type="range" id="v2Decay" min="0.01" max="2" value="0.3" step="0.01">
+                            <span class="param-value" id="v2DecayVal">0.30</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Sustain</label>
+                            <input type="range" id="v2Sustain" min="0" max="1" value="0.5" step="0.01">
+                            <span class="param-value" id="v2SustainVal">0.50</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Release</label>
+                            <input type="range" id="v2Release" min="0.01" max="4" value="0.5" step="0.01">
+                            <span class="param-value" id="v2ReleaseVal">0.50</span>
+                        </div>
+                    </div>
+                    <div class="param-group">
+                        <label>Level</label>
+                        <input type="range" id="v2Level" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="v2LevelVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice 2 Lamination Params -->
+            <div class="synth-params visible" id="v2LaminationParams">
+                <span class="section-label">Voice 2 - Lamination Synth</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Formant</label>
+                            <input type="range" id="v2Formant" min="100" max="4000" value="800" step="1">
+                            <span class="param-value" id="v2FormantVal">800</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Mode</label>
+                            <input type="range" id="v2LamMode" min="0" max="4" value="1" step="0.01">
+                            <span class="param-value" id="v2LamModeVal">1.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Slope</label>
+                            <input type="range" id="v2Slope" min="0" max="1" value="0.5" step="0.01">
+                            <span class="param-value" id="v2SlopeVal">0.50</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Formant Amp</label>
+                            <input type="range" id="v2FormantAmp" min="0" max="1" value="0.8" step="0.01">
+                            <span class="param-value" id="v2FormantAmpVal">0.80</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Square Amp</label>
+                            <input type="range" id="v2SquareAmp" min="0" max="1" value="0.2" step="0.01">
+                            <span class="param-value" id="v2SquareAmpVal">0.20</span>
+                        </div>
+                        <div class="param-group">
+                            <label>AM Depth</label>
+                            <input type="range" id="v2AM" min="0" max="1" value="0.3" step="0.01">
+                            <span class="param-value" id="v2AMVal">0.30</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Cutoff</label>
+                            <input type="range" id="v2LamCutoff" min="50" max="12000" value="3000" step="1">
+                            <span class="param-value" id="v2LamCutoffVal">3000</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Resonance</label>
+                            <input type="range" id="v2LamResonance" min="0" max="0.95" value="0.2" step="0.01">
+                            <span class="param-value" id="v2LamResonanceVal">0.20</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Attack</label>
+                            <input type="range" id="v2LamAttack" min="0.001" max="2" value="0.01" step="0.001">
+                            <span class="param-value" id="v2LamAttackVal">0.01</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Decay</label>
+                            <input type="range" id="v2LamDecay" min="0.01" max="2" value="0.3" step="0.01">
+                            <span class="param-value" id="v2LamDecayVal">0.30</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Sustain</label>
+                            <input type="range" id="v2LamSustain" min="0" max="1" value="0.5" step="0.01">
+                            <span class="param-value" id="v2LamSustainVal">0.50</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Release</label>
+                            <input type="range" id="v2LamRelease" min="0.01" max="4" value="0.8" step="0.01">
+                            <span class="param-value" id="v2LamReleaseVal">0.80</span>
+                        </div>
+                    </div>
+                    <div class="param-group">
+                        <label>Level</label>
+                        <input type="range" id="v2LamLevel" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="v2LamLevelVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Master</label>
+                    <input type="range" id="master" min="0" max="1" value="0.6" step="0.01">
+                    <span class="param-value" id="masterVal">0.60</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <code>m18s: Two-voice sequencer by @jlmitch5 - Ryk M-185 inspired with PolySub + Lamination voices</code>
+            </div>
+
+            <p class="status" id="status">Click play, then Start to run the sequencer</p>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+
+        <nav class="nav-links">
+            <a href="lamination-01.html">&larr; Previous</a>
+            <a href="molly-01.html">Next &rarr;</a>
+        </nav>
+    </div>
+
+    <script>
+        const processorCode = `
+class M18sProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+
+        // Scales
+        this.scales = {
+            major: [0, 2, 4, 5, 7, 9, 11, 12, 14],
+            minor: [0, 2, 3, 5, 7, 8, 10, 12, 14],
+            dorian: [0, 2, 3, 5, 7, 9, 10, 12, 14],
+            phrygian: [0, 1, 3, 5, 7, 8, 10, 12, 13],
+            lydian: [0, 2, 4, 6, 7, 9, 11, 12, 14],
+            mixolydian: [0, 2, 4, 5, 7, 9, 10, 12, 14],
+            aeolian: [0, 2, 3, 5, 7, 8, 10, 12, 14],
+            locrian: [0, 1, 3, 5, 6, 8, 10, 12, 13],
+            pentatonic: [0, 2, 4, 7, 9, 12, 14, 16, 19],
+            chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        };
+
+        // Sequencer state
+        this.running = false;
+        this.tempo = 120;
+        this.clockDiv = 4;
+        this.rootNote = 0;
+        this.octave = 4;
+        this.scale = 'major';
+        this.tickCounter = 0;
+        this.samplesPerTick = 0;
+        this.tickAccumulator = 0;
+
+        // Voice 1 sequence
+        this.v1 = {
+            steps: [],
+            mode: 'forward',
+            currentStep: 0,
+            currentStage: 0,
+            direction: 1,
+            activeNote: null,
+            synth: 'polysub',
+            midiEnabled: false,
+            transpose: 0
+        };
+
+        // Voice 2 sequence
+        this.v2 = {
+            steps: [],
+            mode: 'forward',
+            currentStep: 0,
+            currentStage: 0,
+            direction: 1,
+            activeNote: null,
+            synth: 'lamination',
+            midiEnabled: false,
+            transpose: 0
+        };
+
+        // Initialize steps
+        for (let i = 0; i < 8; i++) {
+            this.v1.steps.push({ note: (i % 8) + 1, numStages: 1, gateMode: 'single' });
+            this.v2.steps.push({ note: ((i + 2) % 8) + 1, numStages: 1, gateMode: 'single' });
+        }
+
+        // PolySub params (shared structure for both voices when using polysub)
+        this.polysubParams = {
+            v1: { shape: 0.5, detune: 0.1, cutoff: 2000, resonance: 0.2, attack: 0.01, decay: 0.3, sustain: 0.5, release: 0.5, level: 0.7 },
+            v2: { shape: 0.5, detune: 0.1, cutoff: 2000, resonance: 0.2, attack: 0.01, decay: 0.3, sustain: 0.5, release: 0.5, level: 0.7 }
+        };
+
+        // Lamination params (shared structure for both voices when using lamination)
+        this.laminationParams = {
+            v1: { formant: 800, mode: 1, slope: 0.5, formantAmp: 0.8, squareAmp: 0.2, am: 0.3, cutoff: 3000, resonance: 0.2, attack: 0.01, decay: 0.3, sustain: 0.5, release: 0.8, level: 0.7 },
+            v2: { formant: 800, mode: 1, slope: 0.5, formantAmp: 0.8, squareAmp: 0.2, am: 0.3, cutoff: 3000, resonance: 0.2, attack: 0.01, decay: 0.3, sustain: 0.5, release: 0.8, level: 0.7 }
+        };
+
+        this.master = 0.6;
+
+        // Voice 1 polyphony (4 voices)
+        this.v1Voices = [];
+        for (let i = 0; i < 4; i++) {
+            this.v1Voices.push(this.createVoice());
+        }
+
+        // Voice 2 polyphony (4 voices)
+        this.v2Voices = [];
+        for (let i = 0; i < 4; i++) {
+            this.v2Voices.push(this.createVoice());
+        }
+
+        this.updateTempo();
+
+        this.port.onmessage = (e) => {
+            const data = e.data;
+
+            // Sequencer control
+            if (data.start) {
+                this.running = true;
+                this.tickAccumulator = 0;
+            }
+            if (data.stop) {
+                this.running = false;
+                this.releaseAllNotes();
+            }
+            if (data.reset) {
+                this.v1.currentStep = 0;
+                this.v1.currentStage = 0;
+                this.v1.direction = 1;
+                this.v2.currentStep = 0;
+                this.v2.currentStage = 0;
+                this.v2.direction = 1;
+                this.tickAccumulator = 0;
+                this.port.postMessage({ v1Step: 0, v2Step: 0 });
+            }
+
+            // Tempo & scale
+            if (data.tempo !== undefined) { this.tempo = data.tempo; this.updateTempo(); }
+            if (data.clockDiv !== undefined) { this.clockDiv = data.clockDiv; this.updateTempo(); }
+            if (data.rootNote !== undefined) this.rootNote = data.rootNote;
+            if (data.octave !== undefined) this.octave = data.octave;
+            if (data.scale !== undefined) this.scale = data.scale;
+
+            // Synth type selection
+            if (data.v1Synth !== undefined) this.v1.synth = data.v1Synth;
+            if (data.v2Synth !== undefined) this.v2.synth = data.v2Synth;
+
+            // MIDI control
+            if (data.v1MidiEnabled !== undefined) this.v1.midiEnabled = data.v1MidiEnabled;
+            if (data.v2MidiEnabled !== undefined) this.v2.midiEnabled = data.v2MidiEnabled;
+            if (data.v1Transpose !== undefined) this.v1.transpose = data.v1Transpose;
+            if (data.v2Transpose !== undefined) this.v2.transpose = data.v2Transpose;
+
+            // Sequence modes
+            if (data.v1Mode !== undefined) this.v1.mode = data.v1Mode;
+            if (data.v2Mode !== undefined) this.v2.mode = data.v2Mode;
+
+            // Step updates
+            if (data.v1Step !== undefined) {
+                const idx = data.v1Step.index;
+                if (data.v1Step.note !== undefined) this.v1.steps[idx].note = data.v1Step.note;
+                if (data.v1Step.numStages !== undefined) this.v1.steps[idx].numStages = data.v1Step.numStages;
+                if (data.v1Step.gateMode !== undefined) this.v1.steps[idx].gateMode = data.v1Step.gateMode;
+            }
+            if (data.v2Step !== undefined) {
+                const idx = data.v2Step.index;
+                if (data.v2Step.note !== undefined) this.v2.steps[idx].note = data.v2Step.note;
+                if (data.v2Step.numStages !== undefined) this.v2.steps[idx].numStages = data.v2Step.numStages;
+                if (data.v2Step.gateMode !== undefined) this.v2.steps[idx].gateMode = data.v2Step.gateMode;
+            }
+
+            // Voice 1 PolySub params
+            if (data.v1Shape !== undefined) this.polysubParams.v1.shape = data.v1Shape;
+            if (data.v1Detune !== undefined) this.polysubParams.v1.detune = data.v1Detune;
+            if (data.v1Cutoff !== undefined) this.polysubParams.v1.cutoff = data.v1Cutoff;
+            if (data.v1Resonance !== undefined) this.polysubParams.v1.resonance = data.v1Resonance;
+            if (data.v1Attack !== undefined) this.polysubParams.v1.attack = data.v1Attack;
+            if (data.v1Decay !== undefined) this.polysubParams.v1.decay = data.v1Decay;
+            if (data.v1Sustain !== undefined) this.polysubParams.v1.sustain = data.v1Sustain;
+            if (data.v1Release !== undefined) this.polysubParams.v1.release = data.v1Release;
+            if (data.v1Level !== undefined) this.polysubParams.v1.level = data.v1Level;
+
+            // Voice 1 Lamination params
+            if (data.v1Formant !== undefined) this.laminationParams.v1.formant = data.v1Formant;
+            if (data.v1LamMode !== undefined) this.laminationParams.v1.mode = data.v1LamMode;
+            if (data.v1Slope !== undefined) this.laminationParams.v1.slope = data.v1Slope;
+            if (data.v1FormantAmp !== undefined) this.laminationParams.v1.formantAmp = data.v1FormantAmp;
+            if (data.v1SquareAmp !== undefined) this.laminationParams.v1.squareAmp = data.v1SquareAmp;
+            if (data.v1AM !== undefined) this.laminationParams.v1.am = data.v1AM;
+            if (data.v1LamCutoff !== undefined) this.laminationParams.v1.cutoff = data.v1LamCutoff;
+            if (data.v1LamResonance !== undefined) this.laminationParams.v1.resonance = data.v1LamResonance;
+            if (data.v1LamAttack !== undefined) this.laminationParams.v1.attack = data.v1LamAttack;
+            if (data.v1LamDecay !== undefined) this.laminationParams.v1.decay = data.v1LamDecay;
+            if (data.v1LamSustain !== undefined) this.laminationParams.v1.sustain = data.v1LamSustain;
+            if (data.v1LamRelease !== undefined) this.laminationParams.v1.release = data.v1LamRelease;
+            if (data.v1LamLevel !== undefined) this.laminationParams.v1.level = data.v1LamLevel;
+
+            // Voice 2 PolySub params
+            if (data.v2Shape !== undefined) this.polysubParams.v2.shape = data.v2Shape;
+            if (data.v2Detune !== undefined) this.polysubParams.v2.detune = data.v2Detune;
+            if (data.v2Cutoff !== undefined) this.polysubParams.v2.cutoff = data.v2Cutoff;
+            if (data.v2Resonance !== undefined) this.polysubParams.v2.resonance = data.v2Resonance;
+            if (data.v2Attack !== undefined) this.polysubParams.v2.attack = data.v2Attack;
+            if (data.v2Decay !== undefined) this.polysubParams.v2.decay = data.v2Decay;
+            if (data.v2Sustain !== undefined) this.polysubParams.v2.sustain = data.v2Sustain;
+            if (data.v2Release !== undefined) this.polysubParams.v2.release = data.v2Release;
+            if (data.v2Level !== undefined) this.polysubParams.v2.level = data.v2Level;
+
+            // Voice 2 Lamination params
+            if (data.v2Formant !== undefined) this.laminationParams.v2.formant = data.v2Formant;
+            if (data.v2LamMode !== undefined) this.laminationParams.v2.mode = data.v2LamMode;
+            if (data.v2Slope !== undefined) this.laminationParams.v2.slope = data.v2Slope;
+            if (data.v2FormantAmp !== undefined) this.laminationParams.v2.formantAmp = data.v2FormantAmp;
+            if (data.v2SquareAmp !== undefined) this.laminationParams.v2.squareAmp = data.v2SquareAmp;
+            if (data.v2AM !== undefined) this.laminationParams.v2.am = data.v2AM;
+            if (data.v2LamCutoff !== undefined) this.laminationParams.v2.cutoff = data.v2LamCutoff;
+            if (data.v2LamResonance !== undefined) this.laminationParams.v2.resonance = data.v2LamResonance;
+            if (data.v2LamAttack !== undefined) this.laminationParams.v2.attack = data.v2LamAttack;
+            if (data.v2LamDecay !== undefined) this.laminationParams.v2.decay = data.v2LamDecay;
+            if (data.v2LamSustain !== undefined) this.laminationParams.v2.sustain = data.v2LamSustain;
+            if (data.v2LamRelease !== undefined) this.laminationParams.v2.release = data.v2LamRelease;
+            if (data.v2LamLevel !== undefined) this.laminationParams.v2.level = data.v2LamLevel;
+
+            // Master
+            if (data.master !== undefined) this.master = data.master;
+        };
+    }
+
+    createVoice() {
+        return {
+            active: false,
+            freq: 440,
+            phase1: 0,
+            phase2: 0,
+            phase: 0,
+            formantPhase: 0,
+            squarePhase: 0,
+            env: 0,
+            envStage: 'off',
+            envTime: 0,
+            velocity: 1,
+            moogState: { s1: 0, s2: 0, s3: 0, s4: 0 },
+            dcPrev: 0,
+            dcOut: 0,
+            note: -1
+        };
+    }
+
+    updateTempo() {
+        const beatsPerSecond = this.tempo / 60;
+        const ticksPerBeat = this.clockDiv;
+        const ticksPerSecond = beatsPerSecond * ticksPerBeat;
+        this.samplesPerTick = this.sampleRate / ticksPerSecond;
+    }
+
+    releaseAllNotes() {
+        for (const voice of this.v1Voices) {
+            if (voice.active && voice.envStage !== 'release') {
+                voice.envStage = 'release';
+                voice.envTime = 0;
+            }
+        }
+        for (const voice of this.v2Voices) {
+            if (voice.active && voice.envStage !== 'release') {
+                voice.envStage = 'release';
+                voice.envTime = 0;
+            }
+        }
+        this.v1.activeNote = null;
+        this.v2.activeNote = null;
+    }
+
+    getNoteFreq(scaleNote, transpose) {
+        const scaleArray = this.scales[this.scale] || this.scales.major;
+        const degree = Math.max(0, Math.min(scaleNote - 1, scaleArray.length - 1));
+        const semitone = scaleArray[degree];
+        const midiNote = (this.octave * 12) + this.rootNote + semitone + transpose;
+        return 440 * Math.pow(2, (midiNote - 69) / 12);
+    }
+
+    shouldGateFire(stage, numStages, gateMode) {
+        switch (gateMode) {
+            case 'off': return false;
+            case 'single': return stage === 0;
+            case 'all': return true;
+            case 'every2': return stage % 2 === 0;
+            case 'every3': return stage % 3 === 0;
+            case 'every4': return stage % 4 === 0;
+            case 'random': return Math.random() > 0.5;
+            case 'long': return stage === 0;
+            default: return false;
+        }
+    }
+
+    isLongGate(gateMode) {
+        return gateMode === 'long';
+    }
+
+    advanceVoice(voiceState, steps) {
+        voiceState.currentStage++;
+        const currentStep = steps[voiceState.currentStep];
+
+        if (voiceState.currentStage >= currentStep.numStages) {
+            voiceState.currentStage = 0;
+
+            switch (voiceState.mode) {
+                case 'forward':
+                    voiceState.currentStep = (voiceState.currentStep + 1) % 8;
+                    break;
+                case 'pingPong':
+                    voiceState.currentStep += voiceState.direction;
+                    if (voiceState.currentStep >= 7) {
+                        voiceState.direction = -1;
+                    } else if (voiceState.currentStep <= 0) {
+                        voiceState.direction = 1;
+                    }
+                    break;
+                case 'random':
+                    voiceState.currentStep = Math.floor(Math.random() * 8);
+                    break;
+                case 'fixedLength':
+                    voiceState.currentStep = (voiceState.currentStep + 1) % 8;
+                    break;
+            }
+        }
+
+        return voiceState.currentStep;
+    }
+
+    processSequencerTick() {
+        // Process Voice 1
+        const v1Step = this.v1.steps[this.v1.currentStep];
+        const v1Fire = this.shouldGateFire(this.v1.currentStage, v1Step.numStages, v1Step.gateMode);
+        const v1Long = this.isLongGate(v1Step.gateMode);
+
+        if (v1Fire) {
+            const freq = this.getNoteFreq(v1Step.note, this.v1.transpose);
+            this.triggerNote(this.v1, this.v1Voices, freq, 1, v1Long);
+        } else if (!v1Long && this.v1.activeNote !== null) {
+            this.releaseNote(this.v1Voices, this.v1.activeNote);
+            this.v1.activeNote = null;
+        }
+
+        this.advanceVoice(this.v1, this.v1.steps);
+
+        // Process Voice 2
+        const v2Step = this.v2.steps[this.v2.currentStep];
+        const v2Fire = this.shouldGateFire(this.v2.currentStage, v2Step.numStages, v2Step.gateMode);
+        const v2Long = this.isLongGate(v2Step.gateMode);
+
+        if (v2Fire) {
+            const freq = this.getNoteFreq(v2Step.note, this.v2.transpose);
+            this.triggerNote(this.v2, this.v2Voices, freq, 1, v2Long);
+        } else if (!v2Long && this.v2.activeNote !== null) {
+            this.releaseNote(this.v2Voices, this.v2.activeNote);
+            this.v2.activeNote = null;
+        }
+
+        this.advanceVoice(this.v2, this.v2.steps);
+
+        this.port.postMessage({ v1Step: this.v1.currentStep, v2Step: this.v2.currentStep });
+    }
+
+    triggerNote(voiceState, voices, freq, velocity, isLong) {
+        if (voiceState.activeNote !== null) {
+            this.releaseNote(voices, voiceState.activeNote);
+        }
+
+        let voice = voices.find(v => !v.active);
+        if (!voice) {
+            voice = voices.reduce((a, b) => a.env < b.env ? a : b);
+        }
+
+        voice.active = true;
+        voice.freq = freq;
+        voice.phase1 = 0;
+        voice.phase2 = Math.random() * 0.1;
+        voice.phase = 0;
+        voice.formantPhase = 0;
+        voice.squarePhase = 0;
+        voice.env = 0;
+        voice.envStage = 'attack';
+        voice.envTime = 0;
+        voice.velocity = velocity;
+        voice.note = freq;
+        voice.moogState = { s1: 0, s2: 0, s3: 0, s4: 0 };
+        voice.dcPrev = 0;
+        voice.dcOut = 0;
+
+        voiceState.activeNote = freq;
+    }
+
+    releaseNote(voices, freq) {
+        for (const voice of voices) {
+            if (voice.active && voice.note === freq && voice.envStage !== 'release') {
+                voice.envStage = 'release';
+                voice.envTime = 0;
+            }
+        }
+    }
+
+    polySubOsc(phase, shape) {
+        const saw = 2 * phase - 1;
+        const pulse = phase < (0.5 - shape * 0.4) ? 1 : -1;
+        return saw * (1 - shape) + pulse * shape;
+    }
+
+    formantTriPTR(phase, formantPhase, slope) {
+        let tri;
+        if (phase < 0.5) {
+            tri = phase * 4 - 1;
+        } else {
+            tri = 3 - phase * 4;
+        }
+
+        const formantEnv = Math.pow(Math.abs(Math.cos(formantPhase * Math.PI)), slope * 4 + 0.5);
+        const syncWindow = Math.sin(phase * Math.PI);
+        return tri * formantEnv * syncWindow;
+    }
+
+    moogFF(input, state, cutoff, resonance) {
+        const freq = Math.max(20, Math.min(this.sampleRate * 0.45, cutoff));
+        const f = freq / this.sampleRate;
+        const k = 4 * (resonance * 0.99);
+        const p = f * (1.8 - 0.8 * f);
+        const fb = k * state.s4;
+        const inp = input - fb;
+
+        state.s1 += p * (inp - state.s1);
+        state.s2 += p * (state.s1 - state.s2);
+        state.s3 += p * (state.s2 - state.s3);
+        state.s4 += p * (state.s3 - state.s4);
+
+        if (!isFinite(state.s1)) state.s1 = 0;
+        if (!isFinite(state.s2)) state.s2 = 0;
+        if (!isFinite(state.s3)) state.s3 = 0;
+        if (!isFinite(state.s4)) state.s4 = 0;
+
+        return state.s4;
+    }
+
+    leakDC(input, voice) {
+        const coeff = 0.995;
+        const out = input - voice.dcPrev + coeff * voice.dcOut;
+        voice.dcPrev = input;
+        voice.dcOut = out;
+        return out;
+    }
+
+    processEnvelope(voice, attack, decay, sustain, release, dt) {
+        voice.envTime += dt;
+
+        switch (voice.envStage) {
+            case 'attack':
+                voice.env = voice.envTime / attack;
+                if (voice.env >= 1) {
+                    voice.env = 1;
+                    voice.envStage = 'decay';
+                    voice.envTime = 0;
+                }
+                break;
+            case 'decay':
+                voice.env = 1 - (1 - sustain) * (voice.envTime / decay);
+                if (voice.envTime >= decay) {
+                    voice.env = sustain;
+                    voice.envStage = 'sustain';
+                }
+                break;
+            case 'sustain':
+                voice.env = sustain;
+                break;
+            case 'release':
+                const startLevel = voice.env;
+                voice.env = startLevel * Math.exp(-voice.envTime / (release * 0.3));
+                if (voice.env < 0.0001) {
+                    voice.env = 0;
+                    voice.active = false;
+                    voice.envStage = 'off';
+                }
+                break;
+        }
+    }
+
+    processPolySub(voice, params, dt) {
+        this.processEnvelope(voice, params.attack, params.decay, params.sustain, params.release, dt);
+        if (!voice.active) return 0;
+
+        const detune = params.detune * 0.02;
+        const freq1 = voice.freq * (1 - detune);
+        const freq2 = voice.freq * (1 + detune);
+
+        voice.phase1 += freq1 / this.sampleRate;
+        if (voice.phase1 >= 1) voice.phase1 -= 1;
+
+        voice.phase2 += freq2 / this.sampleRate;
+        if (voice.phase2 >= 1) voice.phase2 -= 1;
+
+        let osc = (this.polySubOsc(voice.phase1, params.shape) +
+                   this.polySubOsc(voice.phase2, params.shape)) * 0.5;
+
+        osc = this.moogFF(osc, voice.moogState, params.cutoff, params.resonance);
+        osc *= voice.env * voice.velocity * params.level;
+
+        return osc;
+    }
+
+    processLamination(voice, params, dt) {
+        this.processEnvelope(voice, params.attack, params.decay, params.sustain, params.release, dt);
+        if (!voice.active) return 0;
+
+        const formantFreq = params.formant + (0.5 * params.mode * voice.freq);
+
+        voice.phase += voice.freq / this.sampleRate;
+        if (voice.phase >= 1) voice.phase -= 1;
+
+        voice.formantPhase += formantFreq / this.sampleRate;
+        if (voice.formantPhase >= 1) voice.formantPhase -= 1;
+
+        voice.squarePhase += voice.freq / this.sampleRate;
+        if (voice.squarePhase >= 1) voice.squarePhase -= 1;
+
+        let formSig = this.formantTriPTR(voice.phase, voice.formantPhase, params.slope);
+        formSig = this.leakDC(formSig, voice);
+
+        const squareSig = voice.squarePhase < 0.5 ? 1 : -1;
+
+        // Mix formant and square with their respective amplitudes
+        let mixed = formSig * params.formantAmp + squareSig * params.squareAmp;
+
+        // Apply AM modulation
+        const amMod = 1 - params.am + params.am * (squareSig * 0.5 + 0.5);
+        mixed *= amMod;
+
+        mixed = this.moogFF(mixed, voice.moogState, params.cutoff, params.resonance);
+        mixed *= voice.env * voice.velocity * params.level;
+
+        return mixed;
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        const dt = 1 / this.sampleRate;
+
+        for (let s = 0; s < left.length; s++) {
+            if (this.running) {
+                this.tickAccumulator++;
+                if (this.tickAccumulator >= this.samplesPerTick) {
+                    this.tickAccumulator -= this.samplesPerTick;
+                    this.processSequencerTick();
+                }
+            }
+
+            let mixL = 0;
+            let mixR = 0;
+
+            // Process Voice 1
+            const v1Params = this.v1.synth === 'polysub' ? this.polysubParams.v1 : this.laminationParams.v1;
+            for (const voice of this.v1Voices) {
+                if (!voice.active) continue;
+                let sig;
+                if (this.v1.synth === 'polysub') {
+                    sig = this.processPolySub(voice, v1Params, dt);
+                } else {
+                    sig = this.processLamination(voice, v1Params, dt);
+                }
+                mixL += sig * 0.7;
+                mixR += sig * 0.7;
+            }
+
+            // Process Voice 2
+            const v2Params = this.v2.synth === 'polysub' ? this.polysubParams.v2 : this.laminationParams.v2;
+            for (const voice of this.v2Voices) {
+                if (!voice.active) continue;
+                let sig;
+                if (this.v2.synth === 'polysub') {
+                    sig = this.processPolySub(voice, v2Params, dt);
+                } else {
+                    sig = this.processLamination(voice, v2Params, dt);
+                }
+                mixL += sig * 0.7;
+                mixR += sig * 0.7;
+            }
+
+            left[s] = Math.tanh(mixL * 2) * this.master;
+            if (right) right[s] = Math.tanh(mixR * 2) * this.master;
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('m18s-processor', M18sProcessor);
+`;
+
+        let audioContext;
+        let workletNode;
+        let analyser;
+        let isPlaying = false;
+        let pedalboard = null;
+        let isRunning = false;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        // UI state
+        let selectedVoice = null;
+        let selectedStep = null;
+        let v1MidiEnabled = false;
+        let v2MidiEnabled = false;
+        let v1Transpose = 0;
+        let v2Transpose = 0;
+        let v1HeldNote = null;
+        let v2HeldNote = null;
+
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        // Build sequencer grids
+        function buildGrid(gridId, voicePrefix) {
+            const grid = document.getElementById(gridId);
+            grid.innerHTML = '';
+            for (let i = 0; i < 8; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'step-cell';
+                cell.dataset.voice = voicePrefix;
+                cell.dataset.step = i;
+                cell.innerHTML = `
+                    <div class="step-number">${i + 1}</div>
+                    <div class="step-note">${(i % 8) + 1}</div>
+                    <div class="step-stages">1 stage</div>
+                    <div class="step-gate">single</div>
+                `;
+                cell.addEventListener('click', () => selectStep(voicePrefix, i));
+                grid.appendChild(cell);
+            }
+        }
+
+        buildGrid('v1Grid', 'v1');
+        buildGrid('v2Grid', 'v2');
+
+        // Initialize v2 with offset notes
+        const v2Grid = document.getElementById('v2Grid');
+        for (let i = 0; i < 8; i++) {
+            const cell = v2Grid.children[i];
+            const noteVal = ((i + 2) % 8) + 1;
+            cell.querySelector('.step-note').textContent = noteVal;
+        }
+
+        function selectStep(voice, step) {
+            document.querySelectorAll('.step-cell').forEach(c => c.classList.remove('active'));
+            const grid = document.getElementById(voice + 'Grid');
+            grid.children[step].classList.add('active');
+
+            selectedVoice = voice;
+            selectedStep = step;
+
+            const editor = document.getElementById('stepEditor');
+            editor.classList.add('visible');
+            document.getElementById('editorTitle').textContent = `Edit ${voice === 'v1' ? 'Voice 1' : 'Voice 2'} Step ${step + 1}`;
+
+            const cell = grid.children[step];
+            const noteVal = parseInt(cell.querySelector('.step-note').textContent);
+            const stagesText = cell.querySelector('.step-stages').textContent;
+            const stagesVal = parseInt(stagesText);
+            const gateVal = cell.querySelector('.step-gate').textContent;
+
+            document.getElementById('editNote').value = noteVal;
+            document.getElementById('editStages').value = stagesVal;
+            document.getElementById('editGate').value = gateVal;
+        }
+
+        // Step editor listeners
+        ['editNote', 'editStages', 'editGate'].forEach(id => {
+            document.getElementById(id).addEventListener('change', (e) => {
+                if (selectedVoice === null || selectedStep === null) return;
+
+                const grid = document.getElementById(selectedVoice + 'Grid');
+                const cell = grid.children[selectedStep];
+
+                if (id === 'editNote') {
+                    cell.querySelector('.step-note').textContent = e.target.value;
+                } else if (id === 'editStages') {
+                    const val = parseInt(e.target.value);
+                    cell.querySelector('.step-stages').textContent = val + ' stage' + (val > 1 ? 's' : '');
+                } else if (id === 'editGate') {
+                    cell.querySelector('.step-gate').textContent = e.target.value;
+                }
+
+                if (workletNode) {
+                    const stepData = {
+                        index: selectedStep,
+                        note: parseInt(document.getElementById('editNote').value),
+                        numStages: parseInt(document.getElementById('editStages').value),
+                        gateMode: document.getElementById('editGate').value
+                    };
+                    const msg = {};
+                    msg[selectedVoice + 'Step'] = stepData;
+                    workletNode.port.postMessage(msg);
+                }
+            });
+        });
+
+        // Synth type selectors
+        function updateSynthParamsVisibility() {
+            const v1Synth = document.getElementById('v1Synth').value;
+            const v2Synth = document.getElementById('v2Synth').value;
+
+            document.getElementById('v1PolysubParams').classList.toggle('visible', v1Synth === 'polysub');
+            document.getElementById('v1LaminationParams').classList.toggle('visible', v1Synth === 'lamination');
+            document.getElementById('v2PolysubParams').classList.toggle('visible', v2Synth === 'polysub');
+            document.getElementById('v2LaminationParams').classList.toggle('visible', v2Synth === 'lamination');
+
+            document.getElementById('v1Title').textContent = 'Voice 1 - ' + (v1Synth === 'polysub' ? 'PolySub' : 'Lamination');
+            document.getElementById('v2Title').textContent = 'Voice 2 - ' + (v2Synth === 'polysub' ? 'PolySub' : 'Lamination');
+        }
+
+        document.getElementById('v1Synth').addEventListener('change', (e) => {
+            updateSynthParamsVisibility();
+            if (workletNode) {
+                workletNode.port.postMessage({ v1Synth: e.target.value });
+            }
+        });
+
+        document.getElementById('v2Synth').addEventListener('change', (e) => {
+            updateSynthParamsVisibility();
+            if (workletNode) {
+                workletNode.port.postMessage({ v2Synth: e.target.value });
+            }
+        });
+
+        // MIDI toggle handlers
+        document.getElementById('v1MidiToggle').addEventListener('click', () => {
+            v1MidiEnabled = !v1MidiEnabled;
+            document.getElementById('v1MidiToggle').classList.toggle('active', v1MidiEnabled);
+            if (workletNode) {
+                workletNode.port.postMessage({ v1MidiEnabled });
+            }
+            if (!v1MidiEnabled) {
+                v1Transpose = 0;
+                v1HeldNote = null;
+                updateTransposeDisplay('v1', 0);
+                if (workletNode) {
+                    workletNode.port.postMessage({ v1Transpose: 0 });
+                }
+            }
+        });
+
+        document.getElementById('v2MidiToggle').addEventListener('click', () => {
+            v2MidiEnabled = !v2MidiEnabled;
+            document.getElementById('v2MidiToggle').classList.toggle('active', v2MidiEnabled);
+            if (workletNode) {
+                workletNode.port.postMessage({ v2MidiEnabled });
+            }
+            if (!v2MidiEnabled) {
+                v2Transpose = 0;
+                v2HeldNote = null;
+                updateTransposeDisplay('v2', 0);
+                if (workletNode) {
+                    workletNode.port.postMessage({ v2Transpose: 0 });
+                }
+            }
+        });
+
+        function updateTransposeDisplay(voice, semitones) {
+            const display = document.getElementById(voice + 'Transpose');
+            const sign = semitones >= 0 ? '+' : '';
+            display.textContent = sign + semitones + ' semi';
+        }
+
+        // MIDI input for transpose
+        if (navigator.requestMIDIAccess) {
+            navigator.requestMIDIAccess().then((midi) => {
+                midi.inputs.forEach((input) => {
+                    input.onmidimessage = (msg) => {
+                        const [cmd, note, vel] = msg.data;
+                        if (!isPlaying) return;
+
+                        // NoteOn
+                        if ((cmd & 0xf0) === 0x90 && vel > 0) {
+                            // Reference note is C4 (60)
+                            const transpose = note - 60;
+
+                            if (v1MidiEnabled && v1HeldNote === null) {
+                                v1Transpose = transpose;
+                                v1HeldNote = note;
+                                updateTransposeDisplay('v1', transpose);
+                                if (workletNode) {
+                                    workletNode.port.postMessage({ v1Transpose: transpose });
+                                }
+                            } else if (v2MidiEnabled && v2HeldNote === null) {
+                                v2Transpose = transpose;
+                                v2HeldNote = note;
+                                updateTransposeDisplay('v2', transpose);
+                                if (workletNode) {
+                                    workletNode.port.postMessage({ v2Transpose: transpose });
+                                }
+                            }
+                        }
+
+                        // NoteOff
+                        if ((cmd & 0xf0) === 0x80 || ((cmd & 0xf0) === 0x90 && vel === 0)) {
+                            if (v1HeldNote === note) {
+                                v1HeldNote = null;
+                            }
+                            if (v2HeldNote === note) {
+                                v2HeldNote = null;
+                            }
+                        }
+                    };
+                });
+            });
+        }
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'm18s-processor', {
+                outputChannelCount: [2]
+            });
+
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+
+            // Initialize pedalboard and route audio through it
+            pedalboard = new PedalboardUI(
+                document.getElementById('pedalboard-container'),
+                audioContext
+            );
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(analyser);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'm18s-two-voice-sequencer',
+                    patchId: 'm18s-01'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('m18s-01');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'm18s-01',
+                    prefix: '01',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            workletNode.port.onmessage = (e) => {
+                if (e.data.v1Step !== undefined) {
+                    updateCurrentStep('v1', e.data.v1Step);
+                }
+                if (e.data.v2Step !== undefined) {
+                    updateCurrentStep('v2', e.data.v2Step);
+                }
+            };
+
+            sendAllParams();
+        }
+
+        function updateCurrentStep(voice, step) {
+            const grid = document.getElementById(voice + 'Grid');
+            for (let i = 0; i < 8; i++) {
+                grid.children[i].classList.toggle('current', i === step);
+            }
+        }
+
+        function sendAllParams() {
+            if (!workletNode) return;
+
+            // Send all sequence data
+            for (let v of ['v1', 'v2']) {
+                const grid = document.getElementById(v + 'Grid');
+                for (let i = 0; i < 8; i++) {
+                    const cell = grid.children[i];
+                    const stepData = {
+                        index: i,
+                        note: parseInt(cell.querySelector('.step-note').textContent),
+                        numStages: parseInt(cell.querySelector('.step-stages').textContent),
+                        gateMode: cell.querySelector('.step-gate').textContent
+                    };
+                    const msg = {};
+                    msg[v + 'Step'] = stepData;
+                    workletNode.port.postMessage(msg);
+                }
+            }
+
+            workletNode.port.postMessage({
+                tempo: parseFloat(document.getElementById('tempo').value),
+                clockDiv: parseInt(document.getElementById('clockDiv').value),
+                rootNote: parseInt(document.getElementById('rootNote').value),
+                octave: parseInt(document.getElementById('octave').value),
+                scale: document.getElementById('scale').value,
+                v1Mode: document.getElementById('v1Mode').value,
+                v2Mode: document.getElementById('v2Mode').value,
+                v1Synth: document.getElementById('v1Synth').value,
+                v2Synth: document.getElementById('v2Synth').value,
+                // Voice 1 PolySub params
+                v1Shape: parseFloat(document.getElementById('v1Shape').value),
+                v1Detune: parseFloat(document.getElementById('v1Detune').value),
+                v1Cutoff: parseFloat(document.getElementById('v1Cutoff').value),
+                v1Resonance: parseFloat(document.getElementById('v1Resonance').value),
+                v1Attack: parseFloat(document.getElementById('v1Attack').value),
+                v1Decay: parseFloat(document.getElementById('v1Decay').value),
+                v1Sustain: parseFloat(document.getElementById('v1Sustain').value),
+                v1Release: parseFloat(document.getElementById('v1Release').value),
+                v1Level: parseFloat(document.getElementById('v1Level').value),
+                // Voice 1 Lamination params
+                v1Formant: parseFloat(document.getElementById('v1Formant').value),
+                v1LamMode: parseFloat(document.getElementById('v1LamMode').value),
+                v1Slope: parseFloat(document.getElementById('v1Slope').value),
+                v1FormantAmp: parseFloat(document.getElementById('v1FormantAmp').value),
+                v1SquareAmp: parseFloat(document.getElementById('v1SquareAmp').value),
+                v1AM: parseFloat(document.getElementById('v1AM').value),
+                v1LamCutoff: parseFloat(document.getElementById('v1LamCutoff').value),
+                v1LamResonance: parseFloat(document.getElementById('v1LamResonance').value),
+                v1LamAttack: parseFloat(document.getElementById('v1LamAttack').value),
+                v1LamDecay: parseFloat(document.getElementById('v1LamDecay').value),
+                v1LamSustain: parseFloat(document.getElementById('v1LamSustain').value),
+                v1LamRelease: parseFloat(document.getElementById('v1LamRelease').value),
+                v1LamLevel: parseFloat(document.getElementById('v1LamLevel').value),
+                // Voice 2 PolySub params
+                v2Shape: parseFloat(document.getElementById('v2Shape').value),
+                v2Detune: parseFloat(document.getElementById('v2Detune').value),
+                v2Cutoff: parseFloat(document.getElementById('v2Cutoff').value),
+                v2Resonance: parseFloat(document.getElementById('v2Resonance').value),
+                v2Attack: parseFloat(document.getElementById('v2Attack').value),
+                v2Decay: parseFloat(document.getElementById('v2Decay').value),
+                v2Sustain: parseFloat(document.getElementById('v2Sustain').value),
+                v2Release: parseFloat(document.getElementById('v2Release').value),
+                v2Level: parseFloat(document.getElementById('v2Level').value),
+                // Voice 2 Lamination params
+                v2Formant: parseFloat(document.getElementById('v2Formant').value),
+                v2LamMode: parseFloat(document.getElementById('v2LamMode').value),
+                v2Slope: parseFloat(document.getElementById('v2Slope').value),
+                v2FormantAmp: parseFloat(document.getElementById('v2FormantAmp').value),
+                v2SquareAmp: parseFloat(document.getElementById('v2SquareAmp').value),
+                v2AM: parseFloat(document.getElementById('v2AM').value),
+                v2LamCutoff: parseFloat(document.getElementById('v2LamCutoff').value),
+                v2LamResonance: parseFloat(document.getElementById('v2LamResonance').value),
+                v2LamAttack: parseFloat(document.getElementById('v2LamAttack').value),
+                v2LamDecay: parseFloat(document.getElementById('v2LamDecay').value),
+                v2LamSustain: parseFloat(document.getElementById('v2LamSustain').value),
+                v2LamRelease: parseFloat(document.getElementById('v2LamRelease').value),
+                v2LamLevel: parseFloat(document.getElementById('v2LamLevel').value),
+                // Master
+                master: parseFloat(document.getElementById('master').value)
+            });
+        }
+
+        // Parameter controls
+        const params = [
+            'tempo', 'clockDiv', 'octave',
+            'v1Shape', 'v1Detune', 'v1Cutoff', 'v1Resonance',
+            'v1Attack', 'v1Decay', 'v1Sustain', 'v1Release', 'v1Level',
+            'v1Formant', 'v1LamMode', 'v1Slope', 'v1FormantAmp', 'v1SquareAmp', 'v1AM',
+            'v1LamCutoff', 'v1LamResonance',
+            'v1LamAttack', 'v1LamDecay', 'v1LamSustain', 'v1LamRelease', 'v1LamLevel',
+            'v2Shape', 'v2Detune', 'v2Cutoff', 'v2Resonance',
+            'v2Attack', 'v2Decay', 'v2Sustain', 'v2Release', 'v2Level',
+            'v2Formant', 'v2LamMode', 'v2Slope', 'v2FormantAmp', 'v2SquareAmp', 'v2AM',
+            'v2LamCutoff', 'v2LamResonance',
+            'v2LamAttack', 'v2LamDecay', 'v2LamSustain', 'v2LamRelease', 'v2LamLevel',
+            'master'
+        ];
+
+        params.forEach(param => {
+            const el = document.getElementById(param);
+            if (el) {
+                el.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value);
+                    const display = document.getElementById(param + 'Val');
+                    if (display) {
+                        display.textContent = val < 10 ? val.toFixed(2) : Math.round(val);
+                    }
+                    if (workletNode) {
+                        const msg = {};
+                        msg[param] = val;
+                        workletNode.port.postMessage(msg);
+                    }
+                });
+            }
+        });
+
+        // Select controls
+        ['rootNote', 'scale', 'v1Mode', 'v2Mode'].forEach(id => {
+            document.getElementById(id).addEventListener('change', (e) => {
+                if (workletNode) {
+                    const msg = {};
+                    msg[id] = id === 'rootNote' ? parseInt(e.target.value) : e.target.value;
+                    workletNode.port.postMessage(msg);
+                }
+            });
+        });
+
+        // Transport controls
+        document.getElementById('startSeq').addEventListener('click', () => {
+            if (!workletNode) return;
+            workletNode.port.postMessage({ start: true });
+            isRunning = true;
+            status.textContent = 'Sequencing...';
+            document.getElementById('startSeq').classList.add('active');
+            document.getElementById('stopSeq').classList.remove('active');
+        });
+
+        document.getElementById('stopSeq').addEventListener('click', () => {
+            if (!workletNode) return;
+            workletNode.port.postMessage({ stop: true });
+            isRunning = false;
+            status.textContent = 'Stopped';
+            document.getElementById('stopSeq').classList.add('active');
+            document.getElementById('startSeq').classList.remove('active');
+        });
+
+        document.getElementById('resetSeq').addEventListener('click', () => {
+            if (!workletNode) return;
+            workletNode.port.postMessage({ reset: true });
+            status.textContent = 'Reset';
+        });
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Float32Array(bufferLength);
+            analyser.getFloatTimeDomainData(dataArray);
+
+            ctx.fillStyle = '#080812';
+            ctx.fillRect(0, 0, width, height);
+
+            const gradient = ctx.createLinearGradient(0, 0, width, 0);
+            gradient.addColorStop(0, '#4a90d9');
+            gradient.addColorStop(0.5, '#7b68ee');
+            gradient.addColorStop(1, '#4a90d9');
+
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const sliceWidth = width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i];
+                const y = (v + 1) / 2 * height;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+                x += sliceWidth;
+            }
+
+            ctx.stroke();
+
+            if (isPlaying) {
+                requestAnimationFrame(drawVisualizer);
+            }
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+            }
+
+            if (isPlaying) {
+                await audioContext.suspend();
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                status.textContent = 'Ready - press Start';
+                status.classList.add('active');
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+    </script>
+</body>
+</html>

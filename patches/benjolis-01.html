@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Benjolis 01 - Chaotic Dual Oscillator</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Benjolis 01</h1>
+                <p>Chaotic dual oscillator synthesizer inspired by Rob Hordijk's Benjolin</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <div class="visualizer-container">
+                <canvas id="visualizer"></canvas>
+            </div>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Osc 1 Freq</label>
+                    <input type="range" id="freq1" min="20" max="2000" value="40" step="1">
+                    <span class="param-value" id="freq1Val">40</span>
+                </div>
+                <div class="param-group">
+                    <label>Osc 2 Freq</label>
+                    <input type="range" id="freq2" min="0.1" max="200" value="4" step="0.1">
+                    <span class="param-value" id="freq2Val">4.0</span>
+                </div>
+                <div class="param-group">
+                    <label>Rungler→Osc1</label>
+                    <input type="range" id="rungler1" min="0" max="1" value="0.16" step="0.01">
+                    <span class="param-value" id="rungler1Val">0.16</span>
+                </div>
+                <div class="param-group">
+                    <label>Rungler→Osc2</label>
+                    <input type="range" id="rungler2" min="0" max="1" value="0" step="0.01">
+                    <span class="param-value" id="rungler2Val">0.00</span>
+                </div>
+                <div class="param-group">
+                    <label>Rungler→Filter</label>
+                    <input type="range" id="runglerFilt" min="0" max="20" value="9" step="0.1">
+                    <span class="param-value" id="runglerFiltVal">9.0</span>
+                </div>
+                <div class="param-group">
+                    <label>Scale</label>
+                    <input type="range" id="scale" min="0" max="1" value="1" step="0.01">
+                    <span class="param-value" id="scaleVal">1.00</span>
+                </div>
+                <div class="param-group">
+                    <label>Loop</label>
+                    <input type="range" id="loop" min="0" max="1" value="0" step="0.01">
+                    <span class="param-value" id="loopVal">0.00</span>
+                </div>
+                <div class="param-group">
+                    <label>Filter Freq</label>
+                    <input type="range" id="filtFreq" min="20" max="8000" value="40" step="1">
+                    <span class="param-value" id="filtFreqVal">40</span>
+                </div>
+                <div class="param-group">
+                    <label>Q (Resonance)</label>
+                    <input type="range" id="q" min="0" max="0.99" value="0.82" step="0.01">
+                    <span class="param-value" id="qVal">0.82</span>
+                </div>
+                <div class="param-group">
+                    <label>Gain</label>
+                    <input type="range" id="gain" min="0" max="3" value="1" step="0.1">
+                    <span class="param-value" id="gainVal">1.0</span>
+                </div>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Filter Type</label>
+                    <select id="filterType">
+                        <option value="0">Resonant LPF</option>
+                        <option value="1">Resonant HPF</option>
+                        <option value="2">SVF (State Variable)</option>
+                        <option value="3">DFM1 (Diode Ladder)</option>
+                    </select>
+                </div>
+                <div class="param-group">
+                    <label>Output Signal</label>
+                    <select id="outSignal">
+                        <option value="0">Triangle Osc1</option>
+                        <option value="1">Square Osc1</option>
+                        <option value="2">Triangle Osc2</option>
+                        <option value="3">Pulse Osc2</option>
+                        <option value="4">XOR (PWM)</option>
+                        <option value="5">Shift Register</option>
+                        <option value="6" selected>Filter Output</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="shift-register-display">
+                <label>Rungler Shift Register</label>
+                <div class="sr-bits" id="srBits"></div>
+            </div>
+
+            <div class="code-block">
+                <code>Ndef(\benjolis,{ |freq1=40, freq2=4, scale=1, rungler1=0.16, rungler2=0, runglerFilt=9, loop=0, filtFreq=40, q=0.82, gain=1, filterType=0, outSignal=6| ... 8-stage shift register rungler modulating dual oscillators through selectable filters })</code>
+            </div>
+
+            <p class="status" id="status">Click play to start</p>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+
+        <nav class="nav-links">
+            <a href="../index.html">&larr; Index</a>
+            <span></span>
+        </nav>
+    </div>
+
+    <script>
+        const processorCode = `
+class BenjolisProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+
+        // Main parameters
+        this.freq1 = 40;
+        this.freq2 = 4;
+        this.scale = 1;
+        this.rungler1 = 0.16;
+        this.rungler2 = 0;
+        this.runglerFilt = 9;
+        this.loop = 0;
+        this.filtFreq = 40;
+        this.q = 0.82;
+        this.gain = 1;
+        this.filterType = 0;
+        this.outSignal = 6;
+        this.amp = 1;
+
+        // Oscillator phases
+        this.phase1 = 0;
+        this.phase2 = 0;
+
+        // Shift register state (8 stages)
+        this.sh = [0, 0, 0, 0, 0, 0, 0, 0];
+        this.sh8 = 1;  // Initial sh8 value
+
+        // LocalIn/LocalOut feedback
+        this.rungler = 0;
+        this.buf = 0;
+
+        // Latch states for each stage
+        this.latchStates = [0, 0, 0, 0, 0, 0, 0, 0];
+        this.prevOsc2 = 0;
+
+        // Filter states
+        this.lpfState = { s1: 0, s2: 0 };
+        this.hpfState = { s1: 0, s2: 0 };
+        this.svfState = { ic1eq: 0, ic2eq: 0 };
+        this.dfm1State = { s1: 0, s2: 0, s3: 0, s4: 0 };
+
+        // LeakDC state
+        this.leakPrev = 0;
+        this.leakOut = 0;
+
+        // State counter for UI updates
+        this.stateCounter = 0;
+
+        this.port.onmessage = (e) => {
+            const d = e.data;
+            if (d.freq1 !== undefined) this.freq1 = d.freq1;
+            if (d.freq2 !== undefined) this.freq2 = d.freq2;
+            if (d.scale !== undefined) this.scale = d.scale;
+            if (d.rungler1 !== undefined) this.rungler1 = d.rungler1;
+            if (d.rungler2 !== undefined) this.rungler2 = d.rungler2;
+            if (d.runglerFilt !== undefined) this.runglerFilt = d.runglerFilt;
+            if (d.loop !== undefined) this.loop = d.loop;
+            if (d.filtFreq !== undefined) this.filtFreq = d.filtFreq;
+            if (d.q !== undefined) this.q = d.q;
+            if (d.gain !== undefined) this.gain = d.gain;
+            if (d.filterType !== undefined) this.filterType = d.filterType;
+            if (d.outSignal !== undefined) this.outSignal = d.outSignal;
+        };
+    }
+
+    // LFTri oscillator (-1 to 1)
+    lftri(phase) {
+        return phase < 0.5 ? (phase * 4 - 1) : (3 - phase * 4);
+    }
+
+    // Pulse oscillator (-1 or 1)
+    pulse(phase) {
+        return phase < 0.5 ? 1 : -1;
+    }
+
+    // MIDI to frequency conversion
+    midicps(midi) {
+        return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    // Resonant Lowpass Filter (2-pole SVF-based)
+    rlpf(input, freq, q) {
+        const w = 2 * Math.PI * Math.max(20, Math.min(this.sampleRate * 0.45, freq)) / this.sampleRate;
+        const g = Math.tan(w / 2);
+        const k = 2 * (1 - q);
+        const a1 = 1 / (1 + g * (g + k));
+        const a2 = g * a1;
+        const a3 = g * a2;
+
+        const v3 = input - this.lpfState.s2;
+        const v1 = a1 * this.lpfState.s1 + a2 * v3;
+        const v2 = this.lpfState.s2 + a2 * this.lpfState.s1 + a3 * v3;
+
+        this.lpfState.s1 = 2 * v1 - this.lpfState.s1;
+        this.lpfState.s2 = 2 * v2 - this.lpfState.s2;
+
+        if (!isFinite(this.lpfState.s1)) this.lpfState.s1 = 0;
+        if (!isFinite(this.lpfState.s2)) this.lpfState.s2 = 0;
+
+        return v2;
+    }
+
+    // Resonant Highpass Filter
+    rhpf(input, freq, q) {
+        const w = 2 * Math.PI * Math.max(20, Math.min(this.sampleRate * 0.45, freq)) / this.sampleRate;
+        const g = Math.tan(w / 2);
+        const k = 2 * (1 - q);
+        const a1 = 1 / (1 + g * (g + k));
+        const a2 = g * a1;
+        const a3 = g * a2;
+
+        const v3 = input - this.hpfState.s2;
+        const v1 = a1 * this.hpfState.s1 + a2 * v3;
+        const v2 = this.hpfState.s2 + a2 * this.hpfState.s1 + a3 * v3;
+
+        this.hpfState.s1 = 2 * v1 - this.hpfState.s1;
+        this.hpfState.s2 = 2 * v2 - this.hpfState.s2;
+
+        if (!isFinite(this.hpfState.s1)) this.hpfState.s1 = 0;
+        if (!isFinite(this.hpfState.s2)) this.hpfState.s2 = 0;
+
+        // Highpass output
+        return input - k * v1 - v2;
+    }
+
+    // State Variable Filter (multimode)
+    svf(input, freq, q) {
+        const w = 2 * Math.PI * Math.max(20, Math.min(this.sampleRate * 0.45, freq)) / this.sampleRate;
+        const g = Math.tan(w / 2);
+        const k = 2 * (1 - q * 0.9);
+
+        const v3 = input - this.svfState.ic2eq;
+        const v1 = (this.svfState.ic1eq + g * v3) / (1 + g * (g + k));
+        const v2 = this.svfState.ic2eq + g * v1;
+
+        this.svfState.ic1eq = 2 * v1 - this.svfState.ic1eq;
+        this.svfState.ic2eq = 2 * v2 - this.svfState.ic2eq;
+
+        if (!isFinite(this.svfState.ic1eq)) this.svfState.ic1eq = 0;
+        if (!isFinite(this.svfState.ic2eq)) this.svfState.ic2eq = 0;
+
+        return v2;  // Lowpass output
+    }
+
+    // DFM1-style diode ladder filter
+    dfm1(input, freq, res) {
+        const fc = Math.max(20, Math.min(this.sampleRate * 0.45, freq));
+        const g = Math.tan(Math.PI * fc / this.sampleRate);
+        const k = res * 4;
+
+        // Feedback with soft clipping
+        const feedback = Math.tanh(this.dfm1State.s4 * k);
+
+        // Four cascaded one-pole sections with nonlinearity
+        const stage1In = input - feedback;
+        const v1 = (g * Math.tanh(stage1In) + this.dfm1State.s1) / (1 + g);
+        this.dfm1State.s1 = 2 * v1 - this.dfm1State.s1;
+
+        const v2 = (g * Math.tanh(v1) + this.dfm1State.s2) / (1 + g);
+        this.dfm1State.s2 = 2 * v2 - this.dfm1State.s2;
+
+        const v3 = (g * Math.tanh(v2) + this.dfm1State.s3) / (1 + g);
+        this.dfm1State.s3 = 2 * v3 - this.dfm1State.s3;
+
+        const v4 = (g * Math.tanh(v3) + this.dfm1State.s4) / (1 + g);
+        this.dfm1State.s4 = 2 * v4 - this.dfm1State.s4;
+
+        if (!isFinite(this.dfm1State.s1)) this.dfm1State.s1 = 0;
+        if (!isFinite(this.dfm1State.s2)) this.dfm1State.s2 = 0;
+        if (!isFinite(this.dfm1State.s3)) this.dfm1State.s3 = 0;
+        if (!isFinite(this.dfm1State.s4)) this.dfm1State.s4 = 0;
+
+        return v4;
+    }
+
+    // LeakDC filter
+    leakDC(input) {
+        const coef = 0.995;
+        this.leakOut = input - this.leakPrev + coef * this.leakOut;
+        this.leakPrev = input;
+        return this.leakOut;
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        for (let s = 0; s < left.length; s++) {
+            this.stateCounter++;
+
+            // Send shift register state periodically
+            if (this.stateCounter >= 2048) {
+                this.stateCounter = 0;
+                // Pack 8 bits into a single value for display
+                let srValue = 0;
+                for (let i = 0; i < 8; i++) {
+                    srValue |= (this.sh[i] > 0.5 ? 1 : 0) << (7 - i);
+                }
+                this.port.postMessage({ shiftRegister: srValue });
+            }
+
+            // Calculate modulated frequencies
+            const modFreq1 = (this.rungler * this.rungler1) + this.freq1;
+            const modFreq2 = (this.rungler * this.rungler2) + this.freq2;
+
+            // Update oscillator phases
+            this.phase1 += modFreq1 / this.sampleRate;
+            this.phase2 += modFreq2 / this.sampleRate;
+            if (this.phase1 >= 1) this.phase1 -= 1;
+            if (this.phase2 >= 1) this.phase2 -= 1;
+
+            // Generate oscillator outputs
+            const tri1 = this.lftri(this.phase1);
+            const tri2 = this.lftri(this.phase2);
+            const osc1Raw = this.pulse(this.phase1);
+            const osc2 = this.pulse(this.phase2);
+
+            // PWM comparison (XOR-like)
+            const pwm = (tri1 + tri2) > 0 ? 1 : -1;
+
+            // Loop feedback: blend between osc1 and buf
+            const osc1 = (this.buf * this.loop) + (osc1Raw * (1 - this.loop));
+
+            // Shift register logic (rungler circuit)
+            // sh0 = XOR of sh8 comparison with osc1
+            const sh0Input = osc1 > 0.5 ? 1 : 0;
+            const sh8Compare = this.sh8 > 0.5 ? 1 : 0;
+            // XOR via (a > b) == (a < b) inverted
+            let sh0 = (sh8Compare > sh0Input) === (sh8Compare < sh0Input) ? 1 : 0;
+            sh0 = 1 - sh0;  // Invert
+
+            // Latch on osc2 transitions (positive edge)
+            const osc2Trigger = osc2 > 0 && this.prevOsc2 <= 0;
+            this.prevOsc2 = osc2;
+
+            if (osc2Trigger) {
+                // Shift all values through the chain
+                this.sh8 = this.sh[7];
+                for (let i = 7; i > 0; i--) {
+                    this.sh[i] = this.sh[i - 1];
+                }
+                this.sh[0] = sh0;
+            }
+
+            // Calculate rungler value from shift register (weighted sum)
+            // rungler = sum of sh[i] / 2^(8-i)
+            let runglerSum = 0;
+            for (let i = 0; i < 8; i++) {
+                runglerSum += this.sh[i] / Math.pow(2, 8 - i);
+            }
+
+            // Update feedback buffer
+            this.buf = runglerSum;
+
+            // Scale rungler to MIDI range and convert to frequency
+            const scaledRungler = runglerSum * this.scale * 127;
+            this.rungler = this.midicps(scaledRungler);
+
+            // Calculate filter frequency with rungler modulation
+            const filterFreq = (this.rungler * this.runglerFilt) + this.filtFreq;
+            const clampedFilterFreq = Math.max(20, Math.min(this.sampleRate * 0.45, filterFreq));
+
+            // Apply selected filter
+            let filtered;
+            const qInv = 1 - this.q;  // SC uses inverted Q
+            switch (this.filterType) {
+                case 0:
+                    filtered = this.rlpf(pwm, clampedFilterFreq, this.q) * this.gain;
+                    break;
+                case 1:
+                    filtered = this.rhpf(pwm, clampedFilterFreq, this.q) * this.gain;
+                    break;
+                case 2:
+                    filtered = this.svf(pwm, clampedFilterFreq, this.q) * this.gain;
+                    break;
+                case 3:
+                    filtered = this.dfm1(pwm, clampedFilterFreq, this.q) * this.gain;
+                    break;
+                default:
+                    filtered = this.rlpf(pwm, clampedFilterFreq, this.q) * this.gain;
+            }
+
+            // Select output signal
+            let outputSignal;
+            switch (this.outSignal) {
+                case 0: outputSignal = tri1; break;
+                case 1: outputSignal = osc1; break;
+                case 2: outputSignal = tri2; break;
+                case 3: outputSignal = osc2; break;
+                case 4: outputSignal = pwm; break;
+                case 5: outputSignal = sh0 * 2 - 1; break;  // Scale to -1 to 1
+                case 6: outputSignal = filtered; break;
+                default: outputSignal = filtered;
+            }
+
+            // LeakDC and output
+            const dcFiltered = this.leakDC(outputSignal * this.amp);
+            const out = Math.tanh(dcFiltered) * 0.7;
+
+            left[s] = out;
+            if (right) right[s] = out;
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('benjolis-processor', BenjolisProcessor);
+`;
+
+        let audioContext = null;
+        let workletNode = null;
+        let analyser = null;
+        let isPlaying = false;
+        let pedalboard = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        // All parameter controls
+        const params = ['freq1', 'freq2', 'rungler1', 'rungler2', 'runglerFilt', 'scale', 'loop', 'filtFreq', 'q', 'gain'];
+
+        params.forEach(param => {
+            const input = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            input.addEventListener('input', () => {
+                const val = parseFloat(input.value);
+                if (param === 'freq1' || param === 'filtFreq') {
+                    display.textContent = val.toFixed(0);
+                } else if (param === 'freq2') {
+                    display.textContent = val.toFixed(1);
+                } else if (param === 'gain' || param === 'runglerFilt') {
+                    display.textContent = val.toFixed(1);
+                } else {
+                    display.textContent = val.toFixed(2);
+                }
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param]: val });
+                }
+            });
+        });
+
+        // Filter type selector
+        document.getElementById('filterType').addEventListener('change', (e) => {
+            if (workletNode) {
+                workletNode.port.postMessage({ filterType: parseInt(e.target.value) });
+            }
+        });
+
+        // Output signal selector
+        document.getElementById('outSignal').addEventListener('change', (e) => {
+            if (workletNode) {
+                workletNode.port.postMessage({ outSignal: parseInt(e.target.value) });
+            }
+        });
+
+        // Shift register display
+        const srBits = document.getElementById('srBits');
+        for (let i = 7; i >= 0; i--) {
+            const bit = document.createElement('span');
+            bit.className = 'sr-bit';
+            bit.dataset.bit = i;
+            bit.textContent = '0';
+            srBits.appendChild(bit);
+        }
+
+        function updateShiftRegister(value) {
+            const bits = srBits.querySelectorAll('.sr-bit');
+            bits.forEach(bit => {
+                const bitPos = parseInt(bit.dataset.bit);
+                const bitVal = (value >> bitPos) & 1;
+                bit.textContent = bitVal;
+                bit.classList.toggle('active', bitVal === 1);
+            });
+        }
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+            const blob = new Blob([processorCode], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'benjolis-processor');
+
+            workletNode.port.onmessage = (e) => {
+                if (e.data.shiftRegister !== undefined) {
+                    updateShiftRegister(e.data.shiftRegister);
+                }
+            };
+
+            // Initialize pedalboard and route audio through it
+            pedalboard = new PedalboardUI(
+                document.getElementById('pedalboard-container'),
+                audioContext
+            );
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'benjolis-01-chaotic-dual-oscillator',
+                    patchId: 'benjolis-01'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('benjolis-01');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'benjolis-01',
+                    prefix: '01',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            fxNode.connect(analyser);
+
+            // Send initial parameters
+            params.forEach(param => {
+                const val = parseFloat(document.getElementById(param).value);
+                workletNode.port.postMessage({ [param]: val });
+            });
+
+            workletNode.port.postMessage({ filterType: parseInt(document.getElementById('filterType').value) });
+            workletNode.port.postMessage({ outSignal: parseInt(document.getElementById('outSignal').value) });
+        }
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!analyser) return;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteTimeDomainData(dataArray);
+
+            ctx.fillStyle = 'rgba(18, 18, 26, 0.1)';
+            ctx.fillRect(0, 0, width, height);
+
+            // Waveform
+            ctx.strokeStyle = 'rgba(236, 72, 153, 0.9)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const sliceWidth = width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = v * height / 2;
+
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+                x += sliceWidth;
+            }
+
+            ctx.stroke();
+
+            // Frequency spectrum
+            const freqData = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(freqData);
+
+            ctx.fillStyle = 'rgba(99, 102, 241, 0.4)';
+            const barWidth = width / 64;
+            for (let i = 0; i < 64; i++) {
+                const barHeight = freqData[i * 4] / 255 * height * 0.5;
+                ctx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
+            }
+
+            if (isPlaying) requestAnimationFrame(drawVisualizer);
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+            }
+
+            if (isPlaying) {
+                await audioContext.suspend();
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                status.textContent = 'Playing - Chaotic dual oscillator synthesis';
+                status.classList.add('active');
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+    </script>
+</body>
+</html>

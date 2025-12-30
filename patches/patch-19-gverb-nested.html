@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>19 - GVerb Nested</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>19 - GVerb Nested</h1>
+                <p>Nested GVerb with pulse oscillators and highpass filtering</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <div class="visualizer-container">
+                <canvas id="visualizer"></canvas>
+            </div>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Base Freq</label>
+                    <input type="range" id="baseFreq" min="50" max="200" value="99" step="1">
+                    <span class="param-value" id="baseFreqVal">99</span>
+                </div>
+                <div class="param-group">
+                    <label>Reverb Size</label>
+                    <input type="range" id="reverbSize" min="10" max="100" value="50" step="1">
+                    <span class="param-value" id="reverbSizeVal">50</span>
+                </div>
+                <div class="param-group">
+                    <label>Reverb Time</label>
+                    <input type="range" id="reverbTime" min="0.5" max="10" value="3" step="0.1">
+                    <span class="param-value" id="reverbTimeVal">3.0</span>
+                </div>
+                <div class="param-group">
+                    <label>Damping</label>
+                    <input type="range" id="damping" min="0" max="1" value="0.5" step="0.01">
+                    <span class="param-value" id="dampingVal">0.50</span>
+                </div>
+                <div class="param-group">
+                    <label>HPF Cutoff</label>
+                    <input type="range" id="hpfCutoff" min="40" max="200" value="80" step="5">
+                    <span class="param-value" id="hpfCutoffVal">80</span>
+                </div>
+                <div class="param-group">
+                    <label>Drive</label>
+                    <input type="range" id="drive" min="0.1" max="2" value="0.5" step="0.05">
+                    <span class="param-value" id="driveVal">0.50</span>
+                </div>
+                <div class="param-group">
+                    <label>Mod Rate 1</label>
+                    <input type="range" id="modRate1" min="0.1" max="2" value="0.5" step="0.05">
+                    <span class="param-value" id="modRate1Val">0.50</span>
+                </div>
+                <div class="param-group">
+                    <label>Mod Rate 2</label>
+                    <input type="range" id="modRate2" min="1" max="8" value="4" step="0.5">
+                    <span class="param-value" id="modRate2Val">4.0</span>
+                </div>
+            </div>
+
+            <div class="sequencer-section">
+                <h3>Sequencer <label class="toggle-label"><input type="checkbox" id="seqEnabled" checked> Enabled</label></h3>
+                <div class="param-controls">
+                    <div class="param-group">
+                        <label>Mode</label>
+                        <select id="seqMode">
+                            <option value="0">Forward</option>
+                            <option value="1">Reverse</option>
+                            <option value="2">Pendulum</option>
+                            <option value="3">Random</option>
+                            <option value="4">Turing Machine</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Length</label>
+                        <input type="range" id="seqLength" min="2" max="16" value="8" step="1">
+                        <span class="param-value" id="seqLengthVal">8</span>
+                    </div>
+                    <div class="param-group">
+                        <label>LFSR Type</label>
+                        <select id="lfsrType">
+                            <option value="0">8-bit Fibonacci</option>
+                            <option value="1">8-bit Galois</option>
+                            <option value="2">16-bit Maximal</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Mutation</label>
+                        <input type="range" id="mutation" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="mutationVal">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Gate Prob</label>
+                        <input type="range" id="gateProb" min="0" max="1" value="1" step="0.01">
+                        <span class="param-value" id="gateProbVal">1.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Step Rate</label>
+                        <input type="range" id="stepRate" min="0.1" max="20" value="2" step="0.1">
+                        <span class="param-value" id="stepRateVal">2.0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Bit Rotate</label>
+                        <input type="range" id="bitRotate" min="0" max="7" value="0" step="1">
+                        <span class="param-value" id="bitRotateVal">0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>XOR Mask</label>
+                        <input type="range" id="xorMask" min="0" max="255" value="0" step="1">
+                        <span class="param-value" id="xorMaskVal">0</span>
+                    </div>
+                </div>
+                <div class="shift-register-display">
+                    <label>Shift Register</label>
+                    <div class="sr-bits" id="srBits"></div>
+                </div>
+            </div>
+
+            <div class="quantizer-section">
+                <h3>Pitch Quantizer <label class="toggle-label"><input type="checkbox" id="quantEnabled" checked> Enabled</label></h3>
+                <div class="param-controls">
+                    <div class="param-group">
+                        <label>Root</label>
+                        <select id="rootNote">
+                            <option value="0">C</option>
+                            <option value="1">C#</option>
+                            <option value="2">D</option>
+                            <option value="3">D#</option>
+                            <option value="4">E</option>
+                            <option value="5">F</option>
+                            <option value="6">F#</option>
+                            <option value="7">G</option>
+                            <option value="8">G#</option>
+                            <option value="9">A</option>
+                            <option value="10">A#</option>
+                            <option value="11">B</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Scale</label>
+                        <select id="scale">
+                            <option value="chromatic">Chromatic</option>
+                            <option value="major">Major</option>
+                            <option value="minor">Natural Minor</option>
+                            <option value="harmonicMinor">Harmonic Minor</option>
+                            <option value="melodicMinor">Melodic Minor</option>
+                            <option value="dorian">Dorian</option>
+                            <option value="phrygian">Phrygian</option>
+                            <option value="lydian">Lydian</option>
+                            <option value="mixolydian">Mixolydian</option>
+                            <option value="locrian">Locrian</option>
+                            <option value="pentatonicMajor">Pentatonic Major</option>
+                            <option value="pentatonicMinor">Pentatonic Minor</option>
+                            <option value="blues">Blues</option>
+                            <option value="wholeHalf">Whole-Half Dim</option>
+                            <option value="halfWhole">Half-Whole Dim</option>
+                            <option value="wholeTone">Whole Tone</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Base Octave</label>
+                        <input type="range" id="baseOctave" min="1" max="5" value="2" step="1">
+                        <span class="param-value" id="baseOctaveVal">2</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Octave Range</label>
+                        <input type="range" id="octaveRange" min="1" max="4" value="2" step="1">
+                        <span class="param-value" id="octaveRangeVal">2</span>
+                    </div>
+                    <div class="param-group">
+                        <label>LFO Rate</label>
+                        <input type="range" id="lfoRate" min="0.01" max="2" value="0.1" step="0.01">
+                        <span class="param-value" id="lfoRateVal">0.10</span>
+                    </div>
+                    <div class="param-group">
+                        <label>LFO Depth</label>
+                        <input type="range" id="lfoDepth" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="lfoDepthVal">0.00</span>
+                    </div>
+                </div>
+                <div class="keyboard-container">
+                    <div class="keyboard" id="keyboard">
+                        <div class="white-key" data-note="0">C</div>
+                        <div class="black-key" data-note="1">C#</div>
+                        <div class="white-key" data-note="2">D</div>
+                        <div class="black-key" data-note="3">D#</div>
+                        <div class="white-key" data-note="4">E</div>
+                        <div class="white-key" data-note="5">F</div>
+                        <div class="black-key" data-note="6">F#</div>
+                        <div class="white-key" data-note="7">G</div>
+                        <div class="black-key" data-note="8">G#</div>
+                        <div class="white-key" data-note="9">A</div>
+                        <div class="black-key" data-note="10">A#</div>
+                        <div class="white-key" data-note="11">B</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <code>p={|f,a=5|GVerb.ar(LFPulse.ar(f)*a)+f};play{tanh(HPF.ar(p.(99-p.(1/2,20)*(1+p.(2,1/5))+p.(4+p.(1/2)),0.5),80,XLine.kr(4e-4,1/8,61,1,0,2)))}</code>
+            </div>
+
+            <p class="status" id="status">Click play to start</p>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+
+        <nav class="nav-links">
+            <a href="patch-18-rlpfd-lftri.html">&larr; Previous</a>
+            <a href="patch-20-playbuf-grain.html">Next &rarr;</a>
+        </nav>
+    </div>
+
+    <script>
+        const processorCode = `
+class GVerbNestedProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+
+        // Main parameters
+        this.baseFreq = 99;
+        this.reverbSize = 50;
+        this.reverbTime = 3;
+        this.damping = 0.5;
+        this.hpfCutoff = 80;
+        this.drive = 0.5;
+        this.modRate1 = 0.5;  // p.(1/2, 20)
+        this.modRate2 = 4;    // p.(4+p.(1/2))
+
+        // Enable flags
+        this.seqEnabled = true;
+        this.quantEnabled = true;
+
+        // Quantizer parameters
+        this.rootNote = 0;
+        this.baseOctave = 2;
+        this.octaveRange = 2;
+        this.lfoRate = 0.1;
+        this.lfoDepth = 0;
+        this.lfoPhase = 0;
+        this.allowedNotes = [0,1,2,3,4,5,6,7,8,9,10,11];
+
+        // Sequencer state
+        this.seqMode = 0;
+        this.seqLength = 8;
+        this.lfsrType = 0;
+        this.mutation = 0;
+        this.gateProb = 1;
+        this.stepRate = 2;
+        this.bitRotate = 0;
+        this.xorMask = 0;
+        this.lfsr = 0b10101010;
+        this.lfsr16 = 0xACE1;
+        this.seqIdx = 0;
+        this.stepPhase = 0;
+        this.pendulumDir = 1;
+        this.stateCounter = 0;
+        this.gateOpen = true;
+        this.currentSeqValue = 0.5;
+
+        // Base sequence
+        this.baseSequence = [];
+        for (let i = 0; i < 16; i++) {
+            this.baseSequence.push((Math.sin(i * 0.5) * 0.5 + 0.5));
+        }
+        this.sequence = [...this.baseSequence];
+
+        // LFPulse oscillator phases
+        this.pulsePhase1 = 0;  // Main modulator at 1/2 Hz
+        this.pulsePhase2 = 0;  // Secondary at 2 Hz
+        this.pulsePhase3 = 0;  // Nested at 4 Hz + mod
+        this.pulsePhase4 = 0;  // Main output frequency
+
+        // XLine for amplitude envelope (4e-4 to 1/8 over 61 seconds)
+        this.xlineProgress = 0;
+        this.xlineDuration = 61;
+
+        // Simple reverb implementation using feedback delay network
+        // Multiple delay lines for diffuse reverb
+        const maxDelay = Math.floor(this.sampleRate * 0.1); // 100ms max
+        this.delayLines = [];
+        this.delayTimes = [0.0297, 0.0371, 0.0411, 0.0437, 0.0509, 0.0547, 0.0583, 0.0613];
+        for (let i = 0; i < 8; i++) {
+            const len = Math.floor(this.delayTimes[i] * this.sampleRate);
+            this.delayLines.push({
+                buffer: new Float32Array(len),
+                writeIdx: 0,
+                length: len
+            });
+        }
+
+        // Nested reverb (second stage)
+        this.delayLines2 = [];
+        for (let i = 0; i < 4; i++) {
+            const len = Math.floor(this.delayTimes[i] * 1.5 * this.sampleRate);
+            this.delayLines2.push({
+                buffer: new Float32Array(len),
+                writeIdx: 0,
+                length: len
+            });
+        }
+
+        // HPF state (2-pole Butterworth)
+        this.hpfState = { x1: 0, x2: 0, y1: 0, y2: 0 };
+
+        // Lowpass for damping in reverb
+        this.dampLpfState = 0;
+        this.dampLpfState2 = 0;
+
+        this.port.onmessage = (e) => {
+            const d = e.data;
+            if (d.baseFreq !== undefined) this.baseFreq = d.baseFreq;
+            if (d.reverbSize !== undefined) this.reverbSize = d.reverbSize;
+            if (d.reverbTime !== undefined) this.reverbTime = d.reverbTime;
+            if (d.damping !== undefined) this.damping = d.damping;
+            if (d.hpfCutoff !== undefined) this.hpfCutoff = d.hpfCutoff;
+            if (d.drive !== undefined) this.drive = d.drive;
+            if (d.modRate1 !== undefined) this.modRate1 = d.modRate1;
+            if (d.modRate2 !== undefined) this.modRate2 = d.modRate2;
+            if (d.rootNote !== undefined) this.rootNote = d.rootNote;
+            if (d.baseOctave !== undefined) this.baseOctave = d.baseOctave;
+            if (d.octaveRange !== undefined) this.octaveRange = d.octaveRange;
+            if (d.allowedNotes !== undefined) this.allowedNotes = d.allowedNotes;
+            if (d.lfoRate !== undefined) this.lfoRate = d.lfoRate;
+            if (d.lfoDepth !== undefined) this.lfoDepth = d.lfoDepth;
+            if (d.seqMode !== undefined) this.seqMode = d.seqMode;
+            if (d.seqLength !== undefined) this.seqLength = d.seqLength;
+            if (d.lfsrType !== undefined) this.lfsrType = d.lfsrType;
+            if (d.mutation !== undefined) this.mutation = d.mutation;
+            if (d.gateProb !== undefined) this.gateProb = d.gateProb;
+            if (d.stepRate !== undefined) this.stepRate = d.stepRate;
+            if (d.bitRotate !== undefined) this.bitRotate = d.bitRotate;
+            if (d.xorMask !== undefined) this.xorMask = d.xorMask;
+            if (d.seqEnabled !== undefined) this.seqEnabled = d.seqEnabled;
+            if (d.quantEnabled !== undefined) this.quantEnabled = d.quantEnabled;
+        };
+    }
+
+    lfsrStep8Fib() {
+        const bit = ((this.lfsr >> 7) ^ (this.lfsr >> 5) ^ (this.lfsr >> 4) ^ (this.lfsr >> 3)) & 1;
+        this.lfsr = ((this.lfsr << 1) | bit) & 0xFF;
+        return this.lfsr;
+    }
+
+    lfsrStep8Galois() {
+        const lsb = this.lfsr & 1;
+        this.lfsr >>= 1;
+        if (lsb) this.lfsr ^= 0xB8;
+        return this.lfsr;
+    }
+
+    lfsrStep16() {
+        const bit = ((this.lfsr16 >> 15) ^ (this.lfsr16 >> 14) ^ (this.lfsr16 >> 12) ^ (this.lfsr16 >> 3)) & 1;
+        this.lfsr16 = ((this.lfsr16 << 1) | bit) & 0xFFFF;
+        this.lfsr = (this.lfsr16 >> 8) & 0xFF;
+        return this.lfsr16 / 65535;
+    }
+
+    getNextIndex(idx) {
+        const len = Math.min(this.sequence.length, this.seqLength);
+        switch (this.seqMode) {
+            case 0: return (idx + 1) % len;
+            case 1: return (idx - 1 + len) % len;
+            case 2: {
+                let next = idx + this.pendulumDir;
+                if (next >= len - 1) { this.pendulumDir = -1; next = len - 1; }
+                else if (next <= 0) { this.pendulumDir = 1; next = 0; }
+                return next;
+            }
+            case 3: return Math.floor(Math.random() * len);
+            case 4: {
+                let lfsrVal;
+                if (this.lfsrType === 0) lfsrVal = this.lfsrStep8Fib() / 255;
+                else if (this.lfsrType === 1) lfsrVal = this.lfsrStep8Galois() / 255;
+                else lfsrVal = this.lfsrStep16();
+                if (Math.random() < this.mutation) return Math.floor(lfsrVal * len);
+                return (idx + 1) % len;
+            }
+            default: return (idx + 1) % len;
+        }
+    }
+
+    getSequenceValue(idx) {
+        let val = this.sequence[idx % this.sequence.length];
+        if (this.bitRotate !== 0) {
+            const intVal = Math.floor(val * 255);
+            const rot = ((this.bitRotate % 8) + 8) % 8;
+            const rotated = ((intVal << rot) | (intVal >> (8 - rot))) & 0xFF;
+            val = rotated / 255;
+        }
+        if (this.xorMask !== 0) {
+            const intVal = Math.floor(val * 255);
+            val = ((intVal ^ this.xorMask) & 0xFF) / 255;
+        }
+        return val;
+    }
+
+    quantizeToFreq(value) {
+        if (this.allowedNotes.length === 0) return this.baseFreq;
+
+        const totalNotes = this.allowedNotes.length * this.octaveRange;
+        const noteIdx = Math.floor(value * totalNotes) % totalNotes;
+        const scaleIdx = noteIdx % this.allowedNotes.length;
+        const octaveOffset = Math.floor(noteIdx / this.allowedNotes.length);
+
+        const lfoMod = Math.sin(this.lfoPhase * 2 * Math.PI) * this.lfoDepth;
+        const targetOctave = this.baseOctave + octaveOffset + Math.floor(lfoMod);
+
+        const midiNote = this.rootNote + this.allowedNotes[scaleIdx] + targetOctave * 12;
+        return 440 * Math.pow(2, (midiNote - 69) / 12);
+    }
+
+    // LFPulse: outputs 0-1 square wave
+    lfpulse(phase) {
+        return phase < 0.5 ? 1 : 0;
+    }
+
+    // Simple feedback delay network reverb
+    processReverb(input, delayLines, dampState, isSecondary) {
+        const feedback = Math.min(0.9, this.reverbTime / 12);
+        // Clamp sizeMod to prevent buffer overflow - max 0.99 of buffer length
+        const sizeMod = Math.min(0.99, Math.max(0.1, this.reverbSize / 100));
+
+        let sum = 0;
+        for (let i = 0; i < delayLines.length; i++) {
+            const dl = delayLines[i];
+            // Safe read index calculation
+            const readOffset = Math.floor(dl.length * sizeMod);
+            const readIdx = (dl.writeIdx - readOffset + dl.length) % dl.length;
+            const delayed = dl.buffer[readIdx];
+
+            // Check for NaN/Infinity and reset if needed
+            if (!isFinite(delayed)) {
+                dl.buffer.fill(0);
+                sum += 0;
+            } else {
+                sum += delayed;
+            }
+
+            // Write with feedback (soft clip to prevent runaway)
+            const fb = isSecondary ? feedback * 0.7 : feedback;
+            const newVal = Math.tanh((input + delayed * fb) * 2) * 0.5;
+            dl.buffer[dl.writeIdx] = newVal;
+            dl.writeIdx = (dl.writeIdx + 1) % dl.length;
+        }
+
+        // Apply damping (lowpass)
+        const dampCoef = 1 - this.damping * 0.5;
+        const avgOut = sum / delayLines.length;
+        if (isSecondary) {
+            this.dampLpfState2 = this.dampLpfState2 * dampCoef + avgOut * (1 - dampCoef);
+            return this.dampLpfState2;
+        } else {
+            this.dampLpfState = this.dampLpfState * dampCoef + avgOut * (1 - dampCoef);
+            return this.dampLpfState;
+        }
+    }
+
+    // 2-pole Butterworth HPF
+    hpf(input, cutoff) {
+        const freq = Math.max(20, Math.min(this.sampleRate * 0.4, cutoff));
+        const omega = 2 * Math.PI * freq / this.sampleRate;
+        const cos_w = Math.cos(omega);
+        const alpha = Math.sin(omega) / (2 * 0.707);
+
+        const b0 = (1 + cos_w) / 2;
+        const b1 = -(1 + cos_w);
+        const b2 = (1 + cos_w) / 2;
+        const a0 = 1 + alpha;
+        const a1 = -2 * cos_w;
+        const a2 = 1 - alpha;
+
+        const output = (b0/a0) * input + (b1/a0) * this.hpfState.x1 + (b2/a0) * this.hpfState.x2
+                     - (a1/a0) * this.hpfState.y1 - (a2/a0) * this.hpfState.y2;
+
+        this.hpfState.x2 = this.hpfState.x1;
+        this.hpfState.x1 = input;
+        this.hpfState.y2 = this.hpfState.y1;
+        this.hpfState.y1 = output;
+
+        return output;
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        for (let s = 0; s < left.length; s++) {
+            // Update LFO phase
+            this.lfoPhase += this.lfoRate / this.sampleRate;
+            if (this.lfoPhase >= 1) this.lfoPhase -= 1;
+
+            this.stateCounter++;
+
+            // Send shift register state periodically
+            if (this.stateCounter >= 2048) {
+                this.stateCounter = 0;
+                this.port.postMessage({ shiftRegister: this.lfsr });
+            }
+
+            // Sequencer stepping (only when enabled)
+            if (this.seqEnabled) {
+                this.stepPhase += this.stepRate / this.sampleRate;
+                if (this.stepPhase >= 1) {
+                    this.stepPhase -= 1;
+                    this.seqIdx = this.getNextIndex(this.seqIdx);
+                    this.gateOpen = Math.random() < this.gateProb;
+                    if (this.gateOpen) {
+                        this.currentSeqValue = this.getSequenceValue(this.seqIdx);
+                    }
+                }
+            }
+
+            // XLine envelope: start loud, subtle swell over 61 seconds
+            this.xlineProgress += 1 / (this.xlineDuration * this.sampleRate);
+            if (this.xlineProgress > 1) this.xlineProgress = 0; // Loop instead of stopping
+            const xlineAmp = 0.5 + this.xlineProgress * 0.5;  // 0.5 to 1.0
+
+            // Calculate frequencies with quantizer modulation
+            let freq = this.baseFreq;
+            if (this.quantEnabled) {
+                const quantizedFreq = this.quantizeToFreq(this.currentSeqValue);
+                freq = this.baseFreq + (quantizedFreq - this.baseFreq) * this.lfoDepth * 0.5;
+            }
+
+            // Update pulse oscillator phases
+            // p.(1/2, 20) - modulator at 0.5 Hz with amplitude 20
+            this.pulsePhase1 += this.modRate1 / this.sampleRate;
+            if (this.pulsePhase1 >= 1) this.pulsePhase1 -= 1;
+
+            // p.(2, 1/5) - modulator at 2 Hz with amplitude 0.2
+            this.pulsePhase2 += 2 / this.sampleRate;
+            if (this.pulsePhase2 >= 1) this.pulsePhase2 -= 1;
+
+            // p.(4+p.(1/2)) - freq modulated by first modulator
+            const mod1Out = this.lfpulse(this.pulsePhase1) * 20;
+            const freq3 = this.modRate2 + this.lfpulse(this.pulsePhase1) * 1;
+            this.pulsePhase3 += freq3 / this.sampleRate;
+            if (this.pulsePhase3 >= 1) this.pulsePhase3 -= 1;
+
+            // Calculate nested frequency modulation
+            // p.(99-p.(1/2,20)*(1+p.(2,1/5))+p.(4+p.(1/2)), 0.5)
+            const mod2Out = this.lfpulse(this.pulsePhase2) * 0.2;
+            const freqMod = mod1Out * (1 + mod2Out);
+            const mod3Out = this.lfpulse(this.pulsePhase3);
+
+            // Sequencer modulation of frequency
+            const seqMod = this.seqEnabled ? this.currentSeqValue : 0.5;
+            const mainFreq = freq - freqMod * seqMod + mod3Out * 10;
+
+            // Main pulse oscillator
+            this.pulsePhase4 += Math.max(10, mainFreq) / this.sampleRate;
+            if (this.pulsePhase4 >= 1) this.pulsePhase4 -= 1;
+
+            const pulse = this.lfpulse(this.pulsePhase4) * this.drive;
+
+            // First reverb stage
+            const reverb1 = this.processReverb(pulse, this.delayLines, this.dampLpfState, false);
+
+            // Add frequency component (GVerb returns signal + f in SC)
+            const withFreq = reverb1 + mainFreq / 1000;
+
+            // Second reverb stage (nested)
+            const reverb2 = this.processReverb(withFreq * 0.3, this.delayLines2, this.dampLpfState2, true);
+
+            // HPF
+            const hpfOut = this.hpf(reverb2, this.hpfCutoff);
+
+            // Apply amplitude envelope and tanh saturation - boost significantly
+            const saturated = Math.tanh(hpfOut * xlineAmp * 20);
+
+            left[s] = saturated * 0.8;
+            if (right) right[s] = saturated * 0.8;
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('gverb-nested-processor', GVerbNestedProcessor);
+`;
+
+        let audioContext = null;
+        let workletNode = null;
+        let analyser = null;
+        let isPlaying = false;
+        let pedalboard = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        // Scale definitions
+        const scales = {
+            chromatic: [0,1,2,3,4,5,6,7,8,9,10,11],
+            major: [0,2,4,5,7,9,11],
+            minor: [0,2,3,5,7,8,10],
+            harmonicMinor: [0,2,3,5,7,8,11],
+            melodicMinor: [0,2,3,5,7,9,11],
+            dorian: [0,2,3,5,7,9,10],
+            phrygian: [0,1,3,5,7,8,10],
+            lydian: [0,2,4,6,7,9,11],
+            mixolydian: [0,2,4,5,7,9,10],
+            locrian: [0,1,3,5,6,8,10],
+            pentatonicMajor: [0,2,4,7,9],
+            pentatonicMinor: [0,3,5,7,10],
+            blues: [0,3,5,6,7,10],
+            wholeHalf: [0,2,3,5,6,8,9,11],
+            halfWhole: [0,1,3,4,6,7,9,10],
+            wholeTone: [0,2,4,6,8,10],
+            custom: [0,2,4,5,7,9,11]
+        };
+
+        let currentScale = 'chromatic';
+        let allowedNotes = [...scales.chromatic];
+
+        // Main parameters
+        const params = ['baseFreq', 'reverbSize', 'reverbTime', 'damping', 'hpfCutoff', 'drive', 'modRate1', 'modRate2'];
+        params.forEach(param => {
+            const input = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            input.addEventListener('input', () => {
+                const val = parseFloat(input.value);
+                if (param === 'baseFreq' || param === 'reverbSize' || param === 'hpfCutoff') {
+                    display.textContent = val.toFixed(0);
+                } else if (param === 'modRate2') {
+                    display.textContent = val.toFixed(1);
+                } else {
+                    display.textContent = val.toFixed(2);
+                }
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param]: val });
+                }
+            });
+        });
+
+        // Sequencer controls
+        const seqParams = ['seqLength', 'mutation', 'gateProb', 'stepRate', 'bitRotate', 'xorMask'];
+        seqParams.forEach(param => {
+            const input = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            input.addEventListener('input', () => {
+                const val = parseFloat(input.value);
+                if (param === 'mutation' || param === 'gateProb') {
+                    display.textContent = val.toFixed(2);
+                } else if (param === 'stepRate') {
+                    display.textContent = val.toFixed(1);
+                } else {
+                    display.textContent = val;
+                }
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param]: val });
+                }
+            });
+        });
+
+        document.getElementById('seqMode').addEventListener('change', (e) => {
+            if (workletNode) {
+                workletNode.port.postMessage({ seqMode: parseInt(e.target.value) });
+            }
+        });
+
+        document.getElementById('lfsrType').addEventListener('change', (e) => {
+            if (workletNode) {
+                workletNode.port.postMessage({ lfsrType: parseInt(e.target.value) });
+            }
+        });
+
+        // Sequencer enable toggle
+        document.getElementById('seqEnabled').addEventListener('change', (e) => {
+            if (workletNode) {
+                workletNode.port.postMessage({ seqEnabled: e.target.checked });
+            }
+        });
+
+        // Quantizer enable toggle
+        document.getElementById('quantEnabled').addEventListener('change', (e) => {
+            if (workletNode) {
+                workletNode.port.postMessage({ quantEnabled: e.target.checked });
+            }
+        });
+
+        // Shift register display
+        const srBits = document.getElementById('srBits');
+        for (let i = 7; i >= 0; i--) {
+            const bit = document.createElement('span');
+            bit.className = 'sr-bit';
+            bit.dataset.bit = i;
+            bit.textContent = '0';
+            srBits.appendChild(bit);
+        }
+
+        function updateShiftRegister(value) {
+            const bits = srBits.querySelectorAll('.sr-bit');
+            bits.forEach(bit => {
+                const bitPos = parseInt(bit.dataset.bit);
+                bit.classList.toggle('active', (value >> bitPos) & 1);
+            });
+        }
+
+        // Quantizer controls
+        const quantParams = ['baseOctave', 'octaveRange', 'lfoRate', 'lfoDepth'];
+        quantParams.forEach(param => {
+            const input = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            input.addEventListener('input', () => {
+                const val = parseFloat(input.value);
+                display.textContent = (param === 'lfoRate' || param === 'lfoDepth') ? val.toFixed(2) : val;
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param]: val });
+                }
+            });
+        });
+
+        document.getElementById('rootNote').addEventListener('change', (e) => {
+            if (workletNode) {
+                workletNode.port.postMessage({ rootNote: parseInt(e.target.value) });
+            }
+            updateKeyboardDisplay();
+        });
+
+        document.getElementById('scale').addEventListener('change', (e) => {
+            currentScale = e.target.value;
+            if (currentScale !== 'custom') {
+                allowedNotes = [...scales[currentScale]];
+                updateKeyboardDisplay();
+                if (workletNode) {
+                    workletNode.port.postMessage({ allowedNotes });
+                }
+            }
+        });
+
+        // Keyboard display
+        const keyboard = document.getElementById('keyboard');
+
+        function updateKeyboardDisplay() {
+            const rootNote = parseInt(document.getElementById('rootNote').value);
+            const keys = keyboard.querySelectorAll('.keyboard > div');
+            keys.forEach(key => {
+                const note = parseInt(key.dataset.note);
+                const relativeNote = ((note - rootNote) % 12 + 12) % 12;
+                key.classList.toggle('active', allowedNotes.includes(relativeNote));
+            });
+        }
+
+        keyboard.addEventListener('click', (e) => {
+            const key = e.target.closest('[data-note]');
+            if (!key) return;
+
+            const note = parseInt(key.dataset.note);
+            const rootNote = parseInt(document.getElementById('rootNote').value);
+            const relativeNote = ((note - rootNote) % 12 + 12) % 12;
+
+            document.getElementById('scale').value = 'custom';
+            currentScale = 'custom';
+
+            const idx = allowedNotes.indexOf(relativeNote);
+            if (idx >= 0) {
+                allowedNotes.splice(idx, 1);
+            } else {
+                allowedNotes.push(relativeNote);
+                allowedNotes.sort((a, b) => a - b);
+            }
+
+            if (allowedNotes.length === 0) allowedNotes = [0];
+
+            updateKeyboardDisplay();
+            if (workletNode) {
+                workletNode.port.postMessage({ allowedNotes });
+            }
+        });
+
+        updateKeyboardDisplay();
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+            const blob = new Blob([processorCode], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'gverb-nested-processor');
+
+            workletNode.port.onmessage = (e) => {
+                if (e.data.shiftRegister !== undefined) {
+                    updateShiftRegister(e.data.shiftRegister);
+                }
+            };
+
+            // Initialize pedalboard and route audio through it
+            pedalboard = new PedalboardUI(
+                document.getElementById('pedalboard-container'),
+                audioContext
+            );
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: '19-gverb-nested',
+                    patchId: 'patch-19-gverb-nested'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('patch-19-gverb-nested');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'patch-19-gverb-nested',
+                    prefix: 'nested',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            fxNode.connect(analyser);
+
+            params.forEach(param => {
+                const val = parseFloat(document.getElementById(param).value);
+                workletNode.port.postMessage({ [param]: val });
+            });
+
+            seqParams.forEach(param => {
+                const val = parseFloat(document.getElementById(param).value);
+                workletNode.port.postMessage({ [param]: val });
+            });
+
+            workletNode.port.postMessage({ seqMode: parseInt(document.getElementById('seqMode').value) });
+            workletNode.port.postMessage({ lfsrType: parseInt(document.getElementById('lfsrType').value) });
+
+            quantParams.forEach(param => {
+                const val = parseFloat(document.getElementById(param).value);
+                workletNode.port.postMessage({ [param]: val });
+            });
+
+            workletNode.port.postMessage({ rootNote: parseInt(document.getElementById('rootNote').value) });
+            workletNode.port.postMessage({ allowedNotes: allowedNotes });
+
+            // Send enable states
+            workletNode.port.postMessage({ seqEnabled: document.getElementById('seqEnabled').checked });
+            workletNode.port.postMessage({ quantEnabled: document.getElementById('quantEnabled').checked });
+        }
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!analyser) return;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteTimeDomainData(dataArray);
+
+            ctx.fillStyle = 'rgba(18, 18, 26, 0.05)';
+            ctx.fillRect(0, 0, width, height);
+
+            // Reverb-style visualization with multiple layers
+            for (let layer = 0; layer < 5; layer++) {
+                const alpha = 0.8 - layer * 0.15;
+                ctx.strokeStyle = `rgba(99, 102, 241, ${alpha})`;
+                ctx.lineWidth = 2 - layer * 0.3;
+                ctx.beginPath();
+
+                const sliceWidth = width / bufferLength;
+                let x = 0;
+                const offset = layer * 50;
+
+                for (let i = 0; i < bufferLength; i++) {
+                    const idx = (i + offset) % bufferLength;
+                    const v = dataArray[idx] / 128.0;
+                    const y = v * height / 2 + layer * 10;
+
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                    x += sliceWidth;
+                }
+
+                ctx.stroke();
+            }
+
+            // Add frequency spectrum
+            const freqData = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(freqData);
+
+            const gradient = ctx.createLinearGradient(0, height, 0, 0);
+            gradient.addColorStop(0, 'rgba(139, 92, 246, 0.5)');
+            gradient.addColorStop(1, 'rgba(236, 72, 153, 0.2)');
+            ctx.fillStyle = gradient;
+
+            const barWidth = width / 32;
+            for (let i = 0; i < 32; i++) {
+                const barHeight = freqData[i * 8] / 255 * height * 0.5;
+                ctx.fillRect(i * barWidth, height - barHeight, barWidth - 2, barHeight);
+            }
+
+            if (isPlaying) requestAnimationFrame(drawVisualizer);
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+            }
+
+            if (isPlaying) {
+                await audioContext.suspend();
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                status.textContent = 'Playing';
+                status.classList.add('active');
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+    </script>
+</body>
+</html>

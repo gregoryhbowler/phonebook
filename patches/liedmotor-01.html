@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiedMotor</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-controls:last-of-type {
+            border-bottom: none;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 100px;
+        }
+        .voice-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .voice-tab {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #888;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.15s;
+        }
+        .voice-tab:hover {
+            border-color: #4a90d9;
+        }
+        .voice-tab.active {
+            background: #2a2a4e;
+            border-color: #4a90d9;
+            color: #4a90d9;
+        }
+        .voice-panel {
+            display: none;
+        }
+        .voice-panel.active {
+            display: block;
+        }
+        .trigger-btns {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin: 1em 0;
+            flex-wrap: wrap;
+        }
+        .trigger-btn {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #ccc;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-size: 0.85em;
+        }
+        .trigger-btn:hover {
+            background: #2a2a4e;
+            border-color: #7b68ee;
+            color: #7b68ee;
+        }
+        .trigger-btn.active {
+            background: #3a3a5e;
+            border-color: #7b68ee;
+            color: #7b68ee;
+        }
+        .voice-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+            background: #333;
+        }
+        .voice-indicator.active {
+            background: #7b68ee;
+            box-shadow: 0 0 8px #7b68ee;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>LiedMotor</h1>
+                <p>Six-voice synthesis engine - FM, Karplus-Strong, Ringz, Resonz from Schicksalslied</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="trigger-btns">
+                <button class="trigger-btn" id="triggerAll">Trigger All</button>
+            </div>
+
+            <!-- Voice Selection Tabs -->
+            <div class="voice-tabs">
+                <button class="voice-tab active" data-voice="sinsin"><span class="voice-indicator" id="ind-sinsin"></span>SinSin</button>
+                <button class="voice-tab" data-voice="trisin"><span class="voice-indicator" id="ind-trisin"></span>TriSin</button>
+                <button class="voice-tab" data-voice="ringer"><span class="voice-indicator" id="ind-ringer"></span>Ringer</button>
+                <button class="voice-tab" data-voice="tritri"><span class="voice-indicator" id="ind-tritri"></span>TriTri</button>
+                <button class="voice-tab" data-voice="karplu"><span class="voice-indicator" id="ind-karplu"></span>Karplu</button>
+                <button class="voice-tab" data-voice="resonz"><span class="voice-indicator" id="ind-resonz"></span>Resonz</button>
+            </div>
+
+            <!-- SinSin Voice Panel -->
+            <div class="voice-panel active" id="panel-sinsin">
+                <span class="section-label">SinSin - FM Synthesis (Sine mod Sine)</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Index</label>
+                            <input type="range" id="sinsin_index" min="-24" max="24" value="3" step="0.1">
+                            <span class="param-value" id="sinsin_indexVal">3.0</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Mod Num</label>
+                            <input type="range" id="sinsin_modnum" min="1" max="100" value="1" step="1">
+                            <span class="param-value" id="sinsin_modnumVal">1</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Mod Deno</label>
+                            <input type="range" id="sinsin_modeno" min="1" max="100" value="1" step="1">
+                            <span class="param-value" id="sinsin_modenoVal">1</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Phase</label>
+                            <input type="range" id="sinsin_phase" min="-3.14159" max="3.14159" value="0" step="0.01">
+                            <span class="param-value" id="sinsin_phaseVal">0.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Attack</label>
+                            <input type="range" id="sinsin_attack" min="0.003" max="8" value="0.003" step="0.001">
+                            <span class="param-value" id="sinsin_attackVal">0.003</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Release</label>
+                            <input type="range" id="sinsin_release" min="0.003" max="8" value="0.4" step="0.001">
+                            <span class="param-value" id="sinsin_releaseVal">0.40</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Amp</label>
+                            <input type="range" id="sinsin_amp" min="0" max="1" value="0.2" step="0.01">
+                            <span class="param-value" id="sinsin_ampVal">0.20</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Pan</label>
+                            <input type="range" id="sinsin_pan" min="-1" max="1" value="0" step="0.01">
+                            <span class="param-value" id="sinsin_panVal">0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TriSin Voice Panel -->
+            <div class="voice-panel" id="panel-trisin">
+                <span class="section-label">TriSin - FM Synthesis (Sine mod Triangle)</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Index</label>
+                            <input type="range" id="trisin_index" min="-24" max="24" value="3" step="0.1">
+                            <span class="param-value" id="trisin_indexVal">3.0</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Mod Num</label>
+                            <input type="range" id="trisin_modnum" min="1" max="100" value="1" step="1">
+                            <span class="param-value" id="trisin_modnumVal">1</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Mod Deno</label>
+                            <input type="range" id="trisin_modeno" min="1" max="100" value="1" step="1">
+                            <span class="param-value" id="trisin_modenoVal">1</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Phase</label>
+                            <input type="range" id="trisin_phase" min="-3.14159" max="3.14159" value="0" step="0.01">
+                            <span class="param-value" id="trisin_phaseVal">0.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Attack</label>
+                            <input type="range" id="trisin_attack" min="0.003" max="8" value="2" step="0.001">
+                            <span class="param-value" id="trisin_attackVal">2.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Release</label>
+                            <input type="range" id="trisin_release" min="0.003" max="8" value="2" step="0.001">
+                            <span class="param-value" id="trisin_releaseVal">2.00</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Amp</label>
+                            <input type="range" id="trisin_amp" min="0" max="1" value="0.2" step="0.01">
+                            <span class="param-value" id="trisin_ampVal">0.20</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Pan</label>
+                            <input type="range" id="trisin_pan" min="-1" max="1" value="0" step="0.01">
+                            <span class="param-value" id="trisin_panVal">0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ringer Voice Panel -->
+            <div class="voice-panel" id="panel-ringer">
+                <span class="section-label">Ringer - Resonant Filter (Ringz)</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Decay (Index)</label>
+                            <input type="range" id="ringer_index" min="0.1" max="24" value="3" step="0.1">
+                            <span class="param-value" id="ringer_indexVal">3.0</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Amp</label>
+                            <input type="range" id="ringer_amp" min="0" max="1" value="0.2" step="0.01">
+                            <span class="param-value" id="ringer_ampVal">0.20</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Pan</label>
+                            <input type="range" id="ringer_pan" min="-1" max="1" value="0" step="0.01">
+                            <span class="param-value" id="ringer_panVal">0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TriTri Voice Panel -->
+            <div class="voice-panel" id="panel-tritri">
+                <span class="section-label">TriTri - Formant FM Synthesis</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Index</label>
+                            <input type="range" id="tritri_index" min="-24" max="24" value="3" step="0.1">
+                            <span class="param-value" id="tritri_indexVal">3.0</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Mod Num</label>
+                            <input type="range" id="tritri_modnum" min="1" max="100" value="1" step="1">
+                            <span class="param-value" id="tritri_modnumVal">1</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Mod Deno</label>
+                            <input type="range" id="tritri_modeno" min="1" max="100" value="1" step="1">
+                            <span class="param-value" id="tritri_modenoVal">1</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Width</label>
+                            <input type="range" id="tritri_width" min="0" max="1" value="0.7" step="0.01">
+                            <span class="param-value" id="tritri_widthVal">0.70</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Mod Width</label>
+                            <input type="range" id="tritri_modwidth" min="0" max="1" value="0.7" step="0.01">
+                            <span class="param-value" id="tritri_modwidthVal">0.70</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Phase</label>
+                            <input type="range" id="tritri_phase" min="-3.14159" max="3.14159" value="0" step="0.01">
+                            <span class="param-value" id="tritri_phaseVal">0.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Mod Phase</label>
+                            <input type="range" id="tritri_modphase" min="-3.14159" max="3.14159" value="0" step="0.01">
+                            <span class="param-value" id="tritri_modphaseVal">0.00</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Attack</label>
+                            <input type="range" id="tritri_attack" min="0.003" max="8" value="2" step="0.001">
+                            <span class="param-value" id="tritri_attackVal">2.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Release</label>
+                            <input type="range" id="tritri_release" min="0.003" max="8" value="2" step="0.001">
+                            <span class="param-value" id="tritri_releaseVal">2.00</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Amp</label>
+                            <input type="range" id="tritri_amp" min="0" max="1" value="0.2" step="0.01">
+                            <span class="param-value" id="tritri_ampVal">0.20</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Pan</label>
+                            <input type="range" id="tritri_pan" min="-1" max="1" value="0" step="0.01">
+                            <span class="param-value" id="tritri_panVal">0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Karplu Voice Panel -->
+            <div class="voice-panel" id="panel-karplu">
+                <span class="section-label">Karplu - Karplus-Strong Pluck</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Decay (Index)</label>
+                            <input type="range" id="karplu_index" min="0.1" max="24" value="3" step="0.1">
+                            <span class="param-value" id="karplu_indexVal">3.0</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Coef (Damping)</label>
+                            <input type="range" id="karplu_coef" min="-1" max="1" value="0.5" step="0.01">
+                            <span class="param-value" id="karplu_coefVal">0.50</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Amp</label>
+                            <input type="range" id="karplu_amp" min="0" max="1" value="0.2" step="0.01">
+                            <span class="param-value" id="karplu_ampVal">0.20</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Pan</label>
+                            <input type="range" id="karplu_pan" min="-1" max="1" value="0" step="0.01">
+                            <span class="param-value" id="karplu_panVal">0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resonz Voice Panel -->
+            <div class="voice-panel" id="panel-resonz">
+                <span class="section-label">Resonz - Resonant Bandpass</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Bandwidth (Index)</label>
+                            <input type="range" id="resonz_index" min="0.001" max="1" value="0.1" step="0.001">
+                            <span class="param-value" id="resonz_indexVal">0.100</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Amp</label>
+                            <input type="range" id="resonz_amp" min="0" max="10" value="4" step="0.1">
+                            <span class="param-value" id="resonz_ampVal">4.0</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Pan</label>
+                            <input type="range" id="resonz_pan" min="-1" max="1" value="0" step="0.01">
+                            <span class="param-value" id="resonz_panVal">0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice Enable Toggles -->
+            <span class="section-label">Voice Enable</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label><input type="checkbox" id="enable_sinsin" checked> SinSin</label>
+                    </div>
+                    <div class="param-group">
+                        <label><input type="checkbox" id="enable_trisin" checked> TriSin</label>
+                    </div>
+                    <div class="param-group">
+                        <label><input type="checkbox" id="enable_ringer" checked> Ringer</label>
+                    </div>
+                    <div class="param-group">
+                        <label><input type="checkbox" id="enable_tritri" checked> TriTri</label>
+                    </div>
+                    <div class="param-group">
+                        <label><input type="checkbox" id="enable_karplu" checked> Karplu</label>
+                    </div>
+                    <div class="param-group">
+                        <label><input type="checkbox" id="enable_resonz" checked> Resonz</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <code>LiedMotor: Six-voice synthesis engine from Schicksalslied by @ryleelyman</code>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+
+            <p class="status" id="status">Click play, then press keys A-L or use MIDI</p>
+        </main>
+
+        <nav class="nav-links">
+            <a href="mxsynths-01.html">&larr; Previous</a>
+            <a href="../index.html">Index &rarr;</a>
+        </nav>
+    </div>
+
+    <script>
+        const processorCode = `
+// LiedMotor AudioWorklet Processor
+// Six synthesis voices: sinsin, trisin, ringer, tritri, karplu, resonz
+
+class LiedMotorProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+        this.maxPolyphony = 8;
+
+        // Voice parameters with defaults matching SuperCollider
+        this.params = {
+            sinsin: { index: 3, modnum: 1, modeno: 1, phase: 0, attack: 0.003, release: 0.4, amp: 0.2, pan: 0 },
+            trisin: { index: 3, modnum: 1, modeno: 1, phase: 0, attack: 2, release: 2, amp: 0.2, pan: 0 },
+            ringer: { index: 3, amp: 0.2, pan: 0 },
+            tritri: { index: 3, modnum: 1, modeno: 1, width: 0.7, modwidth: 0.7, phase: 0, modphase: 0, attack: 2, release: 2, amp: 0.2, pan: 0 },
+            karplu: { index: 3, coef: 0.5, amp: 0.2, pan: 0 },
+            resonz: { index: 0.1, amp: 4, pan: 0 }
+        };
+
+        // Voice enable states
+        this.enabled = {
+            sinsin: true, trisin: true, ringer: true,
+            tritri: true, karplu: true, resonz: true
+        };
+
+        // Active notes for each voice type
+        this.voices = {
+            sinsin: [], trisin: [], ringer: [],
+            tritri: [], karplu: [], resonz: []
+        };
+
+        // DC blocker state
+        this.dcPrev = 0;
+        this.dcOut = 0;
+
+        this.port.onmessage = (e) => {
+            const data = e.data;
+
+            if (data.noteOn !== undefined) {
+                this.noteOn(data.noteOn.note, data.noteOn.velocity);
+            }
+            if (data.noteOff !== undefined) {
+                this.noteOff(data.noteOff);
+            }
+            if (data.triggerAll !== undefined) {
+                this.noteOn(data.triggerAll.note, data.triggerAll.velocity);
+            }
+
+            // Parameter updates
+            for (const voiceType of ['sinsin', 'trisin', 'ringer', 'tritri', 'karplu', 'resonz']) {
+                for (const param of Object.keys(this.params[voiceType])) {
+                    const key = voiceType + '_' + param;
+                    if (data[key] !== undefined) {
+                        this.params[voiceType][param] = data[key];
+                    }
+                }
+                const enableKey = 'enable_' + voiceType;
+                if (data[enableKey] !== undefined) {
+                    this.enabled[voiceType] = data[enableKey];
+                }
+            }
+        };
+    }
+
+    noteOn(note, velocity) {
+        const freq = 440 * Math.pow(2, (note - 69) / 12);
+
+        // Create voice instances for each enabled synthesis type
+        const voiceTypes = ['sinsin', 'trisin', 'ringer', 'tritri', 'karplu', 'resonz'];
+
+        for (const type of voiceTypes) {
+            if (!this.enabled[type]) continue;
+
+            // Remove existing voice for same note
+            this.voices[type] = this.voices[type].filter(v => v.note !== note);
+
+            // Limit polyphony
+            if (this.voices[type].length >= this.maxPolyphony) {
+                this.voices[type].shift();
+            }
+
+            const voice = this.createVoice(type, note, freq, velocity);
+            this.voices[type].push(voice);
+        }
+
+        // Report active voice
+        this.port.postMessage({ activeVoices: voiceTypes.filter(t => this.enabled[t]) });
+    }
+
+    noteOff(note) {
+        for (const type of Object.keys(this.voices)) {
+            for (const voice of this.voices[type]) {
+                if (voice.note === note && voice.gate) {
+                    voice.gate = false;
+                    voice.releaseStart = voice.time;
+                }
+            }
+        }
+    }
+
+    createVoice(type, note, freq, velocity) {
+        const base = {
+            type,
+            note,
+            freq,
+            velocity,
+            gate: true,
+            time: 0,
+            releaseStart: 0,
+            phase: 0,
+            modPhase: 0,
+            active: true
+        };
+
+        // Type-specific initialization
+        if (type === 'karplu') {
+            // Karplus-Strong delay line
+            const delaySamples = Math.floor(this.sampleRate / freq);
+            base.delayLine = new Float32Array(delaySamples);
+            base.delayIdx = 0;
+            base.triggered = false;
+            // Fill with noise burst
+            for (let i = 0; i < delaySamples; i++) {
+                base.delayLine[i] = (Math.random() * 2 - 1) * 0.1;
+            }
+        }
+
+        if (type === 'ringer' || type === 'resonz') {
+            // Impulse-excited, triggered once
+            base.triggered = false;
+            // Resonator state (biquad)
+            base.y1 = 0;
+            base.y2 = 0;
+        }
+
+        return base;
+    }
+
+    // FormantTriPTR approximation - triangle with variable width (formant-like)
+    formantTri(phase, width) {
+        // Variable-width triangle wave approximation
+        const p = phase % 1;
+        if (p < width) {
+            return (p / width) * 2 - 1;
+        } else {
+            return 1 - ((p - width) / (1 - width)) * 2;
+        }
+    }
+
+    // Sine shaper for TriTri
+    sineShaper(x, amount) {
+        return Math.tanh(x * amount);
+    }
+
+    processSinSin(voice, dt) {
+        const p = this.params.sinsin;
+        const modFreq = (p.modnum / p.modeno) * voice.freq;
+
+        // Envelope
+        let env;
+        if (voice.gate) {
+            // Attack phase
+            const attackTime = Math.max(p.attack, 0.001);
+            env = Math.min(1, voice.time / attackTime);
+        } else {
+            // Release phase
+            const releaseTime = Math.max(p.release, 0.001);
+            const releaseProgress = (voice.time - voice.releaseStart) / releaseTime;
+            env = Math.exp(-releaseProgress * 5);
+            if (env < 0.001) {
+                voice.active = false;
+                return { left: 0, right: 0 };
+            }
+        }
+
+        // FM synthesis: carrier modulated by sine
+        voice.modPhase += modFreq * dt;
+        if (voice.modPhase >= 1) voice.modPhase -= 1;
+
+        const modulator = Math.sin(voice.modPhase * Math.PI * 2);
+        const carrierFreq = voice.freq + p.index * modFreq * modulator;
+
+        voice.phase += carrierFreq * dt;
+        if (voice.phase >= 1) voice.phase -= 1;
+
+        const signal = Math.sin(voice.phase * Math.PI * 2 + p.phase) * p.amp * env * voice.velocity;
+
+        // Pan
+        const panL = Math.cos((p.pan + 1) * Math.PI / 4);
+        const panR = Math.sin((p.pan + 1) * Math.PI / 4);
+
+        voice.time += dt;
+        return { left: signal * panL, right: signal * panR };
+    }
+
+    processTriSin(voice, dt) {
+        const p = this.params.trisin;
+        const modFreq = (p.modnum / p.modeno) * voice.freq;
+
+        // Envelope
+        let env;
+        if (voice.gate) {
+            const attackTime = Math.max(p.attack, 0.001);
+            env = Math.min(1, voice.time / attackTime);
+        } else {
+            const releaseTime = Math.max(p.release, 0.001);
+            const releaseProgress = (voice.time - voice.releaseStart) / releaseTime;
+            env = Math.exp(-releaseProgress * 5);
+            if (env < 0.001) {
+                voice.active = false;
+                return { left: 0, right: 0 };
+            }
+        }
+
+        // FM synthesis: triangle carrier modulated by sine
+        voice.modPhase += modFreq * dt;
+        if (voice.modPhase >= 1) voice.modPhase -= 1;
+
+        const modulator = Math.sin(voice.modPhase * Math.PI * 2);
+        const carrierFreq = voice.freq + p.index * modFreq * modulator;
+
+        voice.phase += carrierFreq * dt;
+        if (voice.phase >= 1) voice.phase -= 1;
+
+        // LFTri approximation
+        const tri = voice.phase < 0.5 ? voice.phase * 4 - 1 : 3 - voice.phase * 4;
+        const signal = tri * p.amp * env * voice.velocity;
+
+        const panL = Math.cos((p.pan + 1) * Math.PI / 4);
+        const panR = Math.sin((p.pan + 1) * Math.PI / 4);
+
+        voice.time += dt;
+        return { left: signal * panL, right: signal * panR };
+    }
+
+    processRinger(voice, dt) {
+        const p = this.params.ringer;
+
+        // Ringz: resonant filter excited by impulse
+        // Decay time based on index
+        const decayTime = p.index * 2;
+        const releaseEnv = Math.exp(-voice.time / decayTime);
+
+        if (releaseEnv < 0.0001) {
+            voice.active = false;
+            return { left: 0, right: 0 };
+        }
+
+        // Impulse at start
+        let input = 0;
+        if (!voice.triggered) {
+            input = 1;
+            voice.triggered = true;
+        }
+
+        // 2-pole resonant filter (Ringz approximation)
+        const freq = voice.freq;
+        const r = Math.exp(-Math.PI / (decayTime * this.sampleRate));
+        const theta = 2 * Math.PI * freq / this.sampleRate;
+        const a1 = -2 * r * Math.cos(theta);
+        const a2 = r * r;
+
+        const output = input - a1 * voice.y1 - a2 * voice.y2;
+        voice.y2 = voice.y1;
+        voice.y1 = output;
+
+        const signal = output * p.amp * releaseEnv * voice.velocity * 0.1;
+
+        const panL = Math.cos((p.pan + 1) * Math.PI / 4);
+        const panR = Math.sin((p.pan + 1) * Math.PI / 4);
+
+        voice.time += dt;
+        return { left: signal * panL, right: signal * panR };
+    }
+
+    processTriTri(voice, dt) {
+        const p = this.params.tritri;
+        const modFreq = (p.modnum / p.modeno) * voice.freq;
+
+        // Envelope
+        let env;
+        if (voice.gate) {
+            const attackTime = Math.max(p.attack, 0.001);
+            env = Math.min(1, voice.time / attackTime);
+        } else {
+            const releaseTime = Math.max(p.release, 0.001);
+            const releaseProgress = (voice.time - voice.releaseStart) / releaseTime;
+            env = Math.exp(-releaseProgress * 5);
+            if (env < 0.001) {
+                voice.active = false;
+                return { left: 0, right: 0 };
+            }
+        }
+
+        // FormantTriPTR FM synthesis
+        voice.modPhase += modFreq * dt;
+        if (voice.modPhase >= 1) voice.modPhase -= 1;
+
+        const modulator = this.formantTri(voice.modPhase, p.modwidth);
+        const carrierFreq = voice.freq + p.index * modFreq * modulator;
+
+        voice.phase += carrierFreq * dt;
+        if (voice.phase >= 1) voice.phase -= 1;
+
+        // FormantTriPTR carrier with sine shaping
+        const carrier = this.formantTri(voice.phase + p.phase / (2 * Math.PI), p.width);
+
+        // Pulse wave for additional harmonics (simplified)
+        const pulsePhase = (voice.phase + p.phase / (2 * Math.PI)) % 1;
+        const pulse = pulsePhase < 0.5 ? 1 : -1;
+
+        // SineShaper
+        const shaped = this.sineShaper(carrier, 1 + Math.abs(pulse) * 0.5);
+
+        const signal = shaped * p.amp * env * voice.velocity;
+
+        const panL = Math.cos((p.pan + 1) * Math.PI / 4);
+        const panR = Math.sin((p.pan + 1) * Math.PI / 4);
+
+        voice.time += dt;
+        return { left: signal * panL, right: signal * panR };
+    }
+
+    processKarplu(voice, dt) {
+        const p = this.params.karplu;
+
+        // Karplus-Strong pluck synthesis
+        const decayTime = p.index * 2;
+        const releaseEnv = Math.exp(-voice.time / decayTime);
+
+        if (releaseEnv < 0.0001 || !voice.delayLine) {
+            voice.active = false;
+            return { left: 0, right: 0 };
+        }
+
+        // Read from delay line
+        const delaySamples = voice.delayLine.length;
+        const readIdx = (voice.delayIdx + 1) % delaySamples;
+        const readIdxNext = (voice.delayIdx + 2) % delaySamples;
+
+        // Lowpass filter (averaging two samples) with coefficient
+        const coef = Math.abs(p.coef);
+        const filtered = voice.delayLine[readIdx] * (1 - coef * 0.5) +
+                        voice.delayLine[readIdxNext] * coef * 0.5;
+
+        // Apply sign of coef for tone control
+        const output = p.coef >= 0 ? filtered : -filtered;
+
+        // Write back to delay line with decay
+        voice.delayLine[voice.delayIdx] = output * 0.996;
+
+        voice.delayIdx = (voice.delayIdx + 1) % delaySamples;
+
+        const signal = output * p.amp * releaseEnv * voice.velocity;
+
+        const panL = Math.cos((p.pan + 1) * Math.PI / 4);
+        const panR = Math.sin((p.pan + 1) * Math.PI / 4);
+
+        voice.time += dt;
+        return { left: signal * panL, right: signal * panR };
+    }
+
+    processResonz(voice, dt) {
+        const p = this.params.resonz;
+
+        // Resonz: resonant bandpass filter excited by impulse
+        const decayTime = p.index * 30;
+        const releaseEnv = Math.exp(-voice.time / decayTime);
+
+        if (releaseEnv < 0.0001) {
+            voice.active = false;
+            return { left: 0, right: 0 };
+        }
+
+        // Impulse at start
+        let input = 0;
+        if (!voice.triggered) {
+            input = 1;
+            voice.triggered = true;
+        }
+
+        // Resonant bandpass (2-pole)
+        const freq = voice.freq;
+        const bw = p.index; // bandwidth as ratio
+        const r = Math.exp(-Math.PI * bw * freq / this.sampleRate);
+        const theta = 2 * Math.PI * freq / this.sampleRate;
+        const a1 = -2 * r * Math.cos(theta);
+        const a2 = r * r;
+
+        const output = input - a1 * voice.y1 - a2 * voice.y2;
+        voice.y2 = voice.y1;
+        voice.y1 = output;
+
+        // Normalize for narrow bandwidth
+        const normGain = (1 - r * r) * 0.5;
+        const signal = output * normGain * p.amp * releaseEnv * voice.velocity * 0.05;
+
+        const panL = Math.cos((p.pan + 1) * Math.PI / 4);
+        const panR = Math.sin((p.pan + 1) * Math.PI / 4);
+
+        voice.time += dt;
+        return { left: signal * panL, right: signal * panR };
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        const dt = 1 / this.sampleRate;
+
+        for (let s = 0; s < left.length; s++) {
+            let mixL = 0;
+            let mixR = 0;
+
+            // Process all voice types
+            const processors = {
+                sinsin: this.processSinSin.bind(this),
+                trisin: this.processTriSin.bind(this),
+                ringer: this.processRinger.bind(this),
+                tritri: this.processTriTri.bind(this),
+                karplu: this.processKarplu.bind(this),
+                resonz: this.processResonz.bind(this)
+            };
+
+            for (const [type, processor] of Object.entries(processors)) {
+                if (!this.enabled[type]) continue;
+
+                for (let i = this.voices[type].length - 1; i >= 0; i--) {
+                    const voice = this.voices[type][i];
+                    if (!voice.active) {
+                        this.voices[type].splice(i, 1);
+                        continue;
+                    }
+
+                    const out = processor(voice, dt);
+                    mixL += out.left;
+                    mixR += out.right;
+                }
+            }
+
+            // Scale mix
+            mixL *= 0.3;
+            mixR *= 0.3;
+
+            // Soft clipping
+            mixL = Math.tanh(mixL);
+            mixR = Math.tanh(mixR);
+
+            // DC blocking
+            const dcOutL = mixL - this.dcPrev + 0.995 * this.dcOut;
+            this.dcPrev = mixL;
+            this.dcOut = dcOutL;
+
+            left[s] = dcOutL;
+            if (right) right[s] = Math.tanh(mixR);
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('liedmotor-processor', LiedMotorProcessor);
+`;
+
+        let audioContext;
+        let workletNode;
+        let analyser;
+        let isPlaying = false;
+        let pedalboard = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        // Key mapping
+        const keyMap = {
+            'a': 60, 'w': 61, 's': 62, 'e': 63, 'd': 64, 'f': 65,
+            't': 66, 'g': 67, 'y': 68, 'h': 69, 'u': 70, 'j': 71, 'k': 72, 'o': 73, 'l': 74
+        };
+        const activeNotes = new Set();
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'liedmotor-processor', {
+                outputChannelCount: [2]
+            });
+
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+
+            // Initialize pedalboard and route audio through it
+            pedalboard = new PedalboardUI(
+                document.getElementById('pedalboard-container'),
+                audioContext
+            );
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(analyser);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'liedmotor',
+                    patchId: 'liedmotor-01'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('liedmotor-01');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'liedmotor-01',
+                    prefix: '01',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Listen for voice activity
+            workletNode.port.onmessage = (e) => {
+                if (e.data.activeVoices) {
+                    // Flash indicators
+                    for (const type of e.data.activeVoices) {
+                        const ind = document.getElementById('ind-' + type);
+                        if (ind) {
+                            ind.classList.add('active');
+                            setTimeout(() => ind.classList.remove('active'), 200);
+                        }
+                    }
+                }
+            };
+
+            sendAllParams();
+        }
+
+        function sendAllParams() {
+            if (!workletNode) return;
+
+            const msg = {};
+
+            // Collect all parameter values
+            const voiceTypes = ['sinsin', 'trisin', 'ringer', 'tritri', 'karplu', 'resonz'];
+            const paramsByVoice = {
+                sinsin: ['index', 'modnum', 'modeno', 'phase', 'attack', 'release', 'amp', 'pan'],
+                trisin: ['index', 'modnum', 'modeno', 'phase', 'attack', 'release', 'amp', 'pan'],
+                ringer: ['index', 'amp', 'pan'],
+                tritri: ['index', 'modnum', 'modeno', 'width', 'modwidth', 'phase', 'modphase', 'attack', 'release', 'amp', 'pan'],
+                karplu: ['index', 'coef', 'amp', 'pan'],
+                resonz: ['index', 'amp', 'pan']
+            };
+
+            for (const voice of voiceTypes) {
+                for (const param of paramsByVoice[voice]) {
+                    const el = document.getElementById(voice + '_' + param);
+                    if (el) {
+                        msg[voice + '_' + param] = parseFloat(el.value);
+                    }
+                }
+
+                // Voice enable
+                const enableEl = document.getElementById('enable_' + voice);
+                if (enableEl) {
+                    msg['enable_' + voice] = enableEl.checked;
+                }
+            }
+
+            workletNode.port.postMessage(msg);
+        }
+
+        // Voice tab switching
+        document.querySelectorAll('.voice-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.voice-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.voice-panel').forEach(p => p.classList.remove('active'));
+
+                tab.classList.add('active');
+                const voice = tab.dataset.voice;
+                document.getElementById('panel-' + voice).classList.add('active');
+            });
+        });
+
+        // Parameter controls
+        document.querySelectorAll('input[type="range"]').forEach(el => {
+            el.addEventListener('input', (e) => {
+                const id = e.target.id;
+                const val = parseFloat(e.target.value);
+                const display = document.getElementById(id + 'Val');
+                if (display) {
+                    display.textContent = Math.abs(val) < 10 ? val.toFixed(val < 1 ? 3 : 2) : val.toFixed(1);
+                }
+                if (workletNode) {
+                    const msg = {};
+                    msg[id] = val;
+                    workletNode.port.postMessage(msg);
+                }
+            });
+        });
+
+        // Voice enable checkboxes
+        document.querySelectorAll('input[type="checkbox"]').forEach(el => {
+            el.addEventListener('change', (e) => {
+                if (workletNode) {
+                    const msg = {};
+                    msg[e.target.id] = e.target.checked;
+                    workletNode.port.postMessage(msg);
+                }
+            });
+        });
+
+        // Trigger all button
+        document.getElementById('triggerAll').addEventListener('click', () => {
+            if (workletNode && isPlaying) {
+                workletNode.port.postMessage({ triggerAll: { note: 60, velocity: 0.8 } });
+            }
+        });
+
+        // Keyboard input
+        document.addEventListener('keydown', (e) => {
+            if (!isPlaying || e.repeat) return;
+            const note = keyMap[e.key.toLowerCase()];
+            if (note !== undefined && !activeNotes.has(note)) {
+                activeNotes.add(note);
+                workletNode.port.postMessage({ noteOn: { note, velocity: 0.8 } });
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (!isPlaying) return;
+            const note = keyMap[e.key.toLowerCase()];
+            if (note !== undefined) {
+                activeNotes.delete(note);
+                workletNode.port.postMessage({ noteOff: note });
+            }
+        });
+
+        // MIDI input
+        if (navigator.requestMIDIAccess) {
+            navigator.requestMIDIAccess().then((midi) => {
+                midi.inputs.forEach((input) => {
+                    input.onmidimessage = (msg) => {
+                        if (!isPlaying || !workletNode) return;
+                        const [cmd, note, vel] = msg.data;
+                        if ((cmd & 0xf0) === 0x90 && vel > 0) {
+                            workletNode.port.postMessage({ noteOn: { note, velocity: vel / 127 } });
+                        } else if ((cmd & 0xf0) === 0x80 || ((cmd & 0xf0) === 0x90 && vel === 0)) {
+                            workletNode.port.postMessage({ noteOff: note });
+                        }
+                    };
+                });
+            });
+        }
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Float32Array(bufferLength);
+            analyser.getFloatTimeDomainData(dataArray);
+
+            ctx.fillStyle = '#080812';
+            ctx.fillRect(0, 0, width, height);
+
+            const gradient = ctx.createLinearGradient(0, 0, width, 0);
+            gradient.addColorStop(0, '#4a90d9');
+            gradient.addColorStop(0.5, '#7b68ee');
+            gradient.addColorStop(1, '#4a90d9');
+
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const sliceWidth = width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i];
+                const y = (v + 1) / 2 * height;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+                x += sliceWidth;
+            }
+
+            ctx.stroke();
+
+            if (isPlaying) {
+                requestAnimationFrame(drawVisualizer);
+            }
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+            }
+
+            if (isPlaying) {
+                await audioContext.suspend();
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                status.textContent = 'Playing - press keys A-L or use MIDI';
+                status.classList.add('active');
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+    </script>
+</body>
+</html>

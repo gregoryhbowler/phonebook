@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Haven - A Safe Space</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Haven</h1>
+                <p>Dual oscillators with feedback ladder filter - influence over control</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Freq 1 (Low)</label>
+                    <input type="range" id="freq1" min="1" max="800" value="20" step="0.1">
+                    <span class="param-value" id="freq1Val">20</span>
+                </div>
+                <div class="param-group">
+                    <label>Freq 2 (High)</label>
+                    <input type="range" id="freq2" min="400" max="12000" value="4000" step="1">
+                    <span class="param-value" id="freq2Val">4000</span>
+                </div>
+                <div class="param-group">
+                    <label>Amp 1</label>
+                    <input type="range" id="amp1" min="-90" max="0" value="-12" step="0.5">
+                    <span class="param-value" id="amp1Val">-12</span>
+                </div>
+                <div class="param-group">
+                    <label>Amp 2</label>
+                    <input type="range" id="amp2" min="-90" max="0" value="-18" step="0.5">
+                    <span class="param-value" id="amp2Val">-18</span>
+                </div>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Feedback</label>
+                    <input type="range" id="fdbck" min="0" max="1" value="0.3" step="0.01">
+                    <span class="param-value" id="fdbckVal">0.30</span>
+                </div>
+                <div class="param-group">
+                    <label>Feedback Sign</label>
+                    <select id="fdbckSign">
+                        <option value="-1">Negative</option>
+                        <option value="0" selected>Zero</option>
+                        <option value="1">Positive</option>
+                    </select>
+                </div>
+                <div class="param-group">
+                    <label>Master</label>
+                    <input type="range" id="globalAmp" min="-90" max="0" value="-6" step="0.5">
+                    <span class="param-value" id="globalAmpVal">-6</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <code>Haven: A safe space? - dual oscillators with feedback loop and ladder filter by Till Bovermann (LFSaw.de)</code>
+            </div>
+
+            <p class="status" id="status">Click play to start</p>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+
+        <nav class="nav-links">
+            <a href="fall-01.html">&larr; Previous</a>
+            <a href="host-01.html">Next &rarr;</a>
+        </nav>
+    </div>
+
+    <script>
+        const processorCode = `
+class HavenProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+
+        // Oscillator parameters (with varlag smoothing targets)
+        this.freq1 = 20;
+        this.freq2 = 4000;
+        this.amp1 = -90;  // dB
+        this.amp2 = -90;  // dB
+        this.globalAmp = 0;  // dB
+        this.fdbck = 0.3;
+        this.fdbckSign = 1;
+
+        // Smoothed values (varlag emulation)
+        this.amp1Smooth = 0;
+        this.amp2Smooth = 0;
+        this.globalAmpSmooth = 0;
+        this.fdbckSmooth = 0.3;
+        this.fdbckSignSmooth = 1;
+        this.freq1Smooth = 20;
+        this.freq2Smooth = 4000;
+
+        // Varlag coefficients (0.3 second lag time)
+        this.varlagCoeff = Math.exp(-1 / (0.3 * sampleRate));
+        this.varlagCoeff05 = Math.exp(-1 / (0.5 * sampleRate));
+        this.fdbckSignLagCoeff = Math.exp(-1 / (2.0 / sampleRate * sampleRate));
+
+        // LocalIn/LocalOut feedback buffer (stereo)
+        this.localBuffer = [0, 0];
+
+        // CombL delay line (0.5 second max)
+        this.combMaxDelay = 0.5;
+        this.combBufferL = new Float32Array(Math.ceil(sampleRate * this.combMaxDelay));
+        this.combBufferR = new Float32Array(Math.ceil(sampleRate * this.combMaxDelay));
+        this.combIdx = 0;
+
+        // LFNoise1 state for delay time modulation
+        this.lfNoise1Phase = 0;
+        this.lfNoise1Val = Math.random() * 2 - 1;
+        this.lfNoise1Target = Math.random() * 2 - 1;
+
+        // Amplitude followers for input (stereo)
+        this.dynInsL = 0;
+        this.dynInsR = 0;
+        const ampAttack = 0.1, ampRelease = 0.1;
+        this.ampAttackCoeff = Math.exp(-1 / (ampAttack * sampleRate));
+        this.ampReleaseCoeff = Math.exp(-1 / (ampRelease * sampleRate));
+
+        // Amplitude followers for xxx (feedback processed signal)
+        this.xxxAmpL = 0;
+        this.xxxAmpR = 0;
+
+        // LFNoise1 for attack/release times modulation
+        this.lfNoise1AtkPhaseL = Math.random();
+        this.lfNoise1AtkPhaseR = Math.random();
+        this.lfNoise1AtkValL = Math.random();
+        this.lfNoise1AtkValR = Math.random();
+        this.lfNoise1AtkTargetL = Math.random();
+        this.lfNoise1AtkTargetR = Math.random();
+        this.lfNoise1RelPhaseL = Math.random();
+        this.lfNoise1RelPhaseR = Math.random();
+        this.lfNoise1RelValL = Math.random();
+        this.lfNoise1RelValR = Math.random();
+        this.lfNoise1RelTargetL = Math.random();
+        this.lfNoise1RelTargetR = Math.random();
+
+        // Oscillator phases
+        this.osc1Phase = 0;
+        this.osc2Phase = 0;
+
+        // SinOscFB internal feedback
+        this.sinOscFbVal = 0;
+
+        // RHPF state (resonant highpass filter)
+        this.rhpfState = { s1: 0, s2: 0 };
+
+        // Dust generator state
+        this.dustAccum = 0;
+
+        // Decay state for pulse width modulation
+        this.decayVal = 0;
+
+        // Impulse state for startup envelope
+        this.startupEnv = 0;
+        this.startupPhase = 0;
+        this.startupDone = false;
+
+        // LFSaw for rotation
+        this.lfSawPhase = 0.23;
+
+        // LFNoise1 for tremolo/AM (stereo)
+        this.tremPhaseL = Math.random();
+        this.tremPhaseR = Math.random();
+        this.tremValL = Math.random() * 2 - 1;
+        this.tremValR = Math.random() * 2 - 1;
+        this.tremTargetL = Math.random() * 2 - 1;
+        this.tremTargetR = Math.random() * 2 - 1;
+
+        // MoogLadder filter state (4-pole)
+        this.moogState = [0, 0, 0, 0];
+        this.moogStateR = [0, 0, 0, 0];
+
+        // LeakDC state
+        this.leakDCPrev = 0;
+        this.leakDCOut = 0;
+
+        // Time accumulator
+        this.time = 0;
+
+        this.port.onmessage = (e) => {
+            const data = e.data;
+            if (data.freq1 !== undefined) this.freq1 = data.freq1;
+            if (data.freq2 !== undefined) this.freq2 = data.freq2;
+            if (data.amp1 !== undefined) this.amp1 = data.amp1;
+            if (data.amp2 !== undefined) this.amp2 = data.amp2;
+            if (data.globalAmp !== undefined) this.globalAmp = data.globalAmp;
+            if (data.fdbck !== undefined) this.fdbck = data.fdbck;
+            if (data.fdbckSign !== undefined) this.fdbckSign = data.fdbckSign;
+        };
+    }
+
+    // Varlag: variable lag smoothing (attempt at SC's varlag behavior)
+    varlag(current, target, coeff) {
+        return target + (current - target) * coeff;
+    }
+
+    // dB to linear amplitude
+    dbAmp(db) {
+        return Math.pow(10, db / 20);
+    }
+
+    // LFNoise1: linearly interpolated noise
+    lfNoise1(phase, val, target, freq) {
+        const inc = freq / this.sampleRate;
+        phase += inc;
+        if (phase >= 1) {
+            phase -= 1;
+            val = target;
+            target = Math.random() * 2 - 1;
+        }
+        const out = val + (target - val) * phase;
+        return { phase, val, target, out };
+    }
+
+    // Rotate2: stereo rotation
+    rotate2(inL, inR, pos) {
+        const angle = pos * Math.PI;
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        return {
+            left: inL * cos - inR * sin,
+            right: inL * sin + inR * cos
+        };
+    }
+
+    // SinOscFB: sine oscillator with feedback
+    sinOscFB(freq, feedback) {
+        const phase = this.osc1Phase;
+        const fbClamped = Math.max(0, Math.min(1.5, feedback));
+        const out = Math.sin(phase * 2 * Math.PI + this.sinOscFbVal * fbClamped * Math.PI);
+        this.sinOscFbVal = out;
+        this.osc1Phase += freq / this.sampleRate;
+        if (this.osc1Phase >= 1) this.osc1Phase -= 1;
+        return out;
+    }
+
+    // Pulse oscillator with variable width
+    pulse(freq, width) {
+        const out = this.osc2Phase < width ? 1 : -1;
+        this.osc2Phase += freq / this.sampleRate;
+        if (this.osc2Phase >= 1) this.osc2Phase -= 1;
+        return out;
+    }
+
+    // RHPF: resonant highpass filter (2-pole SVF)
+    rhpf(input, freq, rq) {
+        const w = Math.min(0.49, freq / this.sampleRate);
+        const g = Math.tan(w * Math.PI);
+        const k = 2 * rq;
+
+        const a1 = 1 / (1 + g * (g + k));
+        const a2 = g * a1;
+        const a3 = g * a2;
+
+        const v3 = input - this.rhpfState.s2;
+        const v1 = a1 * this.rhpfState.s1 + a2 * v3;
+        const v2 = this.rhpfState.s2 + a2 * this.rhpfState.s1 + a3 * v3;
+
+        this.rhpfState.s1 = 2 * v1 - this.rhpfState.s1;
+        this.rhpfState.s2 = 2 * v2 - this.rhpfState.s2;
+
+        // Highpass output
+        return input - k * v1 - v2;
+    }
+
+    // Limiter: simple soft clipper
+    limiter(input) {
+        return Math.tanh(input);
+    }
+
+    // CombL: comb delay with linear interpolation
+    combL(inputL, inputR, delayTime, decayTime) {
+        const delaySamples = Math.min(
+            this.combBufferL.length - 1,
+            Math.max(0, delayTime * this.sampleRate)
+        );
+        const delaySamplesInt = Math.floor(delaySamples);
+        const frac = delaySamples - delaySamplesInt;
+
+        const idxA = (this.combIdx - delaySamplesInt + this.combBufferL.length) % this.combBufferL.length;
+        const idxB = (this.combIdx - delaySamplesInt - 1 + this.combBufferL.length) % this.combBufferL.length;
+
+        const outL = this.combBufferL[idxA] * (1 - frac) + this.combBufferL[idxB] * frac;
+        const outR = this.combBufferR[idxA] * (1 - frac) + this.combBufferR[idxB] * frac;
+
+        // Feedback coefficient from decay time
+        const fb = decayTime < 0 ? 0 : Math.pow(0.001, delayTime / Math.max(0.01, Math.abs(decayTime)));
+
+        this.combBufferL[this.combIdx] = inputL;
+        this.combBufferR[this.combIdx] = inputR;
+        this.combIdx = (this.combIdx + 1) % this.combBufferL.length;
+
+        return { left: outL, right: outR };
+    }
+
+    // Amplitude follower
+    ampFollow(input, current, attackCoeff, releaseCoeff) {
+        const absIn = Math.abs(input);
+        if (absIn > current) {
+            return current + (absIn - current) * (1 - attackCoeff);
+        } else {
+            return current + (absIn - current) * (1 - releaseCoeff);
+        }
+    }
+
+    // MoogLadder filter (4-pole)
+    moogLadder(input, cutoff, res, state) {
+        const f = Math.min(0.45, cutoff / this.sampleRate);
+        const k = 4 * res;
+
+        // Thermal voltage scaling
+        const thermal = 1.0;
+        const gComp = 0.5;
+
+        // Huovilainen improved model approximation
+        const g = 0.9892 * f - 0.4342 * f * f + 0.1381 * f * f * f - 0.0202 * f * f * f * f;
+
+        // Feedback
+        const fb = k * (state[3] - gComp * input);
+        const in0 = input - fb;
+
+        // 4 cascaded 1-pole lowpass
+        state[0] += g * (Math.tanh(in0 * thermal) - Math.tanh(state[0] * thermal));
+        state[1] += g * (Math.tanh(state[0] * thermal) - Math.tanh(state[1] * thermal));
+        state[2] += g * (Math.tanh(state[1] * thermal) - Math.tanh(state[2] * thermal));
+        state[3] += g * (Math.tanh(state[2] * thermal) - Math.tanh(state[3] * thermal));
+
+        return state[3];
+    }
+
+    // LeakDC: remove DC offset
+    leakDC(input) {
+        const coeff = 0.995;
+        const out = input - this.leakDCPrev + coeff * this.leakDCOut;
+        this.leakDCPrev = input;
+        this.leakDCOut = out;
+        return out;
+    }
+
+    // AmpCompA: amplitude compensation for equal loudness
+    ampCompA(freq) {
+        // Simplified A-weighting approximation
+        const f2 = freq * freq;
+        const denom = (f2 + 20.6 * 20.6) * Math.sqrt((f2 + 107.7 * 107.7) * (f2 + 737.9 * 737.9)) * (f2 + 12194 * 12194);
+        const num = 12194 * 12194 * f2 * f2;
+        return Math.sqrt(num / Math.max(1, denom)) * 10;
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        for (let s = 0; s < left.length; s++) {
+            this.time += 1 / this.sampleRate;
+
+            // Smooth parameters (varlag emulation)
+            this.amp1Smooth = this.varlag(this.amp1Smooth, this.amp1, this.varlagCoeff);
+            this.amp2Smooth = this.varlag(this.amp2Smooth, this.amp2, this.varlagCoeff);
+            this.globalAmpSmooth = this.varlag(this.globalAmpSmooth, this.globalAmp, this.varlagCoeff);
+            this.fdbckSmooth = this.varlag(this.fdbckSmooth, this.fdbck, this.varlagCoeff);
+            this.fdbckSignSmooth = this.varlag(this.fdbckSignSmooth, this.fdbckSign, this.fdbckSignLagCoeff);
+            this.freq1Smooth = this.varlag(this.freq1Smooth, this.freq1, this.varlagCoeff05);
+            this.freq2Smooth = this.varlag(this.freq2Smooth, this.freq2, this.varlagCoeff05);
+
+            // Convert dB to linear (with -90dB floor)
+            const amp1Lin = Math.max(0, this.dbAmp(this.amp1Smooth) - this.dbAmp(-90));
+            const amp2Lin = Math.max(0, this.dbAmp(this.amp2Smooth) - this.dbAmp(-90));
+            const globalAmpLin = Math.max(0, this.dbAmp(this.globalAmpSmooth) - this.dbAmp(-90));
+
+            // Effective feedback
+            const fdbckEff = this.fdbckSmooth * this.fdbckSignSmooth;
+
+            // LocalIn: get feedback from previous frame
+            let lInsL = this.localBuffer[0];
+            let lInsR = this.localBuffer[1];
+
+            // Input amplitude tracking (no external input, so just use internal signals)
+            // In the original, this tracks In.ar(in, 2) * inAmp
+            // We'll use the feedback signal as our "input"
+            this.dynInsL = this.ampFollow(lInsL * 0.1, this.dynInsL, this.ampAttackCoeff, this.ampReleaseCoeff);
+            this.dynInsR = this.ampFollow(lInsR * 0.1, this.dynInsR, this.ampAttackCoeff, this.ampReleaseCoeff);
+            const dynIns = [this.dynInsL, this.dynInsR];
+
+            // LFNoise1 for delay time modulation (0.1 Hz)
+            const lfn1 = this.lfNoise1(this.lfNoise1Phase, this.lfNoise1Val, this.lfNoise1Target, 0.1);
+            this.lfNoise1Phase = lfn1.phase;
+            this.lfNoise1Val = lfn1.val;
+            this.lfNoise1Target = lfn1.target;
+
+            // CombL delay time: (LFNoise1.ar(0.1, 0.5, 0.5) + dynIns).tanh * 0.5
+            const delayMod = (lfn1.out * 0.5 + 0.5 + (dynIns[0] + dynIns[1]) * 0.5);
+            const delayTime = Math.tanh(delayMod) * 0.5;
+
+            // CombL on feedback signal
+            const combOut = this.combL(lInsL, lInsR, delayTime, -10);
+
+            // Limiter
+            let xxxL = this.limiter(combOut.left);
+            let xxxR = this.limiter(combOut.right);
+
+            // LFNoise1 for dynamic attack/release times
+            const dynInsLagL = this.dynInsL * 0.1;
+            const dynInsLagR = this.dynInsR * 0.5;
+
+            const lfnAtkL = this.lfNoise1(this.lfNoise1AtkPhaseL, this.lfNoise1AtkValL, this.lfNoise1AtkTargetL, dynInsLagL);
+            this.lfNoise1AtkPhaseL = lfnAtkL.phase;
+            this.lfNoise1AtkValL = lfnAtkL.val;
+            this.lfNoise1AtkTargetL = lfnAtkL.target;
+            const atkTimeL = Math.abs(lfnAtkL.out) * 5;
+
+            const lfnRelL = this.lfNoise1(this.lfNoise1RelPhaseL, this.lfNoise1RelValL, this.lfNoise1RelTargetL, dynInsLagR);
+            this.lfNoise1RelPhaseL = lfnRelL.phase;
+            this.lfNoise1RelValL = lfnRelL.val;
+            this.lfNoise1RelTargetL = lfnRelL.target;
+            const relTimeL = Math.abs(lfnRelL.out) * 15;
+
+            // Dynamic amplitude followers on xxx.reverse
+            const atkCoeffL = Math.exp(-1 / (Math.max(0.001, atkTimeL) * this.sampleRate));
+            const relCoeffL = Math.exp(-1 / (Math.max(0.001, relTimeL) * this.sampleRate));
+            this.xxxAmpL = this.ampFollow(xxxR, this.xxxAmpL, atkCoeffL, relCoeffL); // reversed
+            this.xxxAmpR = this.ampFollow(xxxL, this.xxxAmpR, atkCoeffL, relCoeffL); // reversed
+
+            // dyns: Impulse startup + amplitude followers
+            // Impulse.ar(0).lag(0.001, 0.1) - fires once at start
+            if (!this.startupDone) {
+                this.startupPhase += 1 / this.sampleRate;
+                if (this.startupPhase < 0.001) {
+                    this.startupEnv = this.startupPhase / 0.001;
+                } else if (this.startupPhase < 0.101) {
+                    this.startupEnv = 1 - (this.startupPhase - 0.001) / 0.1;
+                } else {
+                    this.startupEnv = 0;
+                    this.startupDone = true;
+                }
+            }
+
+            const dynsL = this.startupEnv + this.xxxAmpL;
+            const dynsR = this.startupEnv + this.xxxAmpR;
+
+            // Frequency modulation by dyns
+            // freqs = freqs - (dyns.lag(0.003235246) * (freqRanges * freqs))
+            const freqRanges = [0.85, 0.4];
+            const dynsLagL = dynsL; // simplified lag
+            const dynsLagR = dynsR;
+
+            const freq1Mod = this.freq1Smooth - dynsLagL * freqRanges[0] * this.freq1Smooth;
+            const freq2Mod = this.freq2Smooth - dynsLagR * freqRanges[1] * this.freq2Smooth;
+
+            // Amplitude compensation
+            const ampComp1 = this.ampCompA(Math.max(20, freq1Mod));
+            const ampComp2 = this.ampCompA(Math.max(20, freq2Mod));
+
+            // Oscillator 1: SinOscFB
+            const fb1 = Math.min(1.5, (dynsL * 2));
+            const osc1 = this.sinOscFB(Math.max(1, freq1Mod), fb1) * amp1Lin * ampComp1 * 10;
+
+            // Oscillator 2: RHPF(Pulse)
+            // Pulse width modulation: (dyns[1].lag(0.01) * 200.1 + Decay.kr(Dust.kr(50 * (1-dyns[0])), 0.05)).wrap(0, 1)
+
+            // Dust: random triggers
+            const dustRate = 50 * (1 - Math.min(1, dynsL));
+            this.dustAccum += dustRate / this.sampleRate;
+            if (Math.random() < this.dustAccum) {
+                this.dustAccum = 0;
+                this.decayVal = 1;
+            }
+            this.decayVal *= Math.exp(-1 / (0.05 * this.sampleRate));
+
+            const pwMod = (dynsR * 0.01 * 200.1 + this.decayVal);
+            const pw = ((pwMod % 1) + 1) % 1; // wrap 0-1
+
+            const osc2Raw = this.pulse(Math.max(1, freq2Mod), Math.max(0.01, Math.min(0.99, pw)));
+            const osc2Filtered = this.rhpf(osc2Raw, 8 * freq2Mod, 0.3);
+            const osc2 = osc2Filtered * amp2Lin * ampComp2 * 4;
+
+            // Combine oscillators (stereo)
+            let sndL = osc1;
+            let sndR = osc2;
+
+            // Rotate2 by (dynIns + LFSaw.kr(0.001, 0.23)) % 1
+            this.lfSawPhase += 0.001 / this.sampleRate;
+            if (this.lfSawPhase >= 1) this.lfSawPhase -= 1;
+            const rotPos = ((dynIns[0] + dynIns[1]) * 0.5 + this.lfSawPhase) % 1;
+            const rotated = this.rotate2(sndL, sndR, rotPos);
+            sndL = rotated.left;
+            sndR = rotated.right;
+
+            // Mix with input (we have no input, so just tanh)
+            sndL = Math.tanh(sndL);
+            sndR = Math.tanh(sndR);
+
+            // Startup envelope: EnvGen.kr(Env([0, 0, 1], [1.2, 0.5]))
+            let startEnvVal = 0;
+            if (this.time < 1.2) {
+                startEnvVal = 0;
+            } else if (this.time < 1.7) {
+                startEnvVal = (this.time - 1.2) / 0.5;
+            } else {
+                startEnvVal = 1;
+            }
+            sndL *= startEnvVal;
+            sndR *= startEnvVal;
+
+            // Tremolo/AM: SinOsc.ar((0.01 + dyns.varlag(2, 1, 5, 1)) * 0.5, {Rand()}!2)
+            //   .range((dyns.varlag(2, 1, 5, 10) * 0.5) + 0.5, 1)
+            const tremFreq = (0.01 + (dynsL + dynsR) * 0.25) * 0.5;
+
+            const tremL = this.lfNoise1(this.tremPhaseL, this.tremValL, this.tremTargetL, tremFreq * 2);
+            this.tremPhaseL = tremL.phase;
+            this.tremValL = tremL.val;
+            this.tremTargetL = tremL.target;
+
+            const tremR = this.lfNoise1(this.tremPhaseR, this.tremValR, this.tremTargetR, tremFreq * 2);
+            this.tremPhaseR = tremR.phase;
+            this.tremValR = tremR.val;
+            this.tremTargetR = tremR.target;
+
+            const tremRangeLow = ((dynsL + dynsR) * 0.25) + 0.5;
+            const tremModL = (Math.sin(this.time * tremFreq * Math.PI * 2 + tremL.out) * 0.5 + 0.5) * (1 - tremRangeLow) + tremRangeLow;
+            const tremModR = (Math.sin(this.time * tremFreq * Math.PI * 2 + tremR.out) * 0.5 + 0.5) * (1 - tremRangeLow) + tremRangeLow;
+
+            sndL *= tremModL;
+            sndR *= tremModR;
+
+            // Feedback mixing: snd = (fdbck * xxx) + snd
+            sndL = fdbckEff * xxxL + sndL;
+            sndR = fdbckEff * xxxR + sndR;
+
+            // Sum to mono for processing
+            let sndMono = (sndL + sndR) * 0.5;
+
+            // LeakDC
+            sndMono = this.leakDC(sndMono);
+
+            // LocalOut for next iteration
+            this.localBuffer[0] = sndMono;
+            this.localBuffer[1] = sndMono;
+
+            // MoogLadder filter
+            // (snd * 0.8) - (0.5 * MoogLadder.ar(rotate.(snd, dyns.sum.lag(0.01)), ffreq: (1-dyns.lag(0, 10)) * 1100 + 50, res: 0.2))
+            const dynSum = (dynsL + dynsR) * 0.5;
+            const rotatedForMoog = this.rotate2(sndMono, sndMono, dynSum * 0.1);
+
+            const moogCutoff = (1 - Math.min(1, dynSum * 0.1)) * 1100 + 50;
+            const moogOutL = this.moogLadder(rotatedForMoog.left, moogCutoff, 0.2, this.moogState);
+            const moogOutR = this.moogLadder(rotatedForMoog.right, moogCutoff, 0.2, this.moogStateR);
+
+            let outL = sndMono * 0.8 - moogOutL * 0.5;
+            let outR = sndMono * 0.8 - moogOutR * 0.5;
+
+            // Final tanh and global amp
+            outL = Math.tanh(outL) * globalAmpLin;
+            outR = Math.tanh(outR) * globalAmpLin;
+
+            left[s] = outL;
+            if (right) right[s] = outR;
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('haven-processor', HavenProcessor);
+`;
+
+        let audioContext;
+        let workletNode;
+        let analyser;
+        let isPlaying = false;
+        let pedalboard = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'haven-processor', {
+                outputChannelCount: [2]
+            });
+
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+
+            // Initialize pedalboard and route audio through it
+            pedalboard = new PedalboardUI(
+                document.getElementById('pedalboard-container'),
+                audioContext
+            );
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(analyser);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'haven-a-safe-space',
+                    patchId: 'haven-01'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('haven-01');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'haven-01',
+                    prefix: '01',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Send initial parameters
+            sendParams();
+        }
+
+        function sendParams() {
+            if (!workletNode) return;
+            workletNode.port.postMessage({
+                freq1: parseFloat(document.getElementById('freq1').value),
+                freq2: parseFloat(document.getElementById('freq2').value),
+                amp1: parseFloat(document.getElementById('amp1').value),
+                amp2: parseFloat(document.getElementById('amp2').value),
+                globalAmp: parseFloat(document.getElementById('globalAmp').value),
+                fdbck: parseFloat(document.getElementById('fdbck').value),
+                fdbckSign: parseFloat(document.getElementById('fdbckSign').value)
+            });
+        }
+
+        // Parameter controls
+        document.getElementById('freq1').addEventListener('input', (e) => {
+            document.getElementById('freq1Val').textContent = parseFloat(e.target.value).toFixed(1);
+            sendParams();
+        });
+
+        document.getElementById('freq2').addEventListener('input', (e) => {
+            document.getElementById('freq2Val').textContent = e.target.value;
+            sendParams();
+        });
+
+        document.getElementById('amp1').addEventListener('input', (e) => {
+            document.getElementById('amp1Val').textContent = e.target.value;
+            sendParams();
+        });
+
+        document.getElementById('amp2').addEventListener('input', (e) => {
+            document.getElementById('amp2Val').textContent = e.target.value;
+            sendParams();
+        });
+
+        document.getElementById('globalAmp').addEventListener('input', (e) => {
+            document.getElementById('globalAmpVal').textContent = e.target.value;
+            sendParams();
+        });
+
+        document.getElementById('fdbck').addEventListener('input', (e) => {
+            document.getElementById('fdbckVal').textContent = parseFloat(e.target.value).toFixed(2);
+            sendParams();
+        });
+
+        document.getElementById('fdbckSign').addEventListener('change', (e) => {
+            sendParams();
+        });
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Float32Array(bufferLength);
+            analyser.getFloatTimeDomainData(dataArray);
+
+            ctx.fillStyle = '#0a0a0a';
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw waveform with gradient
+            const gradient = ctx.createLinearGradient(0, 0, width, 0);
+            gradient.addColorStop(0, '#3a6a8a');
+            gradient.addColorStop(0.5, '#5a9aba');
+            gradient.addColorStop(1, '#3a6a8a');
+
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const sliceWidth = width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i];
+                const y = (v + 1) / 2 * height;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+                x += sliceWidth;
+            }
+
+            ctx.stroke();
+
+            // Draw secondary layer with phase offset
+            ctx.strokeStyle = 'rgba(90, 154, 186, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const offset = Math.floor(bufferLength * 0.1);
+                const idx = (i + offset) % bufferLength;
+                const v = dataArray[idx];
+                const y = (v + 1) / 2 * height;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+                x += sliceWidth;
+            }
+
+            ctx.stroke();
+
+            if (isPlaying) {
+                requestAnimationFrame(drawVisualizer);
+            }
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+            }
+
+            if (isPlaying) {
+                await audioContext.suspend();
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                status.textContent = 'A safe space...';
+                status.classList.add('active');
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+    </script>
+</body>
+</html>

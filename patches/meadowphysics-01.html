@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meadowphysics</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+    <style>
+        .mp-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1em;
+        }
+        .mp-grid {
+            display: grid;
+            grid-template-columns: repeat(16, 1fr);
+            gap: 2px;
+            background: #111;
+            padding: 4px;
+            border-radius: 8px;
+            max-width: 100%;
+            aspect-ratio: 2 / 1;
+        }
+        .mp-cell {
+            aspect-ratio: 1;
+            background: #1a1a2e;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: background 0.1s;
+            min-width: 0;
+        }
+        .mp-cell:hover {
+            background: #2a2a4e;
+        }
+        .mp-cell.dim {
+            background: #2a2a3e;
+        }
+        .mp-cell.medium {
+            background: #4a4a6e;
+        }
+        .mp-cell.bright {
+            background: #7b68ee;
+        }
+        .mp-cell.position {
+            background: #4a90d9;
+            box-shadow: 0 0 8px #4a90d9;
+        }
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 100px;
+        }
+        .engine-select {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin-bottom: 0.5em;
+        }
+        .engine-btn {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #888;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7em;
+            transition: all 0.15s;
+        }
+        .engine-btn:hover {
+            border-color: #4a90d9;
+        }
+        .engine-btn.active {
+            background: #2a2a4e;
+            border-color: #4a90d9;
+            color: #4a90d9;
+        }
+        .scale-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 2px;
+            background: #111;
+            padding: 4px;
+            border-radius: 4px;
+            margin-top: 0.5em;
+        }
+        .scale-cell {
+            aspect-ratio: 1;
+            background: #1a1a2e;
+            border-radius: 2px;
+            cursor: pointer;
+            font-size: 0.6em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+        }
+        .scale-cell:hover {
+            background: #2a2a4e;
+        }
+        .scale-cell.active {
+            background: #4a90d9;
+            color: #fff;
+        }
+        .row-info {
+            display: flex;
+            gap: 0.5em;
+            align-items: center;
+            padding: 4px;
+            background: #111;
+            border-radius: 4px;
+            margin-top: 0.5em;
+            font-size: 0.75em;
+            flex-wrap: wrap;
+        }
+        .row-info span {
+            color: #888;
+        }
+        .row-info .value {
+            color: #4a90d9;
+            font-weight: bold;
+        }
+        .transport {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 1em;
+        }
+        .transport-btn {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #ccc;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .transport-btn:hover {
+            border-color: #4a90d9;
+        }
+        .transport-btn.running {
+            background: #2a4a2e;
+            border-color: #4a9a4a;
+            color: #4a9a4a;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Meadowphysics</h1>
+                <p>Grid-enabled rhizomatic cascading counter - 8 voices with rule-based sequencing</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="transport">
+                <button class="transport-btn" id="startStop">Start</button>
+                <div class="param-group" style="flex: 0 0 auto;">
+                    <label>BPM</label>
+                    <input type="range" id="bpm" min="40" max="240" value="120" step="1">
+                    <span class="param-value" id="bpmVal">120</span>
+                </div>
+                <div class="param-group" style="flex: 0 0 auto;">
+                    <label>Step</label>
+                    <select id="stepLength">
+                        <option value="1">1 bar</option>
+                        <option value="2">1/2</option>
+                        <option value="3">1/3</option>
+                        <option value="4" selected>1/4</option>
+                        <option value="6">1/6</option>
+                        <option value="8">1/8</option>
+                        <option value="12">1/12</option>
+                        <option value="16">1/16</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mp-container">
+                <div class="mp-grid" id="mpGrid"></div>
+                <div class="row-info" id="rowInfo">
+                    <span>Row <span class="value" id="infoRow">1</span>:</span>
+                    <span>Count <span class="value" id="infoCount">8</span></span>
+                    <span>Range <span class="value" id="infoRange">8-8</span></span>
+                    <span>Rule <span class="value" id="infoRule">Inc</span></span>
+                </div>
+            </div>
+
+            <!-- Rules Section -->
+            <span class="section-label">Row Settings - Click grid to select row and set count position</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Rule</label>
+                        <select id="ruleSelect">
+                            <option value="1">None</option>
+                            <option value="2" selected>Increment</option>
+                            <option value="3">Decrement</option>
+                            <option value="4">Max</option>
+                            <option value="5">Min</option>
+                            <option value="6">Random</option>
+                            <option value="7">Pole</option>
+                            <option value="8">Stop</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Affects Row</label>
+                        <select id="ruleDest">
+                            <option value="0">Row 1</option>
+                            <option value="1">Row 2</option>
+                            <option value="2">Row 3</option>
+                            <option value="3">Row 4</option>
+                            <option value="4">Row 5</option>
+                            <option value="5">Row 6</option>
+                            <option value="6">Row 7</option>
+                            <option value="7">Row 8</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Target</label>
+                        <select id="ruleTarget">
+                            <option value="1" selected>Count</option>
+                            <option value="2">Speed</option>
+                            <option value="3">Both</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Speed (clock div)</label>
+                        <input type="range" id="rowSpeed" min="0" max="7" value="0" step="1">
+                        <span class="param-value" id="rowSpeedVal">0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Min Range</label>
+                        <input type="range" id="rowMin" min="1" max="16" value="8" step="1">
+                        <span class="param-value" id="rowMinVal">8</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Max Range</label>
+                        <input type="range" id="rowMax" min="1" max="16" value="8" step="1">
+                        <span class="param-value" id="rowMaxVal">8</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice Engines -->
+            <span class="section-label">Voice Engines (per row)</span>
+            <div class="param-controls">
+                <div class="engine-select" id="voiceEngines">
+                    <span style="color: #666; font-size: 0.75em; width: 100%; margin-bottom: 4px;">Click row in grid, then select engine:</span>
+                </div>
+                <div class="param-row" style="margin-top: 0.5em;">
+                    <div class="param-group">
+                        <label>Attack</label>
+                        <input type="range" id="attack" min="0.001" max="2" value="0.01" step="0.001">
+                        <span class="param-value" id="attackVal">0.01</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Decay</label>
+                        <input type="range" id="decay" min="0.01" max="2" value="0.3" step="0.01">
+                        <span class="param-value" id="decayVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Sustain</label>
+                        <input type="range" id="sustain" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="sustainVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Release</label>
+                        <input type="range" id="release" min="0.01" max="4" value="0.8" step="0.01">
+                        <span class="param-value" id="releaseVal">0.80</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Cutoff</label>
+                        <input type="range" id="cutoff" min="50" max="12000" value="2000" step="1">
+                        <span class="param-value" id="cutoffVal">2000</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Resonance</label>
+                        <input type="range" id="resonance" min="0" max="0.95" value="0.2" step="0.01">
+                        <span class="param-value" id="resonanceVal">0.20</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Level</label>
+                        <input type="range" id="level" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="levelVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scale Section -->
+            <span class="section-label">Scale</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Root Note</label>
+                        <select id="rootNote">
+                            <option value="48">C3</option>
+                            <option value="49">C#3</option>
+                            <option value="50">D3</option>
+                            <option value="51">D#3</option>
+                            <option value="52">E3</option>
+                            <option value="53">F3</option>
+                            <option value="54">F#3</option>
+                            <option value="55">G3</option>
+                            <option value="56">G#3</option>
+                            <option value="57">A3</option>
+                            <option value="58">A#3</option>
+                            <option value="59">B3</option>
+                            <option value="60" selected>C4</option>
+                            <option value="61">C#4</option>
+                            <option value="62">D4</option>
+                            <option value="63">D#4</option>
+                            <option value="64">E4</option>
+                            <option value="65">F4</option>
+                            <option value="66">F#4</option>
+                            <option value="67">G4</option>
+                            <option value="68">G#4</option>
+                            <option value="69">A4</option>
+                            <option value="70">A#4</option>
+                            <option value="71">B4</option>
+                            <option value="72">C5</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Scale</label>
+                        <select id="scaleSelect">
+                            <option value="0">Ionian (Major)</option>
+                            <option value="1">Dorian</option>
+                            <option value="2">Phrygian</option>
+                            <option value="3">Lydian</option>
+                            <option value="4">Mixolydian</option>
+                            <option value="5">Aeolian (Minor)</option>
+                            <option value="6">Locrian</option>
+                            <option value="7">Whole Tone</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Master</label>
+                        <input type="range" id="master" min="0" max="1" value="0.6" step="0.01">
+                        <span class="param-value" id="masterVal">0.60</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <code>Meadowphysics: Grid-enabled rhizomatic cascading counter by @tehn - rule-based polyrhythmic sequencer</code>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+
+            <p class="status" id="status">Click play, then Start to run the sequencer</p>
+        </main>
+
+        <nav class="nav-links">
+            <a href="molly-01.html">&larr; Previous</a>
+            <a href="moln-01.html">Next &rarr;</a>
+        </nav>
+    </div>
+
+    <script>
+        const processorCode = `
+class MeadowphysicsProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+
+        // Meadowphysics state - 8 rows/counters
+        this.count = [8, 9, 10, 11, 12, 13, 14, 15];
+        this.position = [8, 9, 10, 11, 12, 13, 14, 15];
+        this.speed = [0, 0, 0, 0, 0, 0, 0, 0];
+        this.tick = [0, 0, 0, 0, 0, 0, 0, 0];
+        this.min = [8, 9, 10, 11, 12, 13, 14, 15];
+        this.max = [8, 9, 10, 11, 12, 13, 14, 15];
+        this.trigger = [1, 2, 4, 8, 16, 32, 64, 128]; // Each row triggers itself
+        this.toggle = [0, 0, 0, 0, 0, 0, 0, 0];
+        this.rules = [2, 2, 2, 2, 2, 2, 2, 2]; // 1=none, 2=inc, 3=dec, 4=max, 5=min, 6=rnd, 7=pole, 8=stop
+        this.ruleDests = [0, 1, 2, 3, 4, 5, 6, 7]; // Which row the rule affects
+        this.ruleTargets = [1, 1, 1, 1, 1, 1, 1, 1]; // 1=count, 2=speed, 3=both
+        this.sync = [1, 2, 4, 8, 16, 32, 64, 128]; // Sync triggers
+        this.state = [0, 0, 0, 0, 0, 0, 0, 0];
+        this.clear = [0, 0, 0, 0, 0, 0, 0, 0];
+        this.smin = [0, 0, 0, 0, 0, 0, 0, 0];
+        this.smax = [0, 0, 0, 0, 0, 0, 0, 0];
+
+        // Voice engines per row
+        this.engines = ['sine', 'sine', 'sine', 'sine', 'sine', 'sine', 'sine', 'sine'];
+        this.voiceParams = [];
+        for (let i = 0; i < 8; i++) {
+            this.voiceParams.push({
+                attack: 0.01,
+                decay: 0.3,
+                sustain: 0.3,
+                release: 0.8,
+                cutoff: 2000,
+                resonance: 0.2,
+                level: 0.7
+            });
+        }
+
+        // Scale system
+        this.scales = [
+            [0, 2, 4, 5, 7, 9, 11, 12], // Ionian
+            [0, 2, 3, 5, 7, 9, 10, 12], // Dorian
+            [0, 1, 3, 5, 7, 8, 10, 12], // Phrygian
+            [0, 2, 4, 6, 7, 9, 11, 12], // Lydian
+            [0, 2, 4, 5, 7, 9, 10, 12], // Mixolydian
+            [0, 2, 3, 5, 7, 8, 10, 12], // Aeolian
+            [0, 1, 3, 5, 6, 8, 10, 12], // Locrian
+            [0, 2, 4, 6, 8, 10, 12, 14]  // Whole tone
+        ];
+        this.selectedScale = 0;
+        this.rootNote = 60;
+
+        // Clock
+        this.running = false;
+        this.bpm = 120;
+        this.stepDivider = 4;
+        this.clockPhase = 0;
+
+        // Voices (4 per row for polyphony)
+        this.voices = [];
+        for (let r = 0; r < 8; r++) {
+            this.voices[r] = [];
+            for (let v = 0; v < 4; v++) {
+                this.voices[r].push(this.createVoice());
+            }
+        }
+
+        // Master
+        this.master = 0.6;
+
+        // Filter states per voice
+        this.lpfStates = [];
+        for (let r = 0; r < 8; r++) {
+            this.lpfStates[r] = [];
+            for (let v = 0; v < 4; v++) {
+                this.lpfStates[r].push({ s1: 0, s2: 0, s3: 0, s4: 0 });
+            }
+        }
+
+        this.port.onmessage = (e) => {
+            const data = e.data;
+
+            if (data.start !== undefined) this.running = data.start;
+            if (data.bpm !== undefined) this.bpm = data.bpm;
+            if (data.stepDivider !== undefined) this.stepDivider = data.stepDivider;
+            if (data.rootNote !== undefined) this.rootNote = data.rootNote;
+            if (data.selectedScale !== undefined) this.selectedScale = data.selectedScale;
+            if (data.master !== undefined) this.master = data.master;
+
+            // Row-specific updates
+            if (data.rowUpdate !== undefined) {
+                const r = data.rowUpdate.row;
+                if (data.rowUpdate.count !== undefined) this.count[r] = data.rowUpdate.count;
+                if (data.rowUpdate.min !== undefined) this.min[r] = data.rowUpdate.min;
+                if (data.rowUpdate.max !== undefined) this.max[r] = data.rowUpdate.max;
+                if (data.rowUpdate.speed !== undefined) this.speed[r] = data.rowUpdate.speed;
+                if (data.rowUpdate.smin !== undefined) this.smin[r] = data.rowUpdate.smin;
+                if (data.rowUpdate.smax !== undefined) this.smax[r] = data.rowUpdate.smax;
+                if (data.rowUpdate.rule !== undefined) this.rules[r] = data.rowUpdate.rule;
+                if (data.rowUpdate.ruleDest !== undefined) this.ruleDests[r] = data.rowUpdate.ruleDest;
+                if (data.rowUpdate.ruleTarget !== undefined) this.ruleTargets[r] = data.rowUpdate.ruleTarget;
+                if (data.rowUpdate.trigger !== undefined) this.trigger[r] = data.rowUpdate.trigger;
+                if (data.rowUpdate.toggle !== undefined) this.toggle[r] = data.rowUpdate.toggle;
+                if (data.rowUpdate.sync !== undefined) this.sync[r] = data.rowUpdate.sync;
+                if (data.rowUpdate.engine !== undefined) this.engines[r] = data.rowUpdate.engine;
+                if (data.rowUpdate.attack !== undefined) this.voiceParams[r].attack = data.rowUpdate.attack;
+                if (data.rowUpdate.decay !== undefined) this.voiceParams[r].decay = data.rowUpdate.decay;
+                if (data.rowUpdate.sustain !== undefined) this.voiceParams[r].sustain = data.rowUpdate.sustain;
+                if (data.rowUpdate.release !== undefined) this.voiceParams[r].release = data.rowUpdate.release;
+                if (data.rowUpdate.cutoff !== undefined) this.voiceParams[r].cutoff = data.rowUpdate.cutoff;
+                if (data.rowUpdate.resonance !== undefined) this.voiceParams[r].resonance = data.rowUpdate.resonance;
+                if (data.rowUpdate.level !== undefined) this.voiceParams[r].level = data.rowUpdate.level;
+                if (data.rowUpdate.position !== undefined) {
+                    this.position[r] = data.rowUpdate.position;
+                    this.tick[r] = this.speed[r];
+                }
+            }
+
+            // Reset all
+            if (data.reset) {
+                for (let i = 0; i < 8; i++) {
+                    this.position[i] = this.count[i];
+                    this.tick[i] = this.speed[i];
+                }
+            }
+        };
+    }
+
+    createVoice() {
+        return {
+            active: false,
+            phase: 0,
+            freq: 440,
+            env: 0,
+            envStage: 'off',
+            envTime: 0,
+            velocity: 1
+        };
+    }
+
+    applyRule(i) {
+        const rd = this.ruleDests[i];
+        const rule = this.rules[i];
+        const target = this.ruleTargets[i];
+
+        if (rule === 2) { // Inc
+            if (target & 1) {
+                this.count[rd]++;
+                if (this.count[rd] > this.max[rd]) this.count[rd] = this.min[rd];
+            }
+            if (target & 2) {
+                this.speed[rd]++;
+                if (this.speed[rd] > this.smax[rd]) this.speed[rd] = this.smin[rd];
+            }
+        } else if (rule === 3) { // Dec
+            if (target & 1) {
+                this.count[rd]--;
+                if (this.count[rd] < this.min[rd]) this.count[rd] = this.max[rd];
+            }
+            if (target & 2) {
+                this.speed[rd]--;
+                if (this.speed[rd] < this.smin[rd]) this.speed[rd] = this.smax[rd];
+            }
+        } else if (rule === 4) { // Max
+            if (target & 1) this.count[rd] = this.max[rd];
+            if (target & 2) this.speed[rd] = this.smax[rd];
+        } else if (rule === 5) { // Min
+            if (target & 1) this.count[rd] = this.min[rd];
+            if (target & 2) this.speed[rd] = this.smin[rd];
+        } else if (rule === 6) { // Random
+            if (target & 1) {
+                this.count[rd] = this.min[rd] + Math.floor(Math.random() * (this.max[rd] - this.min[rd] + 1));
+            }
+            if (target & 2) {
+                this.speed[rd] = this.smin[rd] + Math.floor(Math.random() * (this.smax[rd] - this.smin[rd] + 1));
+            }
+        } else if (rule === 7) { // Pole
+            if (target & 1) {
+                if (Math.abs(this.count[rd] - this.min[rd]) < Math.abs(this.count[rd] - this.max[rd])) {
+                    this.count[rd] = this.max[rd];
+                } else {
+                    this.count[rd] = this.min[rd];
+                }
+            }
+            if (target & 2) {
+                if (Math.abs(this.speed[rd] - this.smin[rd]) < Math.abs(this.speed[rd] - this.smax[rd])) {
+                    this.speed[rd] = this.smax[rd];
+                } else {
+                    this.speed[rd] = this.smin[rd];
+                }
+            }
+        } else if (rule === 8) { // Stop
+            if (target & 1) this.position[rd] = -1;
+        }
+    }
+
+    clockStep() {
+        for (let i = 0; i < 8; i++) {
+            if (this.tick[i] === 0) {
+                this.tick[i] = this.speed[i];
+
+                if (this.position[i] === 1) {
+                    this.applyRule(i);
+                    this.position[i]--;
+
+                    // Trigger events
+                    for (let n = 0; n < 8; n++) {
+                        if (this.sync[i] & (1 << n)) {
+                            this.position[n] = this.count[n];
+                            this.tick[n] = this.speed[n];
+                        }
+                        if (this.trigger[i] & (1 << n)) {
+                            this.state[n] = 1;
+                            this.clear[n] = 1;
+                        }
+                        if (this.toggle[i] & (1 << n)) {
+                            this.state[n] = this.state[n] ^ 1;
+                        }
+                    }
+                } else if (this.position[i] > 1) {
+                    this.position[i]--;
+                }
+            } else {
+                this.tick[i]--;
+            }
+        }
+
+        // Trigger notes
+        for (let i = 0; i < 8; i++) {
+            if (this.state[i] === 1) {
+                this.triggerNote(i);
+            }
+            if (this.clear[i] === 1) {
+                this.state[i] = 0;
+            }
+            this.clear[i] = 0;
+        }
+
+        // Send position updates to UI
+        this.port.postMessage({ positions: [...this.position], counts: [...this.count] });
+    }
+
+    triggerNote(row) {
+        const scale = this.scales[this.selectedScale];
+        const noteOffset = scale[row % scale.length];
+        const octaveShift = Math.floor(row / scale.length) * 12;
+        const note = this.rootNote + noteOffset + octaveShift;
+        const freq = 440 * Math.pow(2, (note - 69) / 12);
+
+        // Find free voice
+        let voice = this.voices[row].find(v => !v.active);
+        if (!voice) {
+            voice = this.voices[row].reduce((a, b) => a.env < b.env ? a : b);
+        }
+
+        voice.active = true;
+        voice.freq = freq;
+        voice.phase = 0;
+        voice.env = 0;
+        voice.envStage = 'attack';
+        voice.envTime = 0;
+        voice.velocity = 0.7 + Math.random() * 0.3;
+    }
+
+    processEnvelope(voice, params, dt) {
+        voice.envTime += dt;
+
+        switch (voice.envStage) {
+            case 'attack':
+                voice.env = voice.envTime / Math.max(params.attack, 0.001);
+                if (voice.env >= 1) {
+                    voice.env = 1;
+                    voice.envStage = 'decay';
+                    voice.envTime = 0;
+                }
+                break;
+            case 'decay':
+                voice.env = 1 - (1 - params.sustain) * (voice.envTime / Math.max(params.decay, 0.001));
+                if (voice.envTime >= params.decay) {
+                    voice.env = params.sustain;
+                    voice.envStage = 'sustain';
+                }
+                break;
+            case 'sustain':
+                voice.env = params.sustain;
+                // Auto-release after a bit
+                if (voice.envTime > 0.1) {
+                    voice.envStage = 'release';
+                    voice.envTime = 0;
+                }
+                break;
+            case 'release':
+                voice.env = params.sustain * Math.exp(-voice.envTime / (params.release * 0.25 + 0.001));
+                if (voice.env < 0.0001) {
+                    voice.env = 0;
+                    voice.active = false;
+                    voice.envStage = 'off';
+                }
+                break;
+        }
+
+        return voice.env;
+    }
+
+    moogFilter(input, state, cutoff, resonance) {
+        const freq = Math.max(20, Math.min(this.sampleRate * 0.45, cutoff));
+        const f = freq / this.sampleRate;
+        const k = 4 * resonance * 0.99;
+        const p = f * (1.8 - 0.8 * f);
+
+        const fb = k * state.s4;
+        const inp = Math.tanh(input - fb);
+
+        state.s1 += p * (inp - state.s1);
+        state.s2 += p * (state.s1 - state.s2);
+        state.s3 += p * (state.s2 - state.s3);
+        state.s4 += p * (state.s3 - state.s4);
+
+        if (!isFinite(state.s1)) state.s1 = 0;
+        if (!isFinite(state.s2)) state.s2 = 0;
+        if (!isFinite(state.s3)) state.s3 = 0;
+        if (!isFinite(state.s4)) state.s4 = 0;
+
+        return state.s4;
+    }
+
+    generateOsc(voice, engine) {
+        const phase = voice.phase;
+
+        switch (engine) {
+            case 'sine':
+                return Math.sin(phase * Math.PI * 2);
+            case 'saw':
+                return phase * 2 - 1;
+            case 'square':
+                return phase < 0.5 ? 1 : -1;
+            case 'triangle':
+                return phase < 0.5 ? phase * 4 - 1 : 3 - phase * 4;
+            case 'pulse':
+                return phase < 0.25 ? 1 : -1;
+            case 'fm':
+                const mod = Math.sin(phase * Math.PI * 4) * 2;
+                return Math.sin(phase * Math.PI * 2 + mod);
+            default:
+                return Math.sin(phase * Math.PI * 2);
+        }
+    }
+
+    processVoice(row, voiceIdx, dt) {
+        const voice = this.voices[row][voiceIdx];
+        if (!voice.active && voice.env < 0.0001) return 0;
+
+        const params = this.voiceParams[row];
+        const engine = this.engines[row];
+
+        this.processEnvelope(voice, params, dt);
+
+        voice.phase += voice.freq / this.sampleRate;
+        if (voice.phase >= 1) voice.phase -= 1;
+
+        let sig = this.generateOsc(voice, engine);
+        sig = this.moogFilter(sig, this.lpfStates[row][voiceIdx], params.cutoff, params.resonance);
+        sig *= voice.env * voice.velocity * params.level;
+
+        return sig;
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        const dt = 1 / this.sampleRate;
+        const stepInterval = 60 / this.bpm / this.stepDivider;
+
+        for (let s = 0; s < left.length; s++) {
+            // Clock
+            if (this.running) {
+                this.clockPhase += dt;
+                if (this.clockPhase >= stepInterval) {
+                    this.clockPhase -= stepInterval;
+                    this.clockStep();
+                }
+            }
+
+            // Mix all voices
+            let mix = 0;
+            for (let r = 0; r < 8; r++) {
+                for (let v = 0; v < 4; v++) {
+                    mix += this.processVoice(r, v, dt);
+                }
+            }
+
+            mix *= this.master * 0.3;
+            mix = Math.tanh(mix);
+
+            left[s] = mix;
+            if (right) right[s] = mix;
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('meadowphysics-processor', MeadowphysicsProcessor);
+`;
+
+        let audioContext;
+        let workletNode;
+        let analyser;
+        let isPlaying = false;
+        let isRunning = false;
+        let pedalboard = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const startStopBtn = document.getElementById('startStop');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        // Meadowphysics state (UI mirror)
+        const mpState = {
+            selectedRow: 0,
+            count: [8, 9, 10, 11, 12, 13, 14, 15],
+            position: [8, 9, 10, 11, 12, 13, 14, 15],
+            min: [8, 9, 10, 11, 12, 13, 14, 15],
+            max: [8, 9, 10, 11, 12, 13, 14, 15],
+            speed: [0, 0, 0, 0, 0, 0, 0, 0],
+            smin: [0, 0, 0, 0, 0, 0, 0, 0],
+            smax: [0, 0, 0, 0, 0, 0, 0, 0],
+            rules: [2, 2, 2, 2, 2, 2, 2, 2],
+            ruleDests: [0, 1, 2, 3, 4, 5, 6, 7],
+            ruleTargets: [1, 1, 1, 1, 1, 1, 1, 1],
+            trigger: [1, 2, 4, 8, 16, 32, 64, 128],
+            toggle: [0, 0, 0, 0, 0, 0, 0, 0],
+            sync: [1, 2, 4, 8, 16, 32, 64, 128],
+            engines: ['sine', 'sine', 'sine', 'sine', 'sine', 'sine', 'sine', 'sine'],
+            voiceParams: []
+        };
+
+        for (let i = 0; i < 8; i++) {
+            mpState.voiceParams.push({
+                attack: 0.01, decay: 0.3, sustain: 0.3, release: 0.8,
+                cutoff: 2000, resonance: 0.2, level: 0.7
+            });
+        }
+
+        const ruleNames = ['None', 'None', 'Inc', 'Dec', 'Max', 'Min', 'Rnd', 'Pole', 'Stop'];
+
+        // Build grid
+        const mpGrid = document.getElementById('mpGrid');
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 16; col++) {
+                const cell = document.createElement('div');
+                cell.className = 'mp-cell';
+                cell.dataset.row = row;
+                cell.dataset.col = col;
+                cell.addEventListener('click', () => handleGridClick(row, col));
+                mpGrid.appendChild(cell);
+            }
+        }
+
+        // Build engine buttons
+        const engines = ['sine', 'saw', 'square', 'triangle', 'pulse', 'fm'];
+        const voiceEnginesDiv = document.getElementById('voiceEngines');
+        engines.forEach(eng => {
+            const btn = document.createElement('button');
+            btn.className = 'engine-btn';
+            btn.textContent = eng;
+            btn.dataset.engine = eng;
+            btn.addEventListener('click', () => {
+                mpState.engines[mpState.selectedRow] = eng;
+                updateEngineButtons();
+                sendRowUpdate(mpState.selectedRow, { engine: eng });
+            });
+            voiceEnginesDiv.appendChild(btn);
+        });
+
+        function updateEngineButtons() {
+            document.querySelectorAll('.engine-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.engine === mpState.engines[mpState.selectedRow]);
+            });
+        }
+
+        function handleGridClick(row, col) {
+            mpState.selectedRow = row;
+
+            // Click sets the count/position for this row (col + 1 = position 1-16)
+            const x = col + 1;
+            mpState.count[row] = x;
+            mpState.position[row] = x;
+            // Update min/max to include this position
+            if (x < mpState.min[row]) mpState.min[row] = x;
+            if (x > mpState.max[row]) mpState.max[row] = x;
+            sendRowUpdate(row, { count: x, position: x, min: mpState.min[row], max: mpState.max[row] });
+
+            updateGrid();
+            updateRowInfo();
+            updateEngineButtons();
+            updateVoiceParamsUI();
+        }
+
+        function updateGrid() {
+            const cells = mpGrid.querySelectorAll('.mp-cell');
+            cells.forEach(cell => {
+                const row = parseInt(cell.dataset.row);
+                const col = parseInt(cell.dataset.col);
+                const x = col + 1;
+
+                cell.className = 'mp-cell';
+
+                // Highlight selected row first column
+                if (row === mpState.selectedRow && col === 0) {
+                    cell.classList.add('bright');
+                }
+
+                // Show range
+                if (x >= mpState.min[row] && x <= mpState.max[row]) {
+                    cell.classList.add('dim');
+                }
+
+                // Show count (the reset position)
+                if (x === mpState.count[row]) {
+                    cell.classList.add('medium');
+                }
+
+                // Show current position (animated counter)
+                if (x === mpState.position[row] && mpState.position[row] >= 1) {
+                    cell.classList.add('position');
+                }
+            });
+        }
+
+        function updateRowInfo() {
+            const row = mpState.selectedRow;
+            document.getElementById('infoRow').textContent = row + 1;
+            document.getElementById('infoCount').textContent = mpState.count[row];
+            document.getElementById('infoRange').textContent = `${mpState.min[row]}-${mpState.max[row]}`;
+            document.getElementById('infoRule').textContent = ruleNames[mpState.rules[row]] || 'None';
+
+            // Update dropdown controls to reflect selected row's settings
+            document.getElementById('ruleSelect').value = mpState.rules[row];
+            document.getElementById('ruleDest').value = mpState.ruleDests[row];
+            document.getElementById('ruleTarget').value = mpState.ruleTargets[row];
+            document.getElementById('rowSpeed').value = mpState.speed[row];
+            document.getElementById('rowSpeedVal').textContent = mpState.speed[row];
+            document.getElementById('rowMin').value = mpState.min[row];
+            document.getElementById('rowMinVal').textContent = mpState.min[row];
+            document.getElementById('rowMax').value = mpState.max[row];
+            document.getElementById('rowMaxVal').textContent = mpState.max[row];
+        }
+
+        function updateVoiceParamsUI() {
+            const row = mpState.selectedRow;
+            const params = mpState.voiceParams[row];
+            document.getElementById('attack').value = params.attack;
+            document.getElementById('attackVal').textContent = params.attack.toFixed(2);
+            document.getElementById('decay').value = params.decay;
+            document.getElementById('decayVal').textContent = params.decay.toFixed(2);
+            document.getElementById('sustain').value = params.sustain;
+            document.getElementById('sustainVal').textContent = params.sustain.toFixed(2);
+            document.getElementById('release').value = params.release;
+            document.getElementById('releaseVal').textContent = params.release.toFixed(2);
+            document.getElementById('cutoff').value = params.cutoff;
+            document.getElementById('cutoffVal').textContent = params.cutoff;
+            document.getElementById('resonance').value = params.resonance;
+            document.getElementById('resonanceVal').textContent = params.resonance.toFixed(2);
+            document.getElementById('level').value = params.level;
+            document.getElementById('levelVal').textContent = params.level.toFixed(2);
+        }
+
+        function sendRowUpdate(row, updates) {
+            if (!workletNode) return;
+            workletNode.port.postMessage({ rowUpdate: { row, ...updates } });
+        }
+
+        // Rule dropdown controls
+        document.getElementById('ruleSelect').addEventListener('change', (e) => {
+            const val = parseInt(e.target.value);
+            mpState.rules[mpState.selectedRow] = val;
+            sendRowUpdate(mpState.selectedRow, { rule: val });
+            updateRowInfo();
+        });
+
+        document.getElementById('ruleDest').addEventListener('change', (e) => {
+            const val = parseInt(e.target.value);
+            mpState.ruleDests[mpState.selectedRow] = val;
+            sendRowUpdate(mpState.selectedRow, { ruleDest: val });
+        });
+
+        document.getElementById('ruleTarget').addEventListener('change', (e) => {
+            const val = parseInt(e.target.value);
+            mpState.ruleTargets[mpState.selectedRow] = val;
+            sendRowUpdate(mpState.selectedRow, { ruleTarget: val });
+        });
+
+        document.getElementById('rowSpeed').addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            document.getElementById('rowSpeedVal').textContent = val;
+            mpState.speed[mpState.selectedRow] = val;
+            mpState.smin[mpState.selectedRow] = val;
+            mpState.smax[mpState.selectedRow] = val;
+            sendRowUpdate(mpState.selectedRow, { speed: val, smin: val, smax: val });
+        });
+
+        document.getElementById('rowMin').addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            document.getElementById('rowMinVal').textContent = val;
+            mpState.min[mpState.selectedRow] = val;
+            // Ensure min <= max
+            if (val > mpState.max[mpState.selectedRow]) {
+                mpState.max[mpState.selectedRow] = val;
+                document.getElementById('rowMax').value = val;
+                document.getElementById('rowMaxVal').textContent = val;
+            }
+            sendRowUpdate(mpState.selectedRow, { min: mpState.min[mpState.selectedRow], max: mpState.max[mpState.selectedRow] });
+            updateRowInfo();
+            updateGrid();
+        });
+
+        document.getElementById('rowMax').addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            document.getElementById('rowMaxVal').textContent = val;
+            mpState.max[mpState.selectedRow] = val;
+            // Ensure max >= min
+            if (val < mpState.min[mpState.selectedRow]) {
+                mpState.min[mpState.selectedRow] = val;
+                document.getElementById('rowMin').value = val;
+                document.getElementById('rowMinVal').textContent = val;
+            }
+            sendRowUpdate(mpState.selectedRow, { min: mpState.min[mpState.selectedRow], max: mpState.max[mpState.selectedRow] });
+            updateRowInfo();
+            updateGrid();
+        });
+
+        // Voice param controls
+        ['attack', 'decay', 'sustain', 'release', 'cutoff', 'resonance', 'level'].forEach(param => {
+            const el = document.getElementById(param);
+            if (el) {
+                el.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value);
+                    const display = document.getElementById(param + 'Val');
+                    if (display) {
+                        display.textContent = val < 10 ? val.toFixed(2) : Math.round(val);
+                    }
+                    mpState.voiceParams[mpState.selectedRow][param] = val;
+                    sendRowUpdate(mpState.selectedRow, { [param]: val });
+                });
+            }
+        });
+
+        // Transport controls
+        document.getElementById('bpm').addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            document.getElementById('bpmVal').textContent = val;
+            if (workletNode) workletNode.port.postMessage({ bpm: val });
+        });
+
+        document.getElementById('stepLength').addEventListener('change', (e) => {
+            const val = parseInt(e.target.value);
+            if (workletNode) workletNode.port.postMessage({ stepDivider: val });
+        });
+
+        document.getElementById('rootNote').addEventListener('change', (e) => {
+            const val = parseInt(e.target.value);
+            if (workletNode) workletNode.port.postMessage({ rootNote: val });
+        });
+
+        document.getElementById('scaleSelect').addEventListener('change', (e) => {
+            const val = parseInt(e.target.value);
+            if (workletNode) workletNode.port.postMessage({ selectedScale: val });
+        });
+
+        document.getElementById('master').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('masterVal').textContent = val.toFixed(2);
+            if (workletNode) workletNode.port.postMessage({ master: val });
+        });
+
+        startStopBtn.addEventListener('click', () => {
+            isRunning = !isRunning;
+            startStopBtn.textContent = isRunning ? 'Stop' : 'Start';
+            startStopBtn.classList.toggle('running', isRunning);
+            if (workletNode) workletNode.port.postMessage({ start: isRunning });
+        });
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'meadowphysics-processor', {
+                outputChannelCount: [2]
+            });
+
+            // Listen for position updates
+            workletNode.port.onmessage = (e) => {
+                if (e.data.positions) {
+                    mpState.position = e.data.positions;
+                    mpState.count = e.data.counts;
+                    updateGrid();
+                    updateRowInfo();
+                }
+            };
+
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+
+            // Initialize pedalboard and route audio through it
+            pedalboard = new PedalboardUI(
+                document.getElementById('pedalboard-container'),
+                audioContext
+            );
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(analyser);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'meadowphysics',
+                    patchId: 'meadowphysics-01'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('meadowphysics-01');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'meadowphysics-01',
+                    prefix: '01',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Send initial state
+            workletNode.port.postMessage({
+                bpm: parseInt(document.getElementById('bpm').value),
+                stepDivider: parseInt(document.getElementById('stepLength').value),
+                rootNote: parseInt(document.getElementById('rootNote').value),
+                selectedScale: parseInt(document.getElementById('scaleSelect').value),
+                master: parseFloat(document.getElementById('master').value)
+            });
+
+            // Send initial row settings
+            for (let r = 0; r < 8; r++) {
+                workletNode.port.postMessage({
+                    rowUpdate: {
+                        row: r,
+                        count: mpState.count[r],
+                        min: mpState.min[r],
+                        max: mpState.max[r],
+                        speed: mpState.speed[r],
+                        smin: mpState.smin[r],
+                        smax: mpState.smax[r],
+                        rule: mpState.rules[r],
+                        ruleDest: mpState.ruleDests[r],
+                        ruleTarget: mpState.ruleTargets[r],
+                        engine: mpState.engines[r],
+                        ...mpState.voiceParams[r]
+                    }
+                });
+            }
+        }
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Float32Array(bufferLength);
+            analyser.getFloatTimeDomainData(dataArray);
+
+            ctx.fillStyle = '#080812';
+            ctx.fillRect(0, 0, width, height);
+
+            const gradient = ctx.createLinearGradient(0, 0, width, 0);
+            gradient.addColorStop(0, '#4a90d9');
+            gradient.addColorStop(0.5, '#7b68ee');
+            gradient.addColorStop(1, '#4a90d9');
+
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const sliceWidth = width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i];
+                const y = (v + 1) / 2 * height;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+                x += sliceWidth;
+            }
+
+            ctx.stroke();
+
+            if (isPlaying) {
+                requestAnimationFrame(drawVisualizer);
+            }
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+            }
+
+            if (isPlaying) {
+                await audioContext.suspend();
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                status.textContent = 'Playing - click grid to set counters, then Start';
+                status.classList.add('active');
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            }
+        });
+
+        // MIDI input
+        if (navigator.requestMIDIAccess) {
+            navigator.requestMIDIAccess().then((midi) => {
+                midi.inputs.forEach((input) => {
+                    input.onmidimessage = (msg) => {
+                        if (!isPlaying || !workletNode) return;
+                        const [cmd, note, vel] = msg.data;
+                        // Could use MIDI clock, notes, etc.
+                    };
+                });
+            });
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        updateGrid();
+        updateRowInfo();
+        updateEngineButtons();
+        updateVoiceParamsUI();
+    </script>
+</body>
+</html>

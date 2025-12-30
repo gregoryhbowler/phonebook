@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>06 - Tuple Patterns</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>06 - Tuple Patterns</h1>
+                <p>Saw and triangle waves with allTuples-derived sequences</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <div class="visualizer-container">
+                <canvas id="visualizer"></canvas>
+            </div>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Base Freq</label>
+                    <input type="range" id="baseFreq" min="200" max="500" value="300" step="10">
+                    <span class="param-value" id="baseFreqVal">300</span>
+                </div>
+                <div class="param-group">
+                    <label>Mix</label>
+                    <input type="range" id="mix" min="0" max="1" value="0.5" step="0.05">
+                    <span class="param-value" id="mixVal">0.50</span>
+                </div>
+                <div class="param-group">
+                    <label>Rate</label>
+                    <input type="range" id="rate" min="0.5" max="2" value="1" step="0.1">
+                    <span class="param-value" id="rateVal">1.00</span>
+                </div>
+            </div>
+
+            <div class="sequencer-section">
+                <h3>Duty Sequencer</h3>
+
+                <div class="seq-mode-controls">
+                    <div class="param-group">
+                        <label>Mode</label>
+                        <select id="seqMode">
+                            <option value="forward">Forward</option>
+                            <option value="reverse">Reverse</option>
+                            <option value="pendulum">Pendulum</option>
+                            <option value="random">Random</option>
+                            <option value="turing">Turing Machine</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Length</label>
+                        <input type="range" id="seqLength" min="4" max="128" value="128" step="4">
+                        <span class="param-value" id="seqLengthVal">128</span>
+                    </div>
+                </div>
+
+                <div class="lfsr-controls">
+                    <div class="param-group">
+                        <label>LFSR Taps</label>
+                        <select id="lfsrTaps">
+                            <option value="0">Off</option>
+                            <option value="1">8-bit Fibonacci</option>
+                            <option value="2">8-bit Galois</option>
+                            <option value="3">16-bit Maximal</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Mutation</label>
+                        <input type="range" id="mutation" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="mutationVal">0.00</span>
+                    </div>
+                </div>
+
+                <div class="gate-controls">
+                    <div class="param-group">
+                        <label>Gate Prob</label>
+                        <input type="range" id="gateProb" min="0" max="1" value="1" step="0.01">
+                        <span class="param-value" id="gateProbVal">1.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Pulse Width</label>
+                        <input type="range" id="pulseWidth" min="0.1" max="1" value="0.5" step="0.05">
+                        <span class="param-value" id="pulseWidthVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Bit Rotate</label>
+                        <input type="range" id="bitRotate" min="-8" max="8" value="0" step="1">
+                        <span class="param-value" id="bitRotateVal">0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>XOR Mask</label>
+                        <input type="range" id="xorMask" min="0" max="255" value="0" step="1">
+                        <span class="param-value" id="xorMaskVal">0</span>
+                    </div>
+                </div>
+
+                <div class="shift-register-display">
+                    <div class="register-bits" id="registerBits">
+                        <span class="bit">0</span><span class="bit">0</span><span class="bit">0</span><span class="bit">0</span>
+                        <span class="bit">0</span><span class="bit">0</span><span class="bit">0</span><span class="bit">0</span>
+                    </div>
+                    <div class="register-label">Shift Register State</div>
+                </div>
+            </div>
+
+            <div class="quantizer-section">
+                <h3>Pitch Quantizer</h3>
+
+                <div class="scale-controls">
+                    <div class="param-group">
+                        <label>Root</label>
+                        <select id="rootNote">
+                            <option value="0">C</option>
+                            <option value="1">C#</option>
+                            <option value="2">D</option>
+                            <option value="3">D#</option>
+                            <option value="4">E</option>
+                            <option value="5">F</option>
+                            <option value="6">F#</option>
+                            <option value="7">G</option>
+                            <option value="8">G#</option>
+                            <option value="9">A</option>
+                            <option value="10">A#</option>
+                            <option value="11">B</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Scale</label>
+                        <select id="scaleType">
+                            <option value="chromatic">Chromatic</option>
+                            <option value="major">Major</option>
+                            <option value="minor">Natural Minor</option>
+                            <option value="harmonicMinor">Harmonic Minor</option>
+                            <option value="melodicMinor">Melodic Minor</option>
+                            <option value="dorian">Dorian</option>
+                            <option value="phrygian">Phrygian</option>
+                            <option value="lydian">Lydian</option>
+                            <option value="mixolydian">Mixolydian</option>
+                            <option value="locrian">Locrian</option>
+                            <option value="pentatonicMajor">Pentatonic Major</option>
+                            <option value="pentatonicMinor">Pentatonic Minor</option>
+                            <option value="blues">Blues</option>
+                            <option value="wholeHalf">Whole-Half Dim</option>
+                            <option value="halfWhole">Half-Whole Dim</option>
+                            <option value="wholeTone">Whole Tone</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="keyboard-container">
+                    <div class="keyboard" id="keyboard">
+                        <div class="white-key" data-note="0">C</div>
+                        <div class="black-key" data-note="1">C#</div>
+                        <div class="white-key" data-note="2">D</div>
+                        <div class="black-key" data-note="3">D#</div>
+                        <div class="white-key" data-note="4">E</div>
+                        <div class="white-key" data-note="5">F</div>
+                        <div class="black-key" data-note="6">F#</div>
+                        <div class="white-key" data-note="7">G</div>
+                        <div class="black-key" data-note="8">G#</div>
+                        <div class="white-key" data-note="9">A</div>
+                        <div class="black-key" data-note="10">A#</div>
+                        <div class="white-key" data-note="11">B</div>
+                    </div>
+                </div>
+
+                <div class="octave-lfo-controls">
+                    <div class="param-group">
+                        <label>Octave Range</label>
+                        <input type="range" id="octaveRange" min="1" max="4" value="2" step="1">
+                        <span class="param-value" id="octaveRangeVal">2</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Base Octave</label>
+                        <input type="range" id="baseOctave" min="2" max="6" value="3" step="1">
+                        <span class="param-value" id="baseOctaveVal">3</span>
+                    </div>
+                    <div class="param-group">
+                        <label>LFO Rate</label>
+                        <input type="range" id="lfoRate" min="0.01" max="2" value="0.1" step="0.01">
+                        <span class="param-value" id="lfoRateVal">0.10</span>
+                    </div>
+                    <div class="param-group">
+                        <label>LFO Depth</label>
+                        <input type="range" id="lfoDepth" min="0" max="2" value="0" step="0.1">
+                        <span class="param-value" id="lfoDepthVal">0.0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <code>t={|u,d,a|u.ar(Duty.ar(d/5,0,Dseq(a++0))*300)};play{t.(Saw,1,x=[6,5,9,8];flat(y=allTuples(x/.t x)[(127..0)+[0,127]]%1))+t.(LFTri,4,y*2)!2/6}</code>
+            </div>
+
+            <p class="status" id="status">Click play to start</p>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+
+        <nav class="nav-links">
+            <a href="patch-05-melodic-sequence.html">&larr; Previous</a>
+            <a href="patch-07-pink-noise-bands.html">Next &rarr;</a>
+        </nav>
+    </div>
+
+    <script>
+        const processorCode = `
+class TuplePatternsProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+
+        this.baseFreq = 300;
+        this.mix = 0.5;
+        this.rate = 1;
+
+        // Quantizer settings
+        this.allowedNotes = [0,1,2,3,4,5,6,7,8,9,10,11];
+        this.rootNote = 0;
+        this.baseOctave = 3;
+        this.octaveRange = 2;
+        this.lfoRate = 0.1;
+        this.lfoDepth = 0;
+        this.lfoPhase = 0;
+
+        // Duty sequencer settings
+        this.seqMode = 0; // 0=forward, 1=reverse, 2=pendulum, 3=random, 4=turing
+        this.seqLength = 128;
+        this.lfsrTaps = 0; // 0=off, 1=8bit fib, 2=8bit galois, 3=16bit
+        this.mutation = 0;
+        this.gateProb = 1;
+        this.pulseWidth = 0.5;
+        this.bitRotate = 0;
+        this.xorMask = 0;
+
+        // Shift register state (8-bit for visualization, 16-bit internal)
+        this.shiftReg = 0b10110100; // Initial seed
+        this.shiftReg16 = 0xACE1; // 16-bit seed
+
+        // Pendulum state
+        this.pendulumDir = 1;
+
+        // Generate tuple sequence from x=[6,5,9,8]
+        const x = [6, 5, 9, 8];
+        const ratios = x.map((v, i) => v / x[(i + 1) % x.length]);
+
+        // Generate base sequence values (normalized 0-1)
+        this.baseSequence = [];
+        for (let i = 127; i >= 0; i--) {
+            const idx1 = i % ratios.length;
+            const idx2 = (i + 127) % ratios.length;
+            const val = (ratios[idx1] * ratios[idx2]) % 1;
+            this.baseSequence.push(val);
+        }
+
+        // Working sequence (can be mutated)
+        this.sequence = [...this.baseSequence];
+        this.triSequence = this.sequence.map(v => v * 2);
+
+        // Saw duty state
+        this.sawDutyPhase = 0;
+        this.sawDutyIdx = 0;
+        this.sawPhase = 0;
+        this.sawGateOpen = true;
+        this.sawEnv = 1;
+
+        // Triangle duty state
+        this.triDutyPhase = 0;
+        this.triDutyIdx = 0;
+        this.triPhase = 0;
+        this.triGateOpen = true;
+        this.triEnv = 1;
+
+        // For sending shift register state back to UI
+        this.stateUpdateCounter = 0;
+
+        this.port.onmessage = (e) => {
+            if (e.data.baseFreq !== undefined) this.baseFreq = e.data.baseFreq;
+            if (e.data.mix !== undefined) this.mix = e.data.mix;
+            if (e.data.rate !== undefined) this.rate = e.data.rate;
+            if (e.data.allowedNotes !== undefined) this.allowedNotes = e.data.allowedNotes;
+            if (e.data.rootNote !== undefined) this.rootNote = e.data.rootNote;
+            if (e.data.baseOctave !== undefined) this.baseOctave = e.data.baseOctave;
+            if (e.data.octaveRange !== undefined) this.octaveRange = e.data.octaveRange;
+            if (e.data.lfoRate !== undefined) this.lfoRate = e.data.lfoRate;
+            if (e.data.lfoDepth !== undefined) this.lfoDepth = e.data.lfoDepth;
+            // Duty sequencer params
+            if (e.data.seqMode !== undefined) this.seqMode = e.data.seqMode;
+            if (e.data.seqLength !== undefined) this.seqLength = e.data.seqLength;
+            if (e.data.lfsrTaps !== undefined) this.lfsrTaps = e.data.lfsrTaps;
+            if (e.data.mutation !== undefined) this.mutation = e.data.mutation;
+            if (e.data.gateProb !== undefined) this.gateProb = e.data.gateProb;
+            if (e.data.pulseWidth !== undefined) this.pulseWidth = e.data.pulseWidth;
+            if (e.data.bitRotate !== undefined) {
+                this.bitRotate = e.data.bitRotate;
+                this.applyBitRotate();
+            }
+            if (e.data.xorMask !== undefined) {
+                this.xorMask = e.data.xorMask;
+                this.applyXorMask();
+            }
+        };
+    }
+
+    // LFSR step functions
+    lfsrStep8Fib() {
+        // 8-bit Fibonacci LFSR with taps at 8,6,5,4
+        const bit = ((this.shiftReg >> 7) ^ (this.shiftReg >> 5) ^ (this.shiftReg >> 4) ^ (this.shiftReg >> 3)) & 1;
+        this.shiftReg = ((this.shiftReg << 1) | bit) & 0xFF;
+        return this.shiftReg;
+    }
+
+    lfsrStep8Galois() {
+        // 8-bit Galois LFSR
+        const lsb = this.shiftReg & 1;
+        this.shiftReg >>= 1;
+        if (lsb) this.shiftReg ^= 0xB8; // Polynomial x^8 + x^6 + x^5 + x^4 + 1
+        return this.shiftReg;
+    }
+
+    lfsrStep16() {
+        // 16-bit maximal length LFSR
+        const bit = ((this.shiftReg16 >> 15) ^ (this.shiftReg16 >> 14) ^ (this.shiftReg16 >> 12) ^ (this.shiftReg16 >> 3)) & 1;
+        this.shiftReg16 = ((this.shiftReg16 << 1) | bit) & 0xFFFF;
+        this.shiftReg = (this.shiftReg16 >> 8) & 0xFF; // Use high byte for display
+        return this.shiftReg16 / 65535;
+    }
+
+    // Apply bit rotation to sequence
+    applyBitRotate() {
+        if (this.bitRotate === 0) {
+            this.sequence = [...this.baseSequence];
+        } else {
+            const len = this.baseSequence.length;
+            const rot = ((this.bitRotate % len) + len) % len;
+            this.sequence = [...this.baseSequence.slice(rot), ...this.baseSequence.slice(0, rot)];
+        }
+        this.triSequence = this.sequence.map(v => v * 2);
+    }
+
+    // Apply XOR mask to sequence values
+    applyXorMask() {
+        if (this.xorMask === 0) {
+            this.sequence = [...this.baseSequence];
+        } else {
+            this.sequence = this.baseSequence.map(v => {
+                // Convert to 8-bit int, XOR, convert back
+                const intVal = Math.floor(v * 255);
+                const xored = (intVal ^ this.xorMask) & 0xFF;
+                return xored / 255;
+            });
+        }
+        this.triSequence = this.sequence.map(v => v * 2);
+    }
+
+    // Get next index based on sequencer mode
+    getNextIndex(currentIdx, seqLen) {
+        const effectiveLen = Math.min(seqLen, this.seqLength);
+
+        switch (this.seqMode) {
+            case 0: // Forward
+                return (currentIdx + 1) % effectiveLen;
+
+            case 1: // Reverse
+                return (currentIdx - 1 + effectiveLen) % effectiveLen;
+
+            case 2: // Pendulum
+                let next = currentIdx + this.pendulumDir;
+                if (next >= effectiveLen - 1) {
+                    this.pendulumDir = -1;
+                    next = effectiveLen - 1;
+                } else if (next <= 0) {
+                    this.pendulumDir = 1;
+                    next = 0;
+                }
+                return next;
+
+            case 3: // Random
+                return Math.floor(Math.random() * effectiveLen);
+
+            case 4: // Turing Machine mode
+                // Use LFSR to determine if we step or jump
+                let lfsrVal;
+                if (this.lfsrTaps === 1) lfsrVal = this.lfsrStep8Fib() / 255;
+                else if (this.lfsrTaps === 2) lfsrVal = this.lfsrStep8Galois() / 255;
+                else if (this.lfsrTaps === 3) lfsrVal = this.lfsrStep16();
+                else lfsrVal = Math.random();
+
+                // Mutation chance to jump to random position
+                if (Math.random() < this.mutation) {
+                    return Math.floor(lfsrVal * effectiveLen);
+                }
+                return (currentIdx + 1) % effectiveLen;
+
+            default:
+                return (currentIdx + 1) % effectiveLen;
+        }
+    }
+
+    // Get sequence value with LFSR modulation
+    getSequenceValue(idx) {
+        let val = this.sequence[idx % this.sequence.length];
+
+        // Apply LFSR modulation if enabled and not in Turing mode
+        if (this.lfsrTaps > 0 && this.seqMode !== 4) {
+            let lfsrVal;
+            if (this.lfsrTaps === 1) lfsrVal = this.shiftReg / 255;
+            else if (this.lfsrTaps === 2) lfsrVal = this.shiftReg / 255;
+            else lfsrVal = (this.shiftReg16 & 0xFF) / 255;
+
+            // Blend original value with LFSR
+            val = val * (1 - this.mutation) + lfsrVal * this.mutation;
+        }
+
+        return val;
+    }
+
+    // Quantize a 0-1 value to a frequency in the scale
+    quantizeToFreq(value) {
+        if (this.allowedNotes.length === 0) return this.baseFreq * value;
+
+        // Map value to note index in scale across octave range
+        const totalNotes = this.allowedNotes.length * this.octaveRange;
+        const noteIdx = Math.floor(value * totalNotes) % totalNotes;
+        const scaleIdx = noteIdx % this.allowedNotes.length;
+        const octaveOffset = Math.floor(noteIdx / this.allowedNotes.length);
+
+        // Apply LFO to octave
+        const lfoMod = Math.sin(this.lfoPhase * 2 * Math.PI) * this.lfoDepth;
+        const targetOctave = Math.max(1, Math.min(7, this.baseOctave + octaveOffset + Math.floor(lfoMod)));
+
+        // Get note from scale and apply root
+        const note = this.allowedNotes[scaleIdx];
+        const adjustedNote = (note + this.rootNote) % 12;
+        const midiNote = adjustedNote + targetOctave * 12;
+
+        return 440 * Math.pow(2, (midiNote - 69) / 12);
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        for (let s = 0; s < left.length; s++) {
+            // Update LFO phase
+            this.lfoPhase += this.lfoRate / this.sampleRate;
+            if (this.lfoPhase >= 1) this.lfoPhase -= 1;
+
+            // Update state counter for UI updates
+            this.stateUpdateCounter++;
+
+            // Step LFSR periodically for modulation (not in Turing mode which steps on index change)
+            if (this.lfsrTaps > 0 && this.seqMode !== 4) {
+                if (this.stateUpdateCounter % 512 === 0) {
+                    if (this.lfsrTaps === 1) this.lfsrStep8Fib();
+                    else if (this.lfsrTaps === 2) this.lfsrStep8Galois();
+                    else if (this.lfsrTaps === 3) this.lfsrStep16();
+                }
+            }
+
+            // Send shift register state to UI periodically (regardless of mode)
+            if (this.stateUpdateCounter >= 2048) {
+                this.stateUpdateCounter = 0;
+                this.port.postMessage({ shiftReg: this.shiftReg });
+            }
+
+            // Saw Duty: rate 1, duration = (seq value + 0) / 5
+            const sawSeqVal = this.getSequenceValue(this.sawDutyIdx);
+            const sawDutyDur = Math.max(0.001, (sawSeqVal + 0.01) / 5);
+            this.sawDutyPhase += this.rate / this.sampleRate;
+
+            // Gate/pulse width logic
+            const sawPulsePoint = sawDutyDur * this.pulseWidth;
+            if (this.sawDutyPhase < sawPulsePoint) {
+                this.sawEnv = Math.min(1, this.sawEnv + 0.01); // Attack
+            } else {
+                this.sawEnv = Math.max(0, this.sawEnv - 0.005); // Release
+            }
+
+            if (this.sawDutyPhase >= sawDutyDur) {
+                this.sawDutyPhase -= sawDutyDur;
+                this.sawDutyIdx = this.getNextIndex(this.sawDutyIdx, this.sequence.length);
+
+                // Gate probability check
+                this.sawGateOpen = Math.random() < this.gateProb;
+            }
+
+            // Saw frequency from current duty value - quantized to scale
+            const sawFreq = this.quantizeToFreq(sawSeqVal);
+            this.sawPhase += sawFreq / this.sampleRate;
+            if (this.sawPhase >= 1) this.sawPhase -= 1;
+            const sawRaw = this.sawPhase * 2 - 1;
+            const sawVal = sawRaw * (this.sawGateOpen ? this.sawEnv : 0);
+
+            // Triangle Duty: rate 4, duration = (triSeq value + 0) / 5
+            const triSeqVal = this.getSequenceValue(this.triDutyIdx) * 2;
+            const triDutyDur = Math.max(0.001, (triSeqVal + 0.01) / 5);
+            this.triDutyPhase += this.rate * 4 / this.sampleRate;
+
+            // Gate/pulse width logic for triangle
+            const triPulsePoint = triDutyDur * this.pulseWidth;
+            if (this.triDutyPhase < triPulsePoint) {
+                this.triEnv = Math.min(1, this.triEnv + 0.01);
+            } else {
+                this.triEnv = Math.max(0, this.triEnv - 0.005);
+            }
+
+            if (this.triDutyPhase >= triDutyDur) {
+                this.triDutyPhase -= triDutyDur;
+                this.triDutyIdx = this.getNextIndex(this.triDutyIdx, this.triSequence.length);
+
+                // Gate probability check
+                this.triGateOpen = Math.random() < this.gateProb;
+            }
+
+            // Triangle frequency - quantized to scale
+            const triFreq = this.quantizeToFreq(triSeqVal * 0.5);
+            this.triPhase += triFreq / this.sampleRate;
+            if (this.triPhase >= 1) this.triPhase -= 1;
+            // Triangle wave
+            const triRaw = Math.abs(this.triPhase * 4 - 2) - 1;
+            const triVal = triRaw * (this.triGateOpen ? this.triEnv : 0);
+
+            // Mix saw and triangle
+            const sample = (sawVal * (1 - this.mix) + triVal * this.mix) / 6;
+
+            left[s] = sample;
+            if (right) right[s] = sample;
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('tuple-patterns-processor', TuplePatternsProcessor);
+`;
+
+        let audioContext = null;
+        let workletNode = null;
+        let analyser = null;
+        let isPlaying = false;
+        let pedalboard = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        // Scale definitions (intervals from root)
+        const scales = {
+            chromatic: [0,1,2,3,4,5,6,7,8,9,10,11],
+            major: [0,2,4,5,7,9,11],
+            minor: [0,2,3,5,7,8,10],
+            harmonicMinor: [0,2,3,5,7,8,11],
+            melodicMinor: [0,2,3,5,7,9,11],
+            dorian: [0,2,3,5,7,9,10],
+            phrygian: [0,1,3,5,7,8,10],
+            lydian: [0,2,4,6,7,9,11],
+            mixolydian: [0,2,4,5,7,9,10],
+            locrian: [0,1,3,5,6,8,10],
+            pentatonicMajor: [0,2,4,7,9],
+            pentatonicMinor: [0,3,5,7,10],
+            blues: [0,3,5,6,7,10],
+            wholeHalf: [0,2,3,5,6,8,9,11],
+            halfWhole: [0,1,3,4,6,7,9,10],
+            wholeTone: [0,2,4,6,8,10],
+            custom: [0,2,4,5,7,9,11]
+        };
+
+        let currentScale = 'chromatic';
+        let allowedNotes = [...scales.chromatic];
+
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        const params = ['baseFreq', 'mix', 'rate'];
+        params.forEach(param => {
+            const input = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            input.addEventListener('input', () => {
+                const val = parseFloat(input.value);
+                display.textContent = val.toFixed(param === 'baseFreq' ? 0 : 2);
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param]: val });
+                }
+            });
+        });
+
+        // Sequencer mode map
+        const seqModeMap = { forward: 0, reverse: 1, pendulum: 2, random: 3, turing: 4 };
+
+        // Sequencer mode selector
+        document.getElementById('seqMode').addEventListener('change', (e) => {
+            const mode = seqModeMap[e.target.value] || 0;
+            if (workletNode) {
+                workletNode.port.postMessage({ seqMode: mode });
+            }
+        });
+
+        // LFSR taps selector
+        document.getElementById('lfsrTaps').addEventListener('change', (e) => {
+            const taps = parseInt(e.target.value);
+            if (workletNode) {
+                workletNode.port.postMessage({ lfsrTaps: taps });
+            }
+        });
+
+        // Sequencer param controls
+        const seqParams = ['seqLength', 'mutation', 'gateProb', 'pulseWidth', 'bitRotate', 'xorMask'];
+        seqParams.forEach(param => {
+            const input = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            input.addEventListener('input', () => {
+                const val = parseFloat(input.value);
+                if (param === 'seqLength' || param === 'bitRotate' || param === 'xorMask') {
+                    display.textContent = val.toFixed(0);
+                } else {
+                    display.textContent = val.toFixed(2);
+                }
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param]: val });
+                }
+            });
+        });
+
+        // Update shift register display from processor messages
+        function updateRegisterDisplay(value) {
+            const bits = document.querySelectorAll('#registerBits .bit');
+            for (let i = 0; i < 8; i++) {
+                const bitVal = (value >> (7 - i)) & 1;
+                bits[i].textContent = bitVal;
+                bits[i].classList.toggle('active', bitVal === 1);
+            }
+        }
+
+        // Quantizer param controls
+        const quantParams = ['octaveRange', 'baseOctave', 'lfoRate', 'lfoDepth'];
+        quantParams.forEach(param => {
+            const input = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            input.addEventListener('input', () => {
+                const val = parseFloat(input.value);
+                display.textContent = param === 'lfoRate' ? val.toFixed(2) :
+                                     param === 'lfoDepth' ? val.toFixed(1) : val.toFixed(0);
+                if (workletNode) {
+                    workletNode.port.postMessage({ [param]: val });
+                }
+            });
+        });
+
+        // Root note selector
+        document.getElementById('rootNote').addEventListener('change', (e) => {
+            const rootNote = parseInt(e.target.value);
+            if (workletNode) {
+                workletNode.port.postMessage({ rootNote });
+            }
+            updateKeyboardDisplay();
+        });
+
+        // Scale selector
+        document.getElementById('scaleType').addEventListener('change', (e) => {
+            currentScale = e.target.value;
+            if (currentScale !== 'custom') {
+                allowedNotes = [...scales[currentScale]];
+                updateKeyboardDisplay();
+                if (workletNode) {
+                    workletNode.port.postMessage({ allowedNotes });
+                }
+            }
+        });
+
+        // Keyboard interaction
+        function updateKeyboardDisplay() {
+            const rootNote = parseInt(document.getElementById('rootNote').value);
+            const keys = document.querySelectorAll('.keyboard > div');
+            keys.forEach(key => {
+                const note = parseInt(key.dataset.note);
+                const relativeNote = ((note - rootNote) % 12 + 12) % 12;
+                if (allowedNotes.includes(relativeNote)) {
+                    key.classList.add('active');
+                } else {
+                    key.classList.remove('active');
+                }
+            });
+        }
+
+        // Click on keyboard keys to toggle notes (custom mode)
+        document.getElementById('keyboard').addEventListener('click', (e) => {
+            const key = e.target.closest('[data-note]');
+            if (!key) return;
+
+            const note = parseInt(key.dataset.note);
+            const rootNote = parseInt(document.getElementById('rootNote').value);
+            const relativeNote = ((note - rootNote) % 12 + 12) % 12;
+
+            // Switch to custom mode
+            document.getElementById('scaleType').value = 'custom';
+            currentScale = 'custom';
+
+            // Toggle note
+            const idx = allowedNotes.indexOf(relativeNote);
+            if (idx >= 0) {
+                allowedNotes.splice(idx, 1);
+            } else {
+                allowedNotes.push(relativeNote);
+                allowedNotes.sort((a, b) => a - b);
+            }
+
+            // Ensure at least one note is selected
+            if (allowedNotes.length === 0) {
+                allowedNotes = [0];
+            }
+
+            updateKeyboardDisplay();
+            if (workletNode) {
+                workletNode.port.postMessage({ allowedNotes });
+            }
+        });
+
+        // Initialize keyboard display
+        updateKeyboardDisplay();
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+            const blob = new Blob([processorCode], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'tuple-patterns-processor');
+
+            // Initialize pedalboard and route audio through it
+            pedalboard = new PedalboardUI(
+                document.getElementById('pedalboard-container'),
+                audioContext
+            );
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: '06-tuple-patterns',
+                    patchId: 'patch-06-tuple-patterns'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('patch-06-tuple-patterns');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'patch-06-tuple-patterns',
+                    prefix: 'patterns',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Also connect to analyser for visualization
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            fxNode.connect(analyser);
+
+            params.forEach(param => {
+                const val = parseFloat(document.getElementById(param).value);
+                workletNode.port.postMessage({ [param]: val });
+            });
+
+            // Send initial quantizer settings
+            workletNode.port.postMessage({
+                allowedNotes: allowedNotes,
+                rootNote: parseInt(document.getElementById('rootNote').value)
+            });
+
+            // Send quantizer params
+            quantParams.forEach(param => {
+                const val = parseFloat(document.getElementById(param).value);
+                workletNode.port.postMessage({ [param]: val });
+            });
+
+            // Send initial sequencer settings
+            workletNode.port.postMessage({
+                seqMode: seqModeMap[document.getElementById('seqMode').value] || 0,
+                lfsrTaps: parseInt(document.getElementById('lfsrTaps').value)
+            });
+
+            // Send sequencer params
+            seqParams.forEach(param => {
+                const val = parseFloat(document.getElementById(param).value);
+                workletNode.port.postMessage({ [param]: val });
+            });
+
+            // Listen for shift register state updates from processor
+            workletNode.port.onmessage = (e) => {
+                if (e.data.shiftReg !== undefined) {
+                    updateRegisterDisplay(e.data.shiftReg);
+                }
+            };
+
+            // Show initial shift register state (seed value: 0b10110100 = 180)
+            updateRegisterDisplay(0b10110100);
+        }
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!analyser) return;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteTimeDomainData(dataArray);
+
+            ctx.fillStyle = 'rgba(18, 18, 26, 0.3)';
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw waveform with gradient
+            const gradient = ctx.createLinearGradient(0, 0, width, 0);
+            gradient.addColorStop(0, '#6366f1');
+            gradient.addColorStop(0.5, '#a855f7');
+            gradient.addColorStop(1, '#6366f1');
+
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const sliceWidth = width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = v * height / 2;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+                x += sliceWidth;
+            }
+
+            ctx.stroke();
+
+            if (isPlaying) requestAnimationFrame(drawVisualizer);
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+            }
+
+            if (isPlaying) {
+                audioContext.suspend();
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                status.textContent = 'Playing';
+                status.classList.add('active');
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+    </script>
+</body>
+</html>

@@ -1,0 +1,1559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>xD1</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-controls:last-of-type {
+            border-bottom: none;
+        }
+        .param-row {
+            display: flex;
+            gap: 0.8em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 80px;
+        }
+        .param-group label {
+            font-size: 0.75em;
+        }
+        .page-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .page-tab {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #888;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.15s;
+        }
+        .page-tab:hover {
+            border-color: #4a90d9;
+        }
+        .page-tab.active {
+            background: #2a2a4e;
+            border-color: #4a90d9;
+            color: #4a90d9;
+        }
+        .page-panel {
+            display: none;
+        }
+        .page-panel.active {
+            display: block;
+        }
+        .op-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 1em;
+        }
+        .op-tab {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #888;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75em;
+            transition: all 0.15s;
+        }
+        .op-tab:hover {
+            border-color: #7b68ee;
+        }
+        .op-tab.active {
+            background: #2a2a4e;
+            border-color: #7b68ee;
+            color: #7b68ee;
+        }
+        .op-panel {
+            display: none;
+        }
+        .op-panel.active {
+            display: block;
+        }
+        .algorithm-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 4px;
+            margin-bottom: 1em;
+        }
+        .alg-btn {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #888;
+            padding: 8px 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7em;
+            transition: all 0.15s;
+        }
+        .alg-btn:hover {
+            border-color: #4a90d9;
+        }
+        .alg-btn.active {
+            background: #2a2a4e;
+            border-color: #4a90d9;
+            color: #4a90d9;
+        }
+        .algorithm-display {
+            background: #0a0a14;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 1em;
+            min-height: 80px;
+        }
+        .algorithm-display canvas {
+            width: 100%;
+            height: 80px;
+        }
+        .randomize-btn {
+            background: linear-gradient(135deg, #2a1a4e 0%, #1a2a4e 100%);
+            border: 1px solid #7b68ee;
+            color: #7b68ee;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-left: 10px;
+            transition: all 0.2s;
+        }
+        .randomize-btn:hover {
+            background: linear-gradient(135deg, #3a2a5e 0%, #2a3a5e 100%);
+            border-color: #9b88ff;
+            color: #9b88ff;
+            transform: scale(1.05);
+        }
+        .randomize-btn:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>xD1</h1>
+                <p>DX7-inspired FM polysynth with filters - 6 operators, 32 algorithms</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+                <button class="randomize-btn" id="randomizeBtn" title="Randomize all parameters">&#127922; Fates</button>
+            </div>
+
+            <!-- Page Tabs -->
+            <div class="page-tabs">
+                <button class="page-tab active" data-page="operators">Operators</button>
+                <button class="page-tab" data-page="filter">Filter</button>
+                <button class="page-tab" data-page="lfo">LFO</button>
+                <button class="page-tab" data-page="misc">Misc</button>
+            </div>
+
+            <!-- Operators Page -->
+            <div class="page-panel active" id="panel-operators">
+                <div class="op-tabs">
+                    <button class="op-tab active" data-op="1">Op 1</button>
+                    <button class="op-tab" data-op="2">Op 2</button>
+                    <button class="op-tab" data-op="3">Op 3</button>
+                    <button class="op-tab" data-op="4">Op 4</button>
+                    <button class="op-tab" data-op="5">Op 5</button>
+                    <button class="op-tab" data-op="6">Op 6</button>
+                </div>
+
+                <!-- Operator panels (1-6) -->
+                <div class="op-panel active" id="op-panel-1">
+                    <span class="section-label">Operator 1 - Ratio</span>
+                    <div class="param-controls">
+                        <div class="param-row">
+                            <div class="param-group">
+                                <label>Numerator</label>
+                                <input type="range" id="num_1" min="1" max="30" value="1" step="1">
+                                <span class="param-value" id="num_1Val">1</span>
+                            </div>
+                            <div class="param-group">
+                                <label>Denominator</label>
+                                <input type="range" id="denom_1" min="1" max="30" value="1" step="1">
+                                <span class="param-value" id="denom_1Val">1</span>
+                            </div>
+                            <div class="param-group">
+                                <label>Index (Amp)</label>
+                                <input type="range" id="oamp_1" min="0" max="4" value="1" step="0.01">
+                                <span class="param-value" id="oamp_1Val">1.00</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="section-label">Operator 1 - Envelope</span>
+                    <div class="param-controls">
+                        <div class="param-row">
+                            <div class="param-group">
+                                <label>Attack</label>
+                                <input type="range" id="oatk_1" min="0.01" max="10" value="0.1" step="0.01">
+                                <span class="param-value" id="oatk_1Val">0.10</span>
+                            </div>
+                            <div class="param-group">
+                                <label>Decay</label>
+                                <input type="range" id="odec_1" min="0" max="2" value="0.3" step="0.01">
+                                <span class="param-value" id="odec_1Val">0.30</span>
+                            </div>
+                            <div class="param-group">
+                                <label>Sustain</label>
+                                <input type="range" id="osus_1" min="0" max="1" value="0.7" step="0.01">
+                                <span class="param-value" id="osus_1Val">0.70</span>
+                            </div>
+                            <div class="param-group">
+                                <label>Release</label>
+                                <input type="range" id="orel_1" min="0.01" max="10" value="0.2" step="0.01">
+                                <span class="param-value" id="orel_1Val">0.20</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Operators 2-6 will be generated dynamically -->
+                <div class="op-panel" id="op-panel-2"></div>
+                <div class="op-panel" id="op-panel-3"></div>
+                <div class="op-panel" id="op-panel-4"></div>
+                <div class="op-panel" id="op-panel-5"></div>
+                <div class="op-panel" id="op-panel-6"></div>
+
+                <span class="section-label">Operator Envelope Curve (Global)</span>
+                <div class="param-controls">
+                    <div class="param-group">
+                        <label>Curve</label>
+                        <input type="range" id="ocurve" min="-4" max="4" value="-1" step="0.1">
+                        <span class="param-value" id="ocurveVal">-1.0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Page -->
+            <div class="page-panel" id="panel-filter">
+                <span class="section-label">Filters</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Highpass Ratio</label>
+                            <input type="range" id="hirat" min="0.125" max="8" value="0.125" step="0.001">
+                            <span class="param-value" id="hiratVal">0.125</span>
+                        </div>
+                        <div class="param-group">
+                            <label>HP Resonance</label>
+                            <input type="range" id="hires" min="0" max="1" value="0" step="0.01">
+                            <span class="param-value" id="hiresVal">0.00</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Lowpass Ratio</label>
+                            <input type="range" id="lorat" min="0.125" max="8" value="8" step="0.001">
+                            <span class="param-value" id="loratVal">8.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>LP Resonance</label>
+                            <input type="range" id="lores" min="0" max="1" value="0" step="0.01">
+                            <span class="param-value" id="loresVal">0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <span class="section-label">Filter Envelope</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Attack</label>
+                            <input type="range" id="fatk" min="0.01" max="10" value="0.1" step="0.01">
+                            <span class="param-value" id="fatkVal">0.10</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Decay</label>
+                            <input type="range" id="fdec" min="0" max="2" value="0.3" step="0.01">
+                            <span class="param-value" id="fdecVal">0.30</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Sustain</label>
+                            <input type="range" id="fsus" min="0" max="1" value="0.7" step="0.01">
+                            <span class="param-value" id="fsusVal">0.70</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Release</label>
+                            <input type="range" id="frel" min="0.01" max="10" value="0.2" step="0.01">
+                            <span class="param-value" id="frelVal">0.20</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Curve</label>
+                            <input type="range" id="fcurve" min="-4" max="4" value="-1" step="0.1">
+                            <span class="param-value" id="fcurveVal">-1.0</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Env > Highpass</label>
+                            <input type="range" id="hfamt" min="0" max="1" value="0" step="0.01">
+                            <span class="param-value" id="hfamtVal">0.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Env > Lowpass</label>
+                            <input type="range" id="lfamt" min="0" max="1" value="1" step="0.01">
+                            <span class="param-value" id="lfamtVal">1.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LFO Page -->
+            <div class="page-panel" id="panel-lfo">
+                <span class="section-label">LFO</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Frequency</label>
+                            <input type="range" id="lfreq" min="0.01" max="10" value="1" step="0.01">
+                            <span class="param-value" id="lfreqVal">1.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Fade In</label>
+                            <input type="range" id="lfade" min="0.01" max="10" value="0.01" step="0.01">
+                            <span class="param-value" id="lfadeVal">0.01</span>
+                        </div>
+                    </div>
+                </div>
+
+                <span class="section-label">LFO Targets</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>LFO > Amp</label>
+                            <input type="range" id="lfo_am" min="0" max="1" value="0" step="0.01">
+                            <span class="param-value" id="lfo_amVal">0.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>LFO > Pitch</label>
+                            <input type="range" id="lfo_pm" min="0" max="1" value="0" step="0.01">
+                            <span class="param-value" id="lfo_pmVal">0.00</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>LFO > Highpass</label>
+                            <input type="range" id="lfo_hfm" min="0" max="1" value="0" step="0.01">
+                            <span class="param-value" id="lfo_hfmVal">0.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>LFO > Lowpass</label>
+                            <input type="range" id="lfo_lfm" min="0" max="1" value="0" step="0.01">
+                            <span class="param-value" id="lfo_lfmVal">0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <span class="section-label">Pitch Envelope</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Attack</label>
+                            <input type="range" id="patk" min="0.01" max="10" value="0.1" step="0.01">
+                            <span class="param-value" id="patkVal">0.10</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Decay</label>
+                            <input type="range" id="pdec" min="0" max="2" value="0.3" step="0.01">
+                            <span class="param-value" id="pdecVal">0.30</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Sustain</label>
+                            <input type="range" id="psus" min="0" max="1" value="0.7" step="0.01">
+                            <span class="param-value" id="psusVal">0.70</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Release</label>
+                            <input type="range" id="prel" min="0.01" max="10" value="0.2" step="0.01">
+                            <span class="param-value" id="prelVal">0.20</span>
+                        </div>
+                    </div>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Curve</label>
+                            <input type="range" id="pcurve" min="-4" max="4" value="0" step="0.1">
+                            <span class="param-value" id="pcurveVal">0.0</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Env > Pitch</label>
+                            <input type="range" id="pamt" min="0" max="1" value="0" step="0.01">
+                            <span class="param-value" id="pamtVal">0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Misc Page -->
+            <div class="page-panel" id="panel-misc">
+                <span class="section-label">Algorithm (0-31)</span>
+                <div class="param-controls">
+                    <div class="algorithm-display">
+                        <canvas id="algCanvas" width="400" height="80"></canvas>
+                    </div>
+                    <div class="algorithm-grid" id="algGrid">
+                        <!-- Algorithm buttons generated dynamically -->
+                    </div>
+                </div>
+
+                <span class="section-label">Global</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Amp</label>
+                            <input type="range" id="amp" min="0" max="1" value="0.5" step="0.01">
+                            <span class="param-value" id="ampVal">0.50</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Feedback</label>
+                            <input type="range" id="feedback" min="0" max="1.5" value="0" step="0.01">
+                            <span class="param-value" id="feedbackVal">0.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Polyphony</label>
+                            <input type="range" id="polyphony" min="1" max="16" value="8" step="1">
+                            <span class="param-value" id="polyphonyVal">8</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <code>xD1: DX7-inspired FM polysynth with filters by @alanza</code>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+
+            <p class="status" id="status">Click play, then press keys A-L or use MIDI</p>
+        </main>
+
+        <nav class="nav-links">
+            <a href="passersby-01.html">&larr; Previous</a>
+            <a href="../index.html">Index &rarr;</a>
+        </nav>
+    </div>
+
+    <script>
+        // Generate operator panels 2-6
+        for (let op = 2; op <= 6; op++) {
+            const panel = document.getElementById(`op-panel-${op}`);
+            panel.innerHTML = `
+                <span class="section-label">Operator ${op} - Ratio</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Numerator</label>
+                            <input type="range" id="num_${op}" min="1" max="30" value="1" step="1">
+                            <span class="param-value" id="num_${op}Val">1</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Denominator</label>
+                            <input type="range" id="denom_${op}" min="1" max="30" value="1" step="1">
+                            <span class="param-value" id="denom_${op}Val">1</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Index (Amp)</label>
+                            <input type="range" id="oamp_${op}" min="0" max="4" value="1" step="0.01">
+                            <span class="param-value" id="oamp_${op}Val">1.00</span>
+                        </div>
+                    </div>
+                </div>
+                <span class="section-label">Operator ${op} - Envelope</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Attack</label>
+                            <input type="range" id="oatk_${op}" min="0.01" max="10" value="0.1" step="0.01">
+                            <span class="param-value" id="oatk_${op}Val">0.10</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Decay</label>
+                            <input type="range" id="odec_${op}" min="0" max="2" value="0.3" step="0.01">
+                            <span class="param-value" id="odec_${op}Val">0.30</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Sustain</label>
+                            <input type="range" id="osus_${op}" min="0" max="1" value="0.7" step="0.01">
+                            <span class="param-value" id="osus_${op}Val">0.70</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Release</label>
+                            <input type="range" id="orel_${op}" min="0.01" max="10" value="0.2" step="0.01">
+                            <span class="param-value" id="orel_${op}Val">0.20</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Generate algorithm buttons
+        const algGrid = document.getElementById('algGrid');
+        for (let i = 0; i < 32; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'alg-btn' + (i === 0 ? ' active' : '');
+            btn.dataset.alg = i;
+            btn.textContent = i;
+            algGrid.appendChild(btn);
+        }
+
+        const processorCode = `
+// xD1 AudioWorklet Processor
+// DX7-inspired FM polysynth with 6 operators, 32 algorithms, and filters
+
+class XD1Processor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+        this.maxPolyphony = 8;
+
+        // DX7 Algorithm definitions - each defines modulation routing
+        // Format: array of [carrier_ops, [modulator -> carrier pairs]]
+        // Carriers output to audio, modulators modulate other operators
+        this.algorithms = this.defineAlgorithms();
+
+        // Global parameters
+        this.params = {
+            amp: 0.5,
+            algorithm: 0,
+            feedback: 0,
+
+            // Operator parameters (arrays of 6)
+            num: [1, 1, 1, 1, 1, 1],
+            denom: [1, 1, 1, 1, 1, 1],
+            oamp: [1, 1, 1, 1, 1, 1],
+            oatk: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+            odec: [0.3, 0.3, 0.3, 0.3, 0.3, 0.3],
+            osus: [0.7, 0.7, 0.7, 0.7, 0.7, 0.7],
+            orel: [0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
+            ocurve: -1,
+
+            // Filter parameters
+            hirat: 0.125,
+            lorat: 8,
+            hires: 0,
+            lores: 0,
+            fatk: 0.1,
+            fdec: 0.3,
+            fsus: 0.7,
+            frel: 0.2,
+            fcurve: -1,
+            hfamt: 0,
+            lfamt: 1,
+
+            // Pitch envelope
+            patk: 0.1,
+            pdec: 0.3,
+            psus: 0.7,
+            prel: 0.2,
+            pcurve: 0,
+            pamt: 0,
+
+            // LFO
+            lfreq: 1,
+            lfade: 0.01,
+            lfo_am: 0,
+            lfo_pm: 0,
+            lfo_hfm: 0,
+            lfo_lfm: 0
+        };
+
+        // Voice pool
+        this.voices = [];
+        for (let i = 0; i < this.maxPolyphony; i++) {
+            this.voices.push(this.createVoice());
+        }
+
+        // Global LFO
+        this.lfoPhase = 0;
+
+        this.port.onmessage = (e) => {
+            const data = e.data;
+
+            if (data.noteOn !== undefined) {
+                this.noteOn(data.noteOn.note, data.noteOn.velocity);
+            }
+            if (data.noteOff !== undefined) {
+                this.noteOff(data.noteOff);
+            }
+            if (data.polyphony !== undefined) {
+                this.maxPolyphony = data.polyphony;
+            }
+
+            // Global parameters
+            if (data.amp !== undefined) this.params.amp = data.amp;
+            if (data.algorithm !== undefined) this.params.algorithm = data.algorithm;
+            if (data.feedback !== undefined) this.params.feedback = data.feedback;
+            if (data.ocurve !== undefined) this.params.ocurve = data.ocurve;
+
+            // Filter parameters
+            if (data.hirat !== undefined) this.params.hirat = data.hirat;
+            if (data.lorat !== undefined) this.params.lorat = data.lorat;
+            if (data.hires !== undefined) this.params.hires = data.hires;
+            if (data.lores !== undefined) this.params.lores = data.lores;
+            if (data.fatk !== undefined) this.params.fatk = data.fatk;
+            if (data.fdec !== undefined) this.params.fdec = data.fdec;
+            if (data.fsus !== undefined) this.params.fsus = data.fsus;
+            if (data.frel !== undefined) this.params.frel = data.frel;
+            if (data.fcurve !== undefined) this.params.fcurve = data.fcurve;
+            if (data.hfamt !== undefined) this.params.hfamt = data.hfamt;
+            if (data.lfamt !== undefined) this.params.lfamt = data.lfamt;
+
+            // Pitch envelope
+            if (data.patk !== undefined) this.params.patk = data.patk;
+            if (data.pdec !== undefined) this.params.pdec = data.pdec;
+            if (data.psus !== undefined) this.params.psus = data.psus;
+            if (data.prel !== undefined) this.params.prel = data.prel;
+            if (data.pcurve !== undefined) this.params.pcurve = data.pcurve;
+            if (data.pamt !== undefined) this.params.pamt = data.pamt;
+
+            // LFO
+            if (data.lfreq !== undefined) this.params.lfreq = data.lfreq;
+            if (data.lfade !== undefined) this.params.lfade = data.lfade;
+            if (data.lfo_am !== undefined) this.params.lfo_am = data.lfo_am;
+            if (data.lfo_pm !== undefined) this.params.lfo_pm = data.lfo_pm;
+            if (data.lfo_hfm !== undefined) this.params.lfo_hfm = data.lfo_hfm;
+            if (data.lfo_lfm !== undefined) this.params.lfo_lfm = data.lfo_lfm;
+
+            // Per-operator parameters
+            for (let i = 1; i <= 6; i++) {
+                if (data['num_' + i] !== undefined) this.params.num[i-1] = data['num_' + i];
+                if (data['denom_' + i] !== undefined) this.params.denom[i-1] = data['denom_' + i];
+                if (data['oamp_' + i] !== undefined) this.params.oamp[i-1] = data['oamp_' + i];
+                if (data['oatk_' + i] !== undefined) this.params.oatk[i-1] = data['oatk_' + i];
+                if (data['odec_' + i] !== undefined) this.params.odec[i-1] = data['odec_' + i];
+                if (data['osus_' + i] !== undefined) this.params.osus[i-1] = data['osus_' + i];
+                if (data['orel_' + i] !== undefined) this.params.orel[i-1] = data['orel_' + i];
+            }
+        };
+    }
+
+    defineAlgorithms() {
+        // DX7-style algorithms define how 6 operators connect
+        // Each algorithm specifies: which ops are carriers (output to audio)
+        // and which ops modulate which other ops
+        // Format: { carriers: [op indices], modulations: [[from, to], ...] }
+        return [
+            // Alg 0: Classic stack 6->5->4->3->2->1
+            { carriers: [0], mods: [[1,0],[2,1],[3,2],[4,3],[5,4]], fb: 5 },
+            // Alg 1: 6->5->4->3->2->1 with feedback on 6
+            { carriers: [0], mods: [[1,0],[2,1],[3,2],[4,3],[5,4]], fb: 5 },
+            // Alg 2: Parallel carriers with modulators
+            { carriers: [0,1], mods: [[2,0],[3,1],[4,2],[5,3]], fb: 5 },
+            // Alg 3: Two parallel stacks
+            { carriers: [0,1], mods: [[2,0],[3,2],[4,1],[5,4]], fb: 5 },
+            // Alg 4: Three carriers with shared modulator
+            { carriers: [0,1,2], mods: [[3,0],[3,1],[3,2],[4,3],[5,4]], fb: 5 },
+            // Alg 5: Y-structure
+            { carriers: [0], mods: [[1,0],[2,0],[3,1],[4,2],[5,3]], fb: 5 },
+            // Alg 6: Dual stacks into one carrier
+            { carriers: [0], mods: [[1,0],[2,1],[3,0],[4,3],[5,4]], fb: 5 },
+            // Alg 7: Three parallel with modulators
+            { carriers: [0,1,2], mods: [[3,0],[4,1],[5,2]], fb: 5 },
+            // Alg 8: Dual Y
+            { carriers: [0,1], mods: [[2,0],[3,0],[4,1],[5,1]], fb: 5 },
+            // Alg 9: Diamond
+            { carriers: [0,1], mods: [[2,0],[2,1],[3,2],[4,3],[5,4]], fb: 5 },
+            // Alg 10: Complex branching
+            { carriers: [0,1,2], mods: [[3,0],[4,1],[4,2],[5,3]], fb: 5 },
+            // Alg 11: Triple Y
+            { carriers: [0,1,2], mods: [[3,0],[3,1],[3,2],[4,3],[5,4]], fb: 5 },
+            // Alg 12: Four carriers
+            { carriers: [0,1,2,3], mods: [[4,0],[4,1],[5,2],[5,3]], fb: 5 },
+            // Alg 13: Wide spread
+            { carriers: [0,1,2,3], mods: [[4,0],[5,1]], fb: 5 },
+            // Alg 14: Asymmetric
+            { carriers: [0,1], mods: [[2,0],[3,2],[4,1],[5,4]], fb: 5 },
+            // Alg 15: Bell-like
+            { carriers: [0,1,2], mods: [[3,0],[4,3],[5,1]], fb: 5 },
+            // Alg 16: Metallic
+            { carriers: [0,1], mods: [[2,0],[3,1],[4,2],[5,3]], fb: 4 },
+            // Alg 17: Organ-like
+            { carriers: [0,1,2,3,4], mods: [[5,0]], fb: 5 },
+            // Alg 18: Brass-like
+            { carriers: [0], mods: [[1,0],[2,0],[3,0],[4,1],[5,2]], fb: 5 },
+            // Alg 19: String-like
+            { carriers: [0,1], mods: [[2,0],[3,1],[4,2],[5,2]], fb: 5 },
+            // Alg 20: Electric piano
+            { carriers: [0,1], mods: [[2,0],[3,2],[4,1],[5,1]], fb: 5 },
+            // Alg 21: Marimba-like
+            { carriers: [0,1,2], mods: [[3,0],[4,1],[5,0]], fb: 5 },
+            // Alg 22: Vibes
+            { carriers: [0,1,2,3], mods: [[4,0],[5,0]], fb: 5 },
+            // Alg 23: Harp-like
+            { carriers: [0,1,2], mods: [[3,0],[4,1],[5,2]], fb: 3 },
+            // Alg 24: Guitar-like
+            { carriers: [0,1], mods: [[2,0],[3,0],[4,1],[5,4]], fb: 5 },
+            // Alg 25: Clav-like
+            { carriers: [0,1,2], mods: [[3,0],[4,1],[5,4]], fb: 5 },
+            // Alg 26: Synth bass
+            { carriers: [0], mods: [[1,0],[2,1],[3,1],[4,3],[5,4]], fb: 5 },
+            // Alg 27: Lead
+            { carriers: [0,1], mods: [[2,0],[3,2],[4,1],[5,3]], fb: 5 },
+            // Alg 28: Pad-like
+            { carriers: [0,1,2,3], mods: [[4,3],[5,4]], fb: 5 },
+            // Alg 29: Choir-like
+            { carriers: [0,1,2,3,4], mods: [[5,4]], fb: 5 },
+            // Alg 30: Ensemble
+            { carriers: [0,1,2,3,4,5], mods: [], fb: 5 },
+            // Alg 31: All carriers (additive)
+            { carriers: [0,1,2,3,4,5], mods: [], fb: 0 }
+        ];
+    }
+
+    createVoice() {
+        return {
+            active: false,
+            note: -1,
+            freq: 440,
+            velocity: 1,
+            gate: false,
+
+            // Operator phases
+            phases: [0, 0, 0, 0, 0, 0],
+
+            // Operator envelopes
+            opEnvs: [0, 0, 0, 0, 0, 0],
+            opEnvStages: ['off', 'off', 'off', 'off', 'off', 'off'],
+            opEnvTimes: [0, 0, 0, 0, 0, 0],
+
+            // Filter envelope
+            filterEnv: 0,
+            filterEnvStage: 'off',
+            filterEnvTime: 0,
+
+            // Pitch envelope
+            pitchEnv: 0,
+            pitchEnvStage: 'off',
+            pitchEnvTime: 0,
+
+            // LFO fade
+            lfoFadeLevel: 0,
+            noteStartTime: 0,
+
+            // Filter states (SVF)
+            hpState: { lp: 0, bp: 0, hp: 0 },
+            lpState: { lp: 0, bp: 0, hp: 0 },
+
+            // Feedback state
+            feedbackSample: 0
+        };
+    }
+
+    noteOn(note, velocity) {
+        const freq = 440 * Math.pow(2, (note - 69) / 12);
+
+        // Find free voice or steal oldest
+        let voice = this.voices.find(v => !v.active);
+        if (!voice) {
+            // Find voice in release
+            voice = this.voices.find(v => v.opEnvStages[0] === 'release');
+            if (!voice) {
+                // Steal oldest
+                voice = this.voices.reduce((a, b) =>
+                    (a.noteStartTime < b.noteStartTime) ? a : b);
+            }
+        }
+
+        voice.active = true;
+        voice.note = note;
+        voice.freq = freq;
+        voice.velocity = velocity;
+        voice.gate = true;
+        voice.noteStartTime = currentTime;
+        voice.lfoFadeLevel = 0;
+
+        // Reset phases
+        for (let i = 0; i < 6; i++) {
+            voice.phases[i] = 0;
+            voice.opEnvs[i] = 0;
+            voice.opEnvStages[i] = 'attack';
+            voice.opEnvTimes[i] = 0;
+        }
+
+        // Reset filter and pitch envelopes
+        voice.filterEnv = 0;
+        voice.filterEnvStage = 'attack';
+        voice.filterEnvTime = 0;
+        voice.pitchEnv = 0;
+        voice.pitchEnvStage = 'attack';
+        voice.pitchEnvTime = 0;
+
+        // Reset filter states
+        voice.hpState = { lp: 0, bp: 0, hp: 0 };
+        voice.lpState = { lp: 0, bp: 0, hp: 0 };
+        voice.feedbackSample = 0;
+    }
+
+    noteOff(note) {
+        for (const voice of this.voices) {
+            if (voice.active && voice.note === note && voice.gate) {
+                voice.gate = false;
+                // Trigger release on all envelopes
+                for (let i = 0; i < 6; i++) {
+                    voice.opEnvStages[i] = 'release';
+                    voice.opEnvTimes[i] = 0;
+                }
+                voice.filterEnvStage = 'release';
+                voice.filterEnvTime = 0;
+                voice.pitchEnvStage = 'release';
+                voice.pitchEnvTime = 0;
+            }
+        }
+    }
+
+    // ADSR envelope with curve
+    processEnvelope(value, stage, time, attack, decay, sustain, release, curve, dt) {
+        time += dt;
+        let newValue = value;
+        let newStage = stage;
+
+        const curveAmount = Math.abs(curve);
+        const curveDir = curve < 0 ? -1 : 1;
+
+        switch (stage) {
+            case 'attack':
+                const attackProgress = time / Math.max(attack, 0.001);
+                if (curveDir < 0) {
+                    newValue = 1 - Math.pow(1 - Math.min(1, attackProgress), 1 + curveAmount);
+                } else {
+                    newValue = Math.pow(Math.min(1, attackProgress), 1 + curveAmount);
+                }
+                if (attackProgress >= 1) {
+                    newValue = 1;
+                    newStage = 'decay';
+                    time = 0;
+                }
+                break;
+            case 'decay':
+                const decayProgress = time / Math.max(decay, 0.001);
+                if (curveDir < 0) {
+                    newValue = sustain + (1 - sustain) * Math.pow(1 - Math.min(1, decayProgress), 1 + curveAmount);
+                } else {
+                    newValue = sustain + (1 - sustain) * (1 - Math.pow(Math.min(1, decayProgress), 1 + curveAmount));
+                }
+                if (decayProgress >= 1) {
+                    newValue = sustain;
+                    newStage = 'sustain';
+                }
+                break;
+            case 'sustain':
+                newValue = sustain;
+                break;
+            case 'release':
+                const startLevel = value;
+                const releaseProgress = time / Math.max(release, 0.001);
+                if (curveDir < 0) {
+                    newValue = startLevel * Math.pow(1 - Math.min(1, releaseProgress), 1 + curveAmount);
+                } else {
+                    newValue = startLevel * (1 - Math.pow(Math.min(1, releaseProgress), 1 + curveAmount));
+                }
+                if (releaseProgress >= 1 || newValue < 0.0001) {
+                    newValue = 0;
+                    newStage = 'off';
+                }
+                break;
+            case 'off':
+                newValue = 0;
+                break;
+        }
+
+        return { value: newValue, stage: newStage, time: time };
+    }
+
+    // SVF filter
+    svf(input, state, freq, res, type) {
+        const f = Math.min(0.45, freq / this.sampleRate);
+        const q = 1 - res * 0.9;
+
+        state.hp = input - state.lp - q * state.bp;
+        state.bp += f * state.hp;
+        state.lp += f * state.bp;
+
+        // Clamp for stability
+        if (!isFinite(state.lp)) state.lp = 0;
+        if (!isFinite(state.bp)) state.bp = 0;
+        if (!isFinite(state.hp)) state.hp = 0;
+
+        return type === 'hp' ? state.hp : state.lp;
+    }
+
+    processVoice(voice, lfo, dt) {
+        const p = this.params;
+        const alg = this.algorithms[p.algorithm];
+
+        // Update operator envelopes
+        for (let i = 0; i < 6; i++) {
+            const env = this.processEnvelope(
+                voice.opEnvs[i], voice.opEnvStages[i], voice.opEnvTimes[i],
+                p.oatk[i], p.odec[i], p.osus[i], p.orel[i], p.ocurve, dt
+            );
+            voice.opEnvs[i] = env.value;
+            voice.opEnvStages[i] = env.stage;
+            voice.opEnvTimes[i] = env.time;
+        }
+
+        // Update filter envelope
+        const fenv = this.processEnvelope(
+            voice.filterEnv, voice.filterEnvStage, voice.filterEnvTime,
+            p.fatk, p.fdec, p.fsus, p.frel, p.fcurve, dt
+        );
+        voice.filterEnv = fenv.value;
+        voice.filterEnvStage = fenv.stage;
+        voice.filterEnvTime = fenv.time;
+
+        // Update pitch envelope
+        const penv = this.processEnvelope(
+            voice.pitchEnv, voice.pitchEnvStage, voice.pitchEnvTime,
+            p.patk, p.pdec, p.psus, p.prel, p.pcurve, dt
+        );
+        voice.pitchEnv = penv.value;
+        voice.pitchEnvStage = penv.stage;
+        voice.pitchEnvTime = penv.time;
+
+        // LFO fade
+        const elapsed = currentTime - voice.noteStartTime;
+        voice.lfoFadeLevel = Math.min(1, elapsed / Math.max(0.01, p.lfade));
+        const lfoModulated = lfo * voice.lfoFadeLevel;
+
+        // Pitch modulation
+        const pitchMod = (lfoModulated * p.lfo_pm * 1.2) + (voice.pitchEnv * p.pamt * 1.2);
+        const basePitch = voice.freq * Math.pow(2, pitchMod / 12);
+
+        // LFO amplitude modulation
+        const ampLfo = lfoModulated * p.lfo_am * 0.05 + 1;
+
+        // Calculate operator outputs
+        const opOutputs = [0, 0, 0, 0, 0, 0];
+
+        // Process operators in reverse order (modulators first)
+        for (let i = 5; i >= 0; i--) {
+            const ratio = p.num[i] / p.denom[i];
+            const opFreq = basePitch * ratio;
+
+            // Get modulation input from other operators
+            let modInput = 0;
+            for (const [from, to] of alg.mods) {
+                if (to === i) {
+                    modInput += opOutputs[from];
+                }
+            }
+
+            // Add feedback for designated operator
+            if (i === alg.fb && p.feedback > 0) {
+                modInput += voice.feedbackSample * p.feedback;
+            }
+
+            // Update phase with modulation
+            voice.phases[i] += (opFreq + modInput * opFreq * 2) * dt;
+            if (voice.phases[i] >= 1) voice.phases[i] -= 1;
+
+            // Generate sine with envelope and index
+            const envLevel = voice.opEnvs[i] * ampLfo;
+            opOutputs[i] = Math.sin(voice.phases[i] * Math.PI * 2) * p.oamp[i] * envLevel;
+        }
+
+        // Store feedback sample
+        voice.feedbackSample = opOutputs[alg.fb] || 0;
+
+        // Mix carrier outputs
+        let signal = 0;
+        for (const carrier of alg.carriers) {
+            signal += opOutputs[carrier];
+        }
+        signal /= Math.max(1, alg.carriers.length);
+
+        // Check if voice should be deactivated
+        let anyActive = false;
+        for (let i = 0; i < 6; i++) {
+            if (voice.opEnvStages[i] !== 'off' || voice.opEnvs[i] > 0.0001) {
+                anyActive = true;
+                break;
+            }
+        }
+        if (!anyActive) {
+            voice.active = false;
+            return 0;
+        }
+
+        // Apply filters
+        // Filter frequency modulation
+        const hfMod = (voice.filterEnv * p.hfamt * 1.2) + (lfoModulated * p.lfo_hfm * 1.2);
+        const lfMod = (voice.filterEnv * p.lfamt * 1.2) + (lfoModulated * p.lfo_lfm * 1.2);
+
+        const hiFreq = p.hirat * (voice.note + hfMod * 12);
+        const loFreq = p.lorat * (voice.note + lfMod * 12);
+
+        const hiFreqHz = 440 * Math.pow(2, (hiFreq - 69) / 12);
+        const loFreqHz = 440 * Math.pow(2, (loFreq - 69) / 12);
+
+        // Apply highpass then lowpass (SVF)
+        signal = this.svf(signal, voice.hpState, Math.max(20, hiFreqHz), p.hires, 'hp');
+        signal = this.svf(signal, voice.lpState, Math.min(this.sampleRate * 0.45, loFreqHz), p.lores, 'lp');
+
+        // Velocity scaling
+        signal *= voice.velocity;
+
+        return signal;
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        const dt = 1 / this.sampleRate;
+
+        for (let s = 0; s < left.length; s++) {
+            // Update global LFO
+            this.lfoPhase += this.params.lfreq * dt;
+            if (this.lfoPhase >= 1) this.lfoPhase -= 1;
+            const lfo = Math.sin(this.lfoPhase * Math.PI * 2 * 2); // Triangle approximation via sin
+
+            // Process all voices
+            let mix = 0;
+            for (const voice of this.voices) {
+                if (voice.active) {
+                    mix += this.processVoice(voice, lfo, dt);
+                }
+            }
+
+            // Apply global amp and soft clipping
+            mix *= this.params.amp * 0.5;
+            mix = Math.tanh(mix);
+
+            left[s] = mix;
+            if (right) right[s] = mix;
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('xd1-processor', XD1Processor);
+`;
+
+        let audioContext;
+        let workletNode;
+        let analyser;
+        let isPlaying = false;
+        let pedalboard = null;
+        let currentAlgorithm = 0;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        const algCanvas = document.getElementById('algCanvas');
+        const algCtx = algCanvas.getContext('2d');
+
+        // Key mapping
+        const keyMap = {
+            'a': 60, 'w': 61, 's': 62, 'e': 63, 'd': 64, 'f': 65,
+            't': 66, 'g': 67, 'y': 68, 'h': 69, 'u': 70, 'j': 71, 'k': 72, 'o': 73, 'l': 74
+        };
+        const activeNotes = new Set();
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'xd1-processor', {
+                outputChannelCount: [2]
+            });
+
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+
+            // Initialize pedalboard and route audio through it
+            pedalboard = new PedalboardUI(
+                document.getElementById('pedalboard-container'),
+                audioContext
+            );
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(analyser);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'xd1',
+                    patchId: 'xd1-01'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('xd1-01');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'xd1-01',
+                    prefix: '01',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            sendAllParams();
+        }
+
+        function sendAllParams() {
+            if (!workletNode) return;
+
+            const msg = {
+                algorithm: currentAlgorithm,
+                amp: parseFloat(document.getElementById('amp').value),
+                feedback: parseFloat(document.getElementById('feedback').value),
+                polyphony: parseInt(document.getElementById('polyphony').value),
+                ocurve: parseFloat(document.getElementById('ocurve').value),
+
+                // Filter
+                hirat: parseFloat(document.getElementById('hirat').value),
+                lorat: parseFloat(document.getElementById('lorat').value),
+                hires: parseFloat(document.getElementById('hires').value),
+                lores: parseFloat(document.getElementById('lores').value),
+                fatk: parseFloat(document.getElementById('fatk').value),
+                fdec: parseFloat(document.getElementById('fdec').value),
+                fsus: parseFloat(document.getElementById('fsus').value),
+                frel: parseFloat(document.getElementById('frel').value),
+                fcurve: parseFloat(document.getElementById('fcurve').value),
+                hfamt: parseFloat(document.getElementById('hfamt').value),
+                lfamt: parseFloat(document.getElementById('lfamt').value),
+
+                // LFO
+                lfreq: parseFloat(document.getElementById('lfreq').value),
+                lfade: parseFloat(document.getElementById('lfade').value),
+                lfo_am: parseFloat(document.getElementById('lfo_am').value),
+                lfo_pm: parseFloat(document.getElementById('lfo_pm').value),
+                lfo_hfm: parseFloat(document.getElementById('lfo_hfm').value),
+                lfo_lfm: parseFloat(document.getElementById('lfo_lfm').value),
+
+                // Pitch envelope
+                patk: parseFloat(document.getElementById('patk').value),
+                pdec: parseFloat(document.getElementById('pdec').value),
+                psus: parseFloat(document.getElementById('psus').value),
+                prel: parseFloat(document.getElementById('prel').value),
+                pcurve: parseFloat(document.getElementById('pcurve').value),
+                pamt: parseFloat(document.getElementById('pamt').value)
+            };
+
+            // Operator parameters
+            for (let i = 1; i <= 6; i++) {
+                msg['num_' + i] = parseInt(document.getElementById('num_' + i).value);
+                msg['denom_' + i] = parseInt(document.getElementById('denom_' + i).value);
+                msg['oamp_' + i] = parseFloat(document.getElementById('oamp_' + i).value);
+                msg['oatk_' + i] = parseFloat(document.getElementById('oatk_' + i).value);
+                msg['odec_' + i] = parseFloat(document.getElementById('odec_' + i).value);
+                msg['osus_' + i] = parseFloat(document.getElementById('osus_' + i).value);
+                msg['orel_' + i] = parseFloat(document.getElementById('orel_' + i).value);
+            }
+
+            workletNode.port.postMessage(msg);
+        }
+
+        // Draw algorithm diagram
+        function drawAlgorithm(alg) {
+            const width = algCanvas.width;
+            const height = algCanvas.height;
+
+            algCtx.fillStyle = '#0a0a14';
+            algCtx.fillRect(0, 0, width, height);
+
+            // Operator positions
+            const opSize = 20;
+            const spacing = 55;
+            const startX = 30;
+            const startY = height / 2;
+
+            // Draw operators as boxes
+            algCtx.font = '12px monospace';
+            algCtx.textAlign = 'center';
+            algCtx.textBaseline = 'middle';
+
+            const positions = [];
+            for (let i = 0; i < 6; i++) {
+                const x = startX + i * spacing;
+                const y = startY;
+                positions.push({ x, y });
+
+                // Different color for carriers
+                const isCarrier = alg < 32; // Simplified check
+                algCtx.strokeStyle = '#4a90d9';
+                algCtx.fillStyle = '#1a1a2e';
+                algCtx.lineWidth = 2;
+
+                algCtx.beginPath();
+                algCtx.rect(x - opSize/2, y - opSize/2, opSize, opSize);
+                algCtx.fill();
+                algCtx.stroke();
+
+                algCtx.fillStyle = '#4a90d9';
+                algCtx.fillText((i + 1).toString(), x, y);
+            }
+
+            // Draw algorithm number
+            algCtx.fillStyle = '#888';
+            algCtx.font = '14px monospace';
+            algCtx.textAlign = 'right';
+            algCtx.fillText('Alg ' + alg, width - 10, 20);
+        }
+
+        // Page tab switching
+        document.querySelectorAll('.page-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.page-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.page-panel').forEach(p => p.classList.remove('active'));
+
+                tab.classList.add('active');
+                const page = tab.dataset.page;
+                document.getElementById('panel-' + page).classList.add('active');
+            });
+        });
+
+        // Operator tab switching
+        document.querySelectorAll('.op-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.op-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.op-panel').forEach(p => p.classList.remove('active'));
+
+                tab.classList.add('active');
+                const op = tab.dataset.op;
+                document.getElementById('op-panel-' + op).classList.add('active');
+            });
+        });
+
+        // Algorithm buttons
+        document.querySelectorAll('.alg-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.alg-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentAlgorithm = parseInt(btn.dataset.alg);
+                if (workletNode) {
+                    workletNode.port.postMessage({ algorithm: currentAlgorithm });
+                }
+                drawAlgorithm(currentAlgorithm);
+            });
+        });
+
+        // Parameter controls
+        document.querySelectorAll('input[type="range"]').forEach(el => {
+            el.addEventListener('input', (e) => {
+                const id = e.target.id;
+                const val = parseFloat(e.target.value);
+                const display = document.getElementById(id + 'Val');
+                if (display) {
+                    if (id.startsWith('num_') || id.startsWith('denom_') || id === 'polyphony') {
+                        display.textContent = Math.round(val);
+                    } else {
+                        display.textContent = val.toFixed(2);
+                    }
+                }
+                if (workletNode) {
+                    const msg = {};
+                    if (id.startsWith('num_') || id.startsWith('denom_')) {
+                        msg[id] = parseInt(val);
+                    } else if (id === 'polyphony') {
+                        msg[id] = parseInt(val);
+                    } else {
+                        msg[id] = val;
+                    }
+                    workletNode.port.postMessage(msg);
+                }
+            });
+        });
+
+        // Keyboard input
+        document.addEventListener('keydown', (e) => {
+            if (!isPlaying || e.repeat) return;
+            const note = keyMap[e.key.toLowerCase()];
+            if (note !== undefined && !activeNotes.has(note)) {
+                activeNotes.add(note);
+                workletNode.port.postMessage({ noteOn: { note, velocity: 0.8 } });
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (!isPlaying) return;
+            const note = keyMap[e.key.toLowerCase()];
+            if (note !== undefined) {
+                activeNotes.delete(note);
+                workletNode.port.postMessage({ noteOff: note });
+            }
+        });
+
+        // MIDI input
+        if (navigator.requestMIDIAccess) {
+            navigator.requestMIDIAccess().then((midi) => {
+                midi.inputs.forEach((input) => {
+                    input.onmidimessage = (msg) => {
+                        if (!isPlaying || !workletNode) return;
+                        const [cmd, note, vel] = msg.data;
+                        if ((cmd & 0xf0) === 0x90 && vel > 0) {
+                            workletNode.port.postMessage({ noteOn: { note, velocity: vel / 127 } });
+                        } else if ((cmd & 0xf0) === 0x80 || ((cmd & 0xf0) === 0x90 && vel === 0)) {
+                            workletNode.port.postMessage({ noteOff: note });
+                        }
+                    };
+                });
+            });
+        }
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Float32Array(bufferLength);
+            analyser.getFloatTimeDomainData(dataArray);
+
+            ctx.fillStyle = '#080812';
+            ctx.fillRect(0, 0, width, height);
+
+            const gradient = ctx.createLinearGradient(0, 0, width, 0);
+            gradient.addColorStop(0, '#4a90d9');
+            gradient.addColorStop(0.5, '#7b68ee');
+            gradient.addColorStop(1, '#4a90d9');
+
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const sliceWidth = width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i];
+                const y = (v + 1) / 2 * height;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+                x += sliceWidth;
+            }
+
+            ctx.stroke();
+
+            if (isPlaying) {
+                requestAnimationFrame(drawVisualizer);
+            }
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+                drawAlgorithm(0);
+            }
+
+            if (isPlaying) {
+                await audioContext.suspend();
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                status.textContent = 'Playing - press keys A-L or use MIDI';
+                status.classList.add('active');
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            }
+        });
+
+        // Randomization function
+        function randomizeParams() {
+            // Helper functions
+            const rand = (min, max) => Math.random() * (max - min) + min;
+            const randInt = (min, max) => Math.floor(rand(min, max + 1));
+            const randChoice = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+            // Randomize algorithm
+            currentAlgorithm = randInt(0, 31);
+            document.querySelectorAll('.alg-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`.alg-btn[data-alg="${currentAlgorithm}"]`).classList.add('active');
+            drawAlgorithm(currentAlgorithm);
+
+            // Randomize global parameters
+            setSlider('amp', rand(0.3, 0.7));
+            setSlider('feedback', rand(0, 0.8));
+            setSlider('ocurve', rand(-3, 1));
+
+            // Randomize operator parameters
+            // Use musically useful ratios
+            const ratioNums = [1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 15];
+            const ratioDenoms = [1, 2, 3, 4];
+
+            for (let i = 1; i <= 6; i++) {
+                // Ratios - favor simpler ratios
+                if (Math.random() < 0.7) {
+                    setSlider('num_' + i, randChoice(ratioNums));
+                    setSlider('denom_' + i, randChoice(ratioDenoms));
+                } else {
+                    setSlider('num_' + i, randInt(1, 20));
+                    setSlider('denom_' + i, randInt(1, 8));
+                }
+
+                // Index (amplitude) - carriers typically higher
+                setSlider('oamp_' + i, rand(0.2, 2.5));
+
+                // Envelopes - variety of attack/decay times
+                setSlider('oatk_' + i, Math.pow(rand(0, 1), 2) * 2 + 0.01); // Skewed toward fast attacks
+                setSlider('odec_' + i, rand(0.05, 1.5));
+                setSlider('osus_' + i, rand(0.2, 0.9));
+                setSlider('orel_' + i, rand(0.1, 2));
+            }
+
+            // Randomize filter parameters
+            setSlider('hirat', rand(0.125, 1));
+            setSlider('lorat', rand(2, 8));
+            setSlider('hires', rand(0, 0.6));
+            setSlider('lores', rand(0, 0.6));
+
+            // Filter envelope
+            setSlider('fatk', Math.pow(rand(0, 1), 2) * 3 + 0.01);
+            setSlider('fdec', rand(0.1, 1));
+            setSlider('fsus', rand(0.3, 0.8));
+            setSlider('frel', rand(0.1, 2));
+            setSlider('fcurve', rand(-3, 1));
+            setSlider('hfamt', Math.random() < 0.3 ? rand(0, 0.5) : 0);
+            setSlider('lfamt', rand(0.3, 1));
+
+            // LFO parameters
+            setSlider('lfreq', rand(0.1, 6));
+            setSlider('lfade', rand(0.01, 2));
+            setSlider('lfo_am', Math.random() < 0.4 ? rand(0, 0.3) : 0);
+            setSlider('lfo_pm', Math.random() < 0.4 ? rand(0, 0.3) : 0);
+            setSlider('lfo_hfm', Math.random() < 0.3 ? rand(0, 0.4) : 0);
+            setSlider('lfo_lfm', Math.random() < 0.3 ? rand(0, 0.4) : 0);
+
+            // Pitch envelope - usually subtle or off
+            setSlider('patk', rand(0.01, 0.5));
+            setSlider('pdec', rand(0.1, 0.8));
+            setSlider('psus', rand(0, 0.5));
+            setSlider('prel', rand(0.1, 1));
+            setSlider('pcurve', rand(-2, 2));
+            setSlider('pamt', Math.random() < 0.3 ? rand(0, 0.3) : 0);
+
+            // Send all params to worklet
+            sendAllParams();
+        }
+
+        // Helper to set slider and update display
+        function setSlider(id, value) {
+            const slider = document.getElementById(id);
+            if (!slider) return;
+
+            // Clamp to slider range
+            const min = parseFloat(slider.min);
+            const max = parseFloat(slider.max);
+            const step = parseFloat(slider.step) || 0.01;
+            value = Math.max(min, Math.min(max, value));
+
+            // Round to step
+            value = Math.round(value / step) * step;
+
+            slider.value = value;
+
+            // Update display
+            const display = document.getElementById(id + 'Val');
+            if (display) {
+                if (id.startsWith('num_') || id.startsWith('denom_') || id === 'polyphony') {
+                    display.textContent = Math.round(value);
+                } else {
+                    display.textContent = value.toFixed(2);
+                }
+            }
+        }
+
+        // Randomize button handler
+        document.getElementById('randomizeBtn').addEventListener('click', randomizeParams);
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        drawAlgorithm(0);
+    </script>
+</body>
+</html>

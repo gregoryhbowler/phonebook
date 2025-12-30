@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fall - Generative Leaf Sequencer</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../lib/effect-ui.css">
+    <script src="../lib/pedalboard-effects.js"></script>
+    <script src="../lib/effect-ui.js"></script>
+    <script type="module" src="../lib/phonebook-features.js"></script>
+    <style>
+        #leafCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .visualizer-container {
+            position: relative;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Fall</h1>
+                <p>Generative sequencer - melodies from falling leaves</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <div class="visualizer-container">
+                <canvas id="visualizer"></canvas>
+                <canvas id="leafCanvas"></canvas>
+            </div>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Leaves</label>
+                    <input type="range" id="leaves" min="1" max="20" value="8" step="1">
+                    <span class="param-value" id="leavesVal">8</span>
+                </div>
+                <div class="param-group">
+                    <label>Gravity</label>
+                    <input type="range" id="gravity" min="0.5" max="5" value="2" step="0.1">
+                    <span class="param-value" id="gravityVal">2.0</span>
+                </div>
+                <div class="param-group">
+                    <label>Wind</label>
+                    <input type="range" id="wind" min="0" max="10" value="3" step="0.1">
+                    <span class="param-value" id="windVal">3.0</span>
+                </div>
+                <div class="param-group">
+                    <label>Scale</label>
+                    <select id="scale">
+                        <option value="major">Major</option>
+                        <option value="minor" selected>Minor</option>
+                        <option value="dorian">Dorian</option>
+                        <option value="pentatonic">Pentatonic</option>
+                        <option value="blues">Blues</option>
+                        <option value="lydian">Lydian</option>
+                        <option value="mixolydian">Mixolydian</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Root Note</label>
+                    <input type="range" id="rootNote" min="36" max="72" value="48" step="1">
+                    <span class="param-value" id="rootNoteVal">C3</span>
+                </div>
+                <div class="param-group">
+                    <label>Attack</label>
+                    <input type="range" id="attack" min="0.001" max="2" value="0.1" step="0.001">
+                    <span class="param-value" id="attackVal">0.10</span>
+                </div>
+                <div class="param-group">
+                    <label>Release</label>
+                    <input type="range" id="release" min="0.1" max="5" value="2" step="0.1">
+                    <span class="param-value" id="releaseVal">2.0</span>
+                </div>
+                <div class="param-group">
+                    <label>Pulse Width</label>
+                    <input type="range" id="pw" min="0.1" max="0.9" value="0.5" step="0.01">
+                    <span class="param-value" id="pwVal">0.50</span>
+                </div>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Filter Cutoff</label>
+                    <input type="range" id="cutoff" min="100" max="8000" value="2000" step="10">
+                    <span class="param-value" id="cutoffVal">2000</span>
+                </div>
+                <div class="param-group">
+                    <label>Filter Res</label>
+                    <input type="range" id="resonance" min="0" max="1" value="0.3" step="0.01">
+                    <span class="param-value" id="resonanceVal">0.30</span>
+                </div>
+                <div class="param-group">
+                    <label>Bit Crush</label>
+                    <input type="range" id="bits" min="4" max="16" value="12" step="1">
+                    <span class="param-value" id="bitsVal">12</span>
+                </div>
+                <div class="param-group">
+                    <label>Delay</label>
+                    <input type="range" id="delay" min="0" max="1" value="0.4" step="0.01">
+                    <span class="param-value" id="delayVal">0.40</span>
+                </div>
+            </div>
+
+            <div class="param-controls">
+                <div class="param-group">
+                    <label>Hiss</label>
+                    <input type="range" id="hiss" min="0" max="1" value="0.1" step="0.01">
+                    <span class="param-value" id="hissVal">0.10</span>
+                </div>
+                <div class="param-group">
+                    <label>Rustle</label>
+                    <input type="range" id="rustle" min="0" max="1" value="0.3" step="0.01">
+                    <span class="param-value" id="rustleVal">0.30</span>
+                </div>
+                <div class="param-group">
+                    <label>Volume</label>
+                    <input type="range" id="volume" min="0" max="1" value="0.6" step="0.01">
+                    <span class="param-value" id="volumeVal">0.60</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <code>Fall: Generative sequencer by @ambalek - leaves fall and trigger notes through Moog filter with lo-fi decimation</code>
+            </div>
+
+            <p class="status" id="status">Click play to start</p>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+
+        <nav class="nav-links">
+            <a href="grendy-01.html">&larr; Previous</a>
+            <a href="haven-01.html">Next &rarr;</a>
+            <span></span>
+        </nav>
+    </div>
+
+    <script>
+        const processorCode = `
+class FallProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = sampleRate;
+
+        // Voice pool (polyphonic)
+        this.maxVoices = 12;
+        this.voices = [];
+        for (let i = 0; i < this.maxVoices; i++) {
+            this.voices.push({
+                active: false,
+                phase: 0,
+                freq: 440,
+                amp: 0,
+                targetAmp: 0,
+                pan: 0,
+                envPhase: 0,
+                envStage: 'off' // attack, sustain, release, off
+            });
+        }
+
+        // Rustle voices
+        this.rustleVoices = [];
+        for (let i = 0; i < 8; i++) {
+            this.rustleVoices.push({
+                active: false,
+                freq: 2000,
+                amp: 0,
+                envPhase: 0,
+                pan: 0,
+                noisePhase: Math.random()
+            });
+        }
+
+        // Parameters
+        this.attack = 0.1;
+        this.release = 2;
+        this.pw = 0.5;
+        this.cutoff = 2000;
+        this.resonance = 0.3;
+        this.bits = 12;
+        this.hiss = 0.1;
+        this.rustle = 0.3;
+        this.volume = 0.6;
+        this.delay = 0.4;
+
+        // Moog filter state (per voice)
+        this.filterStates = [];
+        for (let i = 0; i < this.maxVoices; i++) {
+            this.filterStates.push([0, 0, 0, 0]);
+        }
+
+        // Delay line
+        this.delayTime = 0.3;
+        this.delayFeedback = 0.5;
+        this.delayBuffer = new Float32Array(Math.ceil(sampleRate * 2));
+        this.delayIdx = 0;
+
+        // Hiss generator state
+        this.hissState = 0;
+
+        // Pink noise state for rustle
+        this.pinkB = [0, 0, 0, 0, 0, 0, 0];
+
+        this.port.onmessage = (e) => {
+            const d = e.data;
+            if (d.attack !== undefined) this.attack = d.attack;
+            if (d.release !== undefined) this.release = d.release;
+            if (d.pw !== undefined) this.pw = d.pw;
+            if (d.cutoff !== undefined) this.cutoff = d.cutoff;
+            if (d.resonance !== undefined) this.resonance = d.resonance;
+            if (d.bits !== undefined) this.bits = d.bits;
+            if (d.hiss !== undefined) this.hiss = d.hiss;
+            if (d.rustle !== undefined) this.rustle = d.rustle;
+            if (d.volume !== undefined) this.volume = d.volume;
+            if (d.delay !== undefined) this.delay = d.delay;
+
+            // Trigger a note
+            if (d.noteOn !== undefined) {
+                this.triggerNote(d.noteOn.freq, d.noteOn.amp, d.noteOn.pan);
+            }
+
+            // Trigger rustle
+            if (d.rustleOn !== undefined) {
+                this.triggerRustle(d.rustleOn.freq, d.rustleOn.amp, d.rustleOn.pan);
+            }
+        };
+    }
+
+    triggerNote(freq, amp, pan) {
+        // Find free voice or steal oldest
+        let voice = null;
+        for (let v of this.voices) {
+            if (!v.active || v.envStage === 'off') {
+                voice = v;
+                break;
+            }
+        }
+        if (!voice) {
+            // Steal oldest (first in array)
+            voice = this.voices[0];
+        }
+
+        voice.active = true;
+        voice.freq = freq;
+        voice.targetAmp = amp;
+        voice.amp = 0;
+        voice.pan = pan;
+        voice.phase = 0;
+        voice.envPhase = 0;
+        voice.envStage = 'attack';
+    }
+
+    triggerRustle(freq, amp, pan) {
+        let voice = null;
+        for (let v of this.rustleVoices) {
+            if (!v.active) {
+                voice = v;
+                break;
+            }
+        }
+        if (!voice) voice = this.rustleVoices[0];
+
+        voice.active = true;
+        voice.freq = freq;
+        voice.amp = amp;
+        voice.pan = pan;
+        voice.envPhase = 0;
+    }
+
+    // Moog ladder filter
+    moogFilter(input, state, cutoff, res) {
+        const fc = Math.max(20, Math.min(this.sampleRate * 0.45, cutoff));
+        const f = 2 * fc / this.sampleRate;
+        const k = 3.6 * f - 1.6 * f * f - 1;
+        const p = (k + 1) * 0.5;
+        const scale = Math.exp((1 - p) * 1.386249);
+        const r = res * scale * 4;
+
+        const feedback = r * state[3];
+        let x = Math.tanh(input - feedback);
+
+        for (let i = 0; i < 4; i++) {
+            const old = state[i];
+            state[i] = x * p + old * p - k * state[i];
+            x = state[i];
+        }
+
+        return state[3];
+    }
+
+    // Bit crusher / decimator
+    bitCrush(sample, bits) {
+        const levels = Math.pow(2, bits);
+        return Math.round(sample * levels) / levels;
+    }
+
+    // Pink noise
+    pinkNoise() {
+        const white = Math.random() * 2 - 1;
+        this.pinkB[0] = 0.99886 * this.pinkB[0] + white * 0.0555179;
+        this.pinkB[1] = 0.99332 * this.pinkB[1] + white * 0.0750759;
+        this.pinkB[2] = 0.96900 * this.pinkB[2] + white * 0.1538520;
+        this.pinkB[3] = 0.86650 * this.pinkB[3] + white * 0.3104856;
+        this.pinkB[4] = 0.55000 * this.pinkB[4] + white * 0.5329522;
+        this.pinkB[5] = -0.7616 * this.pinkB[5] - white * 0.0168980;
+        const pink = this.pinkB[0] + this.pinkB[1] + this.pinkB[2] + this.pinkB[3] + this.pinkB[4] + this.pinkB[5] + this.pinkB[6] + white * 0.5362;
+        this.pinkB[6] = white * 0.115926;
+        return pink * 0.11;
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        for (let s = 0; s < left.length; s++) {
+            let sumL = 0, sumR = 0;
+
+            // Process synth voices
+            for (let i = 0; i < this.voices.length; i++) {
+                const v = this.voices[i];
+                if (!v.active) continue;
+
+                // Envelope
+                if (v.envStage === 'attack') {
+                    v.amp += (v.targetAmp - v.amp) / (this.attack * this.sampleRate + 1);
+                    v.envPhase += 1 / this.sampleRate;
+                    if (v.envPhase >= this.attack) {
+                        v.envStage = 'sustain';
+                        v.envPhase = 0;
+                    }
+                } else if (v.envStage === 'sustain') {
+                    // Short sustain, then release
+                    v.envPhase += 1 / this.sampleRate;
+                    if (v.envPhase >= 0.05) {
+                        v.envStage = 'release';
+                        v.envPhase = 0;
+                    }
+                } else if (v.envStage === 'release') {
+                    v.amp *= Math.pow(0.001, 1 / (this.release * this.sampleRate));
+                    if (v.amp < 0.001) {
+                        v.active = false;
+                        v.envStage = 'off';
+                    }
+                }
+
+                // Pulse oscillator
+                v.phase += v.freq / this.sampleRate;
+                if (v.phase >= 1) v.phase -= 1;
+                let sig = v.phase < this.pw ? 1 : -1;
+
+                // Moog filter
+                sig = this.moogFilter(sig, this.filterStates[i], this.cutoff, this.resonance);
+
+                // Apply envelope
+                sig *= v.amp;
+
+                // Bit crush
+                sig = this.bitCrush(sig, this.bits);
+
+                // Pan
+                const gainL = Math.cos((v.pan + 1) * Math.PI / 4);
+                const gainR = Math.sin((v.pan + 1) * Math.PI / 4);
+
+                sumL += sig * gainL;
+                sumR += sig * gainR;
+            }
+
+            // Process rustle voices (hi-passed noise bursts)
+            for (let v of this.rustleVoices) {
+                if (!v.active) continue;
+
+                v.envPhase += 1 / this.sampleRate;
+                const env = Math.exp(-v.envPhase * 20); // Fast decay
+
+                if (env < 0.01) {
+                    v.active = false;
+                    continue;
+                }
+
+                // Filtered noise
+                const noise = this.pinkNoise();
+                const sig = noise * env * v.amp * this.rustle;
+
+                const gainL = Math.cos((v.pan + 1) * Math.PI / 4);
+                const gainR = Math.sin((v.pan + 1) * Math.PI / 4);
+
+                sumL += sig * gainL;
+                sumR += sig * gainR;
+            }
+
+            // Add hiss (hi-passed pink noise + dust)
+            if (this.hiss > 0) {
+                const dust = Math.random() < 0.001 ? (Math.random() * 2 - 1) * 0.5 : 0;
+                const hissNoise = (this.pinkNoise() * 0.3 + dust) * this.hiss;
+                sumL += hissNoise;
+                sumR += hissNoise;
+            }
+
+            // Delay
+            if (this.delay > 0) {
+                const delaySamples = Math.floor(0.3 * this.sampleRate);
+                const readIdx = (this.delayIdx - delaySamples + this.delayBuffer.length) % this.delayBuffer.length;
+                const delayed = this.delayBuffer[readIdx];
+
+                const wetL = delayed * this.delay;
+                const wetR = delayed * this.delay;
+
+                this.delayBuffer[this.delayIdx] = (sumL + sumR) * 0.5 + delayed * this.delayFeedback * 0.5;
+                this.delayIdx = (this.delayIdx + 1) % this.delayBuffer.length;
+
+                sumL += wetL;
+                sumR += wetR;
+            }
+
+            // Output with volume and soft clip
+            left[s] = Math.tanh(sumL * this.volume * 2);
+            if (right) right[s] = Math.tanh(sumR * this.volume * 2);
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('fall-processor', FallProcessor);
+`;
+
+        // Scales
+        const scales = {
+            major: [0, 2, 4, 5, 7, 9, 11],
+            minor: [0, 2, 3, 5, 7, 8, 10],
+            dorian: [0, 2, 3, 5, 7, 9, 10],
+            pentatonic: [0, 2, 4, 7, 9],
+            blues: [0, 3, 5, 6, 7, 10],
+            lydian: [0, 2, 4, 6, 7, 9, 11],
+            mixolydian: [0, 2, 4, 5, 7, 9, 10]
+        };
+
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+        function midiToNoteName(midi) {
+            const note = midi % 12;
+            const octave = Math.floor(midi / 12) - 1;
+            return noteNames[note] + octave;
+        }
+
+        function midiToFreq(midi) {
+            return 440 * Math.pow(2, (midi - 69) / 12);
+        }
+
+        // Leaf class
+        class Leaf {
+            constructor(canvasWidth, canvasHeight) {
+                this.reset(canvasWidth, canvasHeight, true);
+            }
+
+            reset(canvasWidth, canvasHeight, initial = false) {
+                this.x = Math.random() * canvasWidth;
+                this.y = initial ? Math.random() * canvasHeight * 0.5 : -20;
+                this.vx = 0;
+                this.vy = 0;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.1;
+                this.size = 8 + Math.random() * 8;
+                this.color = `hsl(${20 + Math.random() * 40}, ${60 + Math.random() * 30}%, ${40 + Math.random() * 20}%)`;
+                this.noteOffset = Math.floor(Math.random() * 14); // 2 octaves
+                this.triggered = false;
+            }
+
+            update(gravity, wind, canvasWidth, canvasHeight) {
+                // Apply gravity
+                this.vy += gravity * 0.01;
+
+                // Apply wind with some randomness
+                const windForce = wind * 0.1 * (Math.sin(Date.now() * 0.001 + this.x * 0.01) * 0.5 + 0.5);
+                this.vx += (windForce - this.vx * 0.1) * 0.1;
+
+                // Add sway
+                this.vx += Math.sin(Date.now() * 0.002 + this.y * 0.02) * 0.05;
+
+                // Update position
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Update rotation
+                this.rotation += this.rotationSpeed;
+
+                // Wrap horizontally
+                if (this.x < -20) this.x = canvasWidth + 20;
+                if (this.x > canvasWidth + 20) this.x = -20;
+
+                // Check if hit ground
+                if (this.y > canvasHeight - 10 && !this.triggered) {
+                    this.triggered = true;
+                    return true; // Signal note trigger
+                }
+
+                // Reset if below screen
+                if (this.y > canvasHeight + 20) {
+                    this.reset(canvasWidth, canvasHeight);
+                }
+
+                return false;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+
+                // Draw leaf shape
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, this.size, this.size * 0.6, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Leaf vein
+                ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(-this.size * 0.8, 0);
+                ctx.lineTo(this.size * 0.8, 0);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            checkCollision(other) {
+                const dx = this.x - other.x;
+                const dy = this.y - other.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                return dist < (this.size + other.size);
+            }
+        }
+
+        let audioContext;
+        let workletNode;
+        let analyser;
+        let isPlaying = false;
+        let pedalboard = null;
+        let leaves = [];
+        let animationId;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('visualizer');
+        const leafCanvas = document.getElementById('leafCanvas');
+        const ctx = canvas.getContext('2d');
+        const leafCtx = leafCanvas.getContext('2d');
+
+        let currentScale = 'minor';
+        let rootNote = 48;
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'fall-processor');
+
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+
+            // Initialize pedalboard and route audio through it
+            pedalboard = new PedalboardUI(
+                document.getElementById('pedalboard-container'),
+                audioContext
+            );
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(analyser);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'fall-generative-leaf-sequencer',
+                    patchId: 'fall-01'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('fall-01');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'fall-01',
+                    prefix: '01',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Initialize leaves
+            const numLeaves = parseInt(document.getElementById('leaves').value);
+            leaves = [];
+            for (let i = 0; i < numLeaves; i++) {
+                leaves.push(new Leaf(leafCanvas.width, leafCanvas.height));
+            }
+
+            // Send initial parameters
+            sendParams();
+        }
+
+        function sendParams() {
+            if (!workletNode) return;
+            workletNode.port.postMessage({
+                attack: parseFloat(document.getElementById('attack').value),
+                release: parseFloat(document.getElementById('release').value),
+                pw: parseFloat(document.getElementById('pw').value),
+                cutoff: parseFloat(document.getElementById('cutoff').value),
+                resonance: parseFloat(document.getElementById('resonance').value),
+                bits: parseInt(document.getElementById('bits').value),
+                hiss: parseFloat(document.getElementById('hiss').value),
+                rustle: parseFloat(document.getElementById('rustle').value),
+                volume: parseFloat(document.getElementById('volume').value),
+                delay: parseFloat(document.getElementById('delay').value)
+            });
+        }
+
+        function triggerNote(leaf) {
+            if (!workletNode) return;
+
+            const scale = scales[currentScale];
+            const octave = Math.floor(leaf.noteOffset / scale.length);
+            const scaleIdx = leaf.noteOffset % scale.length;
+            const midi = rootNote + scale[scaleIdx] + octave * 12;
+            const freq = midiToFreq(midi);
+            const pan = (leaf.x / leafCanvas.width) * 2 - 1;
+            const amp = 0.3 + Math.random() * 0.4;
+
+            workletNode.port.postMessage({
+                noteOn: { freq, amp, pan }
+            });
+        }
+
+        function triggerRustle(leaf1, leaf2) {
+            if (!workletNode) return;
+
+            const freq = 1000 + Math.random() * 3000;
+            const pan = ((leaf1.x + leaf2.x) / 2 / leafCanvas.width) * 2 - 1;
+            const amp = 0.2 + Math.random() * 0.3;
+
+            workletNode.port.postMessage({
+                rustleOn: { freq, amp, pan }
+            });
+        }
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            leafCanvas.width = leafCanvas.offsetWidth * window.devicePixelRatio;
+            leafCanvas.height = leafCanvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            leafCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function animate() {
+            if (!isPlaying) return;
+
+            const width = leafCanvas.offsetWidth;
+            const height = leafCanvas.offsetHeight;
+            const gravity = parseFloat(document.getElementById('gravity').value);
+            const wind = parseFloat(document.getElementById('wind').value);
+
+            // Clear leaf canvas
+            leafCtx.clearRect(0, 0, width, height);
+
+            // Update and draw leaves
+            for (let i = 0; i < leaves.length; i++) {
+                const leaf = leaves[i];
+                const triggered = leaf.update(gravity, wind, width, height);
+
+                if (triggered) {
+                    triggerNote(leaf);
+                }
+
+                // Check collisions for rustle
+                for (let j = i + 1; j < leaves.length; j++) {
+                    if (leaf.checkCollision(leaves[j])) {
+                        if (Math.random() < 0.1) {
+                            triggerRustle(leaf, leaves[j]);
+                        }
+                    }
+                }
+
+                leaf.draw(leafCtx);
+            }
+
+            // Draw waveform
+            ctx.fillStyle = 'rgba(26, 26, 46, 0.3)';
+            ctx.fillRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+
+            if (analyser) {
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                analyser.getByteTimeDomainData(dataArray);
+
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#e94560';
+                ctx.beginPath();
+
+                const sliceWidth = canvas.offsetWidth / bufferLength;
+                let x = 0;
+
+                for (let i = 0; i < bufferLength; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * canvas.offsetHeight / 2;
+
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                    x += sliceWidth;
+                }
+
+                ctx.stroke();
+            }
+
+            animationId = requestAnimationFrame(animate);
+        }
+
+        // Parameter controls
+        const params = ['attack', 'release', 'pw', 'cutoff', 'resonance', 'bits', 'hiss', 'rustle', 'volume', 'delay', 'gravity', 'wind'];
+        params.forEach(param => {
+            const el = document.getElementById(param);
+            const valEl = document.getElementById(param + 'Val');
+
+            if (el) {
+                el.addEventListener('input', () => {
+                    const value = parseFloat(el.value);
+                    if (valEl) valEl.textContent = value.toFixed(2);
+                    sendParams();
+                });
+            }
+        });
+
+        // Leaves control
+        document.getElementById('leaves').addEventListener('input', (e) => {
+            const numLeaves = parseInt(e.target.value);
+            document.getElementById('leavesVal').textContent = numLeaves;
+
+            // Adjust leaf count
+            while (leaves.length < numLeaves) {
+                leaves.push(new Leaf(leafCanvas.offsetWidth, leafCanvas.offsetHeight));
+            }
+            while (leaves.length > numLeaves) {
+                leaves.pop();
+            }
+        });
+
+        // Scale control
+        document.getElementById('scale').addEventListener('change', (e) => {
+            currentScale = e.target.value;
+        });
+
+        // Root note control
+        document.getElementById('rootNote').addEventListener('input', (e) => {
+            rootNote = parseInt(e.target.value);
+            document.getElementById('rootNoteVal').textContent = midiToNoteName(rootNote);
+        });
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+                resizeCanvas();
+            }
+
+            if (isPlaying) {
+                await audioContext.suspend();
+                cancelAnimationFrame(animationId);
+                playBtn.innerHTML = '&#9654;';
+                playBtn.classList.remove('playing');
+                status.textContent = 'Paused';
+                status.classList.remove('active');
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.innerHTML = '&#10074;&#10074;';
+                playBtn.classList.add('playing');
+                status.textContent = 'Leaves falling...';
+                status.classList.add('active');
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                animate();
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Initialize root note display
+        document.getElementById('rootNoteVal').textContent = midiToNoteName(48);
+    </script>
+</body>
+</html>
