@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tunnel vision - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 80px;
+        }
+        .status-display {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .status-card {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 10px 16px;
+            text-align: center;
+            min-width: 70px;
+        }
+        .status-card .label {
+            font-size: 0.6em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .status-card .value {
+            font-size: 1em;
+            color: #9b59b6;
+            font-family: 'SF Mono', monospace;
+        }
+        .sample-info {
+            text-align: center;
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+        .sample-info.loading { color: #f39c12; }
+        .sample-info.ready { color: #9b59b6; }
+        .sample-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 1em 0;
+        }
+        .sample-actions button {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+        .sample-actions button:hover {
+            border-color: #9b59b6;
+            color: #9b59b6;
+        }
+        .toggle-btn {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+        .toggle-btn.active {
+            border-color: #9b59b6;
+            color: #9b59b6;
+            background: rgba(155, 89, 182, 0.1);
+        }
+        .toggle-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 1em;
+        }
+        .midi-status {
+            text-align: center;
+            font-size: 0.75em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+        .midi-status.connected { color: #9b59b6; }
+        .focus-slider {
+            width: 100%;
+            height: 40px;
+            -webkit-appearance: none;
+            background: linear-gradient(90deg, #1a1a2e 0%, #9b59b6 100%);
+            border-radius: 20px;
+            outline: none;
+            margin: 1em 0;
+        }
+        .focus-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 30px;
+            height: 30px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(155, 89, 182, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>tunnel vision</h1>
+                <p>Dual-layer granular with focus macro, Andromeda reverb & Exile Kit samples</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="midi-status" id="midiStatus">MIDI: Connect a controller - notes trigger samples</div>
+
+            <div class="sample-info" id="sampleInfo">Loading samples...</div>
+
+            <!-- Status Display -->
+            <div class="status-display">
+                <div class="status-card">
+                    <div class="label">Sample</div>
+                    <div class="value" id="sampleDisplay">--</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Focus</div>
+                    <div class="value" id="focusDisplay">0.00</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Decay</div>
+                    <div class="value" id="decayDisplay">4.36</div>
+                </div>
+            </div>
+
+            <div class="toggle-row">
+                <button class="toggle-btn active" id="autoTrigBtn">Auto Trigger</button>
+                <button class="toggle-btn active" id="grainsBtn">Grains Layer</button>
+                <button class="toggle-btn active" id="samplerBtn">Sample Layer</button>
+            </div>
+
+            <div class="sample-actions">
+                <input type="file" id="sampleInput" accept="audio/*" multiple style="display: none;">
+                <button onclick="document.getElementById('sampleInput').click()">Import Samples</button>
+                <button id="clearSamples">Clear Samples</button>
+            </div>
+
+            <!-- Focus Macro -->
+            <span class="section-label">Focus (Macro Control)</span>
+            <div class="param-controls">
+                <input type="range" class="focus-slider" id="focus" min="0" max="1" value="0" step="0.01">
+                <div style="text-align: center; color: #666; font-size: 0.8em;">
+                    Controls: Grain trigger rate, Reverb decay, Sample pitch modulation
+                </div>
+            </div>
+
+            <!-- Clock Section -->
+            <span class="section-label">Clock</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Rate 1</label>
+                        <input type="range" id="clockRate1" min="0.5" max="20" value="2" step="0.1">
+                        <span class="param-value" id="clockRate1Val">2.0 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Rate 2</label>
+                        <input type="range" id="clockRate2" min="0.5" max="20" value="3" step="0.1">
+                        <span class="param-value" id="clockRate2Val">3.0 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Prob</label>
+                        <input type="range" id="trigProb" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="trigProbVal">0.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grains Section -->
+            <span class="section-label">Manual Grains (Granular Pad)</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Start</label>
+                        <input type="range" id="grainStart" min="0" max="1" value="0.16" step="0.01">
+                        <span class="param-value" id="grainStartVal">0.16</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Spread</label>
+                        <input type="range" id="grainSpread" min="0" max="100" value="25" step="1">
+                        <span class="param-value" id="grainSpreadVal">25%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Duration</label>
+                        <input type="range" id="grainDur" min="0.01" max="1" value="0.24" step="0.01">
+                        <span class="param-value" id="grainDurVal">0.24</span>
+                    </div>
+                </div>
+                <div class="param-row" style="margin-top: 0.5em;">
+                    <div class="param-group">
+                        <label>Squash</label>
+                        <input type="range" id="grainSquash" min="0.1" max="10" value="3.98" step="0.01">
+                        <span class="param-value" id="grainSquashVal">3.98</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Pitch Spread</label>
+                        <input type="range" id="grainPitchSpread" min="0" max="24" value="2" step="1">
+                        <span class="param-value" id="grainPitchSpreadVal">±1 st</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Grain Source</label>
+                        <button class="toggle-btn active" id="grainSourceBtn">Pad</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sample Player Section -->
+            <span class="section-label">Sample Player (Exile Kit)</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Slice</label>
+                        <input type="range" id="slice" min="0" max="1" value="0.72" step="0.01">
+                        <span class="param-value" id="sliceVal">0.72</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Pitch</label>
+                        <input type="range" id="samplePitch" min="-12" max="12" value="0" step="1">
+                        <span class="param-value" id="samplePitchVal">0 st</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reverb Section -->
+            <span class="section-label">Andromeda Nebula Reverb</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Low Cut</label>
+                        <input type="range" id="rLowcut" min="0" max="1" value="0.152" step="0.01">
+                        <span class="param-value" id="rLowcutVal">0.15</span>
+                    </div>
+                    <div class="param-group">
+                        <label>High Cut</label>
+                        <input type="range" id="rHighcut" min="1000" max="20000" value="14917" step="100">
+                        <span class="param-value" id="rHighcutVal">14.9k</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Decay</label>
+                        <input type="range" id="rDecay" min="0.1" max="10" value="4.36" step="0.01">
+                        <span class="param-value" id="rDecayVal">4.36</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Mod</label>
+                        <input type="range" id="rMod" min="0" max="100" value="63" step="1">
+                        <span class="param-value" id="rModVal">63</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Wet</label>
+                        <input type="range" id="rWet" min="0" max="1" value="0.25" step="0.01">
+                        <span class="param-value" id="rWetVal">0.25</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Grain Level</label>
+                        <input type="range" id="grainLevel" min="0" max="2" value="1.6" step="0.01">
+                        <span class="param-value" id="grainLevelVal">1.60</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Sample Level</label>
+                        <input type="range" id="sampleLevel" min="0" max="1" value="0.79" step="0.01">
+                        <span class="param-value" id="sampleLevelVal">0.79</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="vol" min="0" max="1.5" value="0.79" step="0.01">
+                        <span class="param-value" id="volVal">0.79</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        const processorCode = `
+// ============================================================================
+// SLEW LIMITER
+// ============================================================================
+class SlewLimiter {
+    constructor(time, sr) {
+        this.sr = sr;
+        this.setTime(time);
+        this.value = 0;
+    }
+
+    setTime(time) {
+        this.rate = 1 / (Math.max(0.001, time) * this.sr + 1);
+    }
+
+    process(target) {
+        this.value += (target - this.value) * this.rate;
+        return this.value;
+    }
+}
+
+// ============================================================================
+// PINGABLE SCALED RANDOM
+// ============================================================================
+class PingableScaledRandom {
+    constructor(levels = 12, scale = 1, offset = 0) {
+        this.levels = levels;
+        this.scale = scale;
+        this.offset = offset;
+        this.value = 0;
+    }
+
+    trigger() {
+        const step = 1 / this.levels;
+        this.value = Math.floor(Math.random() * this.levels) * step * this.scale + this.offset;
+    }
+
+    getValue() {
+        return this.value;
+    }
+}
+
+// ============================================================================
+// SINE OSCILLATOR
+// ============================================================================
+class SineOsc {
+    constructor(sr) {
+        this.sr = sr;
+        this.phase = 0;
+        this.freq = 1;
+    }
+
+    process() {
+        const out = Math.sin(this.phase * 2 * Math.PI);
+        this.phase += this.freq / this.sr;
+        if (this.phase >= 1) this.phase -= 1;
+        return out;
+    }
+}
+
+// ============================================================================
+// ALIASING SAW OSCILLATOR
+// ============================================================================
+class AliasingSaw {
+    constructor(sr) {
+        this.sr = sr;
+        this.phase = 0;
+        this.freq = 0.076;
+    }
+
+    process() {
+        const out = 2 * this.phase - 1;
+        this.phase += this.freq / this.sr;
+        if (this.phase >= 1) this.phase -= 1;
+        return out;
+    }
+}
+
+// ============================================================================
+// MANUAL GRAINS
+// ============================================================================
+class ManualGrains {
+    constructor(sr) {
+        this.sr = sr;
+        this.sample = null;  // Current sample for new grains
+        this.grains = [];
+        this.maxGrains = 8;
+    }
+
+    trigger(start, duration, speed, pitch, squash) {
+        if (!this.sample) return;
+
+        // Each grain stores its OWN sample reference
+        const grain = {
+            sampleRef: this.sample,  // Store reference to sample for THIS grain
+            position: start * this.sample.length,
+            phase: 0,
+            duration: duration * this.sr,
+            speed: speed,
+            pitch: Math.pow(2, pitch / 12),
+            squash: squash,
+            active: true
+        };
+
+        let placed = false;
+        for (let i = 0; i < this.grains.length; i++) {
+            if (!this.grains[i].active) {
+                this.grains[i] = grain;
+                placed = true;
+                break;
+            }
+        }
+        if (!placed && this.grains.length < this.maxGrains) {
+            this.grains.push(grain);
+        }
+    }
+
+    process() {
+        let out = 0;
+
+        for (const grain of this.grains) {
+            if (!grain.active) continue;
+            if (!grain.sampleRef) continue;  // Use grain's own sample reference
+
+            const t = grain.phase / grain.duration;
+            const window = Math.pow(Math.sin(Math.PI * t), grain.squash);
+
+            const idx = Math.floor(grain.position);
+            const frac = grain.position - idx;
+            // Use the grain's own sample reference
+            if (idx >= 0 && idx < grain.sampleRef.length - 1) {
+                const s0 = grain.sampleRef[idx];
+                const s1 = grain.sampleRef[idx + 1];
+                out += (s0 + frac * (s1 - s0)) * window;
+            }
+
+            grain.position += grain.speed * grain.pitch;
+            grain.phase++;
+
+            // Use grain's own sample reference for bounds check
+            if (grain.phase >= grain.duration || grain.position < 0 || grain.position >= grain.sampleRef.length) {
+                grain.active = false;
+            }
+        }
+
+        return out;
+    }
+}
+
+// ============================================================================
+// ANDROMEDA NEBULA REVERB
+// ============================================================================
+class AndromedaReverb {
+    constructor(sr) {
+        this.sr = sr;
+
+        const scale = sr / 44100;
+        this.allpassTimes = [556, 441, 341, 225, 180, 153].map(t => Math.floor(t * scale));
+        this.allpasses = this.allpassTimes.map(t => ({
+            buffer: new Float32Array(t),
+            idx: 0,
+            size: t
+        }));
+
+        this.combTimes = [1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617].map(t => Math.floor(t * scale));
+        this.combsL = this.combTimes.map(t => ({
+            buffer: new Float32Array(t),
+            idx: 0,
+            size: t,
+            filterStore: 0
+        }));
+        this.combsR = this.combTimes.map((t, i) => ({
+            buffer: new Float32Array(t + 23),
+            idx: 0,
+            size: t + 23,
+            filterStore: 0
+        }));
+
+        this.modPhase = 0;
+        this.modFreq = 0.5;
+
+        this.lowcut = 0.152;
+        this.highcut = 14917;
+        this.decay = 4.36;
+        this.mod = 63;
+        this.wet = 0.25;
+
+        this.hpStateL = 0;
+        this.hpStateR = 0;
+        this.lpStateL = 0;
+        this.lpStateR = 0;
+    }
+
+    processAllpass(ap, input, coeff = 0.5) {
+        const delayed = ap.buffer[ap.idx];
+        const output = -input * coeff + delayed;
+        ap.buffer[ap.idx] = input + delayed * coeff;
+        ap.idx = (ap.idx + 1) % ap.size;
+        return output;
+    }
+
+    processComb(comb, input, feedback, damp) {
+        const output = comb.buffer[comb.idx];
+        comb.filterStore = output * (1 - damp) + comb.filterStore * damp;
+        comb.buffer[comb.idx] = input + comb.filterStore * feedback;
+        comb.idx = (comb.idx + 1) % comb.size;
+        return output;
+    }
+
+    process(inputL, inputR) {
+        const feedback = Math.min(0.98, this.decay * 0.1 + 0.5);
+        const damp = 1 - (this.highcut / 20000);
+
+        const hpCoeff = Math.exp(-2 * Math.PI * (50 + this.lowcut * 400) / this.sr);
+        this.hpStateL = inputL + hpCoeff * (this.hpStateL - inputL);
+        this.hpStateR = inputR + hpCoeff * (this.hpStateR - inputR);
+        let inL = inputL - this.hpStateL;
+        let inR = inputR - this.hpStateR;
+
+        const lpCoeff = Math.exp(-2 * Math.PI * this.highcut / this.sr);
+        this.lpStateL = inL + lpCoeff * (this.lpStateL - inL);
+        this.lpStateR = inR + lpCoeff * (this.lpStateR - inR);
+        inL = this.lpStateL;
+        inR = this.lpStateR;
+
+        const mono = (inL + inR) * 0.5 * 0.015;
+
+        this.modPhase += (this.mod * 0.01) / this.sr;
+        if (this.modPhase >= 1) this.modPhase -= 1;
+        const modVal = Math.sin(this.modPhase * 2 * Math.PI) * 0.002;
+
+        let outL = 0, outR = 0;
+        for (let i = 0; i < this.combsL.length; i++) {
+            outL += this.processComb(this.combsL[i], mono, feedback + modVal, damp);
+            outR += this.processComb(this.combsR[i], mono, feedback - modVal, damp);
+        }
+
+        for (const ap of this.allpasses) {
+            outL = this.processAllpass(ap, outL);
+            outR = this.processAllpass(ap, outR);
+        }
+
+        const dry = 1 - this.wet;
+        return [
+            inputL * dry + outL * this.wet,
+            inputR * dry + outR * this.wet
+        ];
+    }
+}
+
+// ============================================================================
+// COMPRESSOR (CPR)
+// ============================================================================
+class Compressor {
+    constructor(sr) {
+        this.envelope = 0;
+        this.attackCoeff = Math.exp(-1 / (0.001 * sr));
+        this.releaseCoeff = Math.exp(-1 / (0.05 * sr));
+        this.threshold = 0.45;
+    }
+
+    process(x) {
+        const level = Math.abs(x);
+        this.envelope = level > this.envelope
+            ? this.attackCoeff * this.envelope + (1 - this.attackCoeff) * level
+            : this.releaseCoeff * this.envelope + (1 - this.releaseCoeff) * level;
+
+        if (this.envelope > this.threshold) {
+            const dBOver = 20 * Math.log10(this.envelope / this.threshold);
+            return x * Math.pow(10, -dBOver * 0.5 / 20);
+        }
+        return x;
+    }
+}
+
+// ============================================================================
+// TUNNEL VISION PROCESSOR
+// ============================================================================
+class TunnelVisionProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+        this.playing = false;
+
+        // Samples
+        this.grainSample = null; // modelQ2a for granular pad
+        this.kitSamples = [];    // Exile Kit samples
+        this.currentSampleIndex = 0;
+
+        // Focus macro (0-1)
+        this.focus = 0;
+        this.focusSlew = new SlewLimiter(0.1, this.sr);
+
+        // Clocks
+        this.clock1Phase = 0;
+        this.clock2Phase = 0;
+        this.autoTrigger = true;
+
+        // Layers
+        this.grainsEnabled = true;
+        this.samplerEnabled = true;
+
+        // Oscillators for modulation
+        this.modSine = new SineOsc(this.sr);
+        this.modSine.freq = 0.5;
+
+        // Random sources
+        this.pitchRandom = new PingableScaledRandom(12, 1, 0);
+        this.sliceRandom = new PingableScaledRandom(59, 1, 0);
+        this.grainStartRandom = new PingableScaledRandom(8, 0.5, 0);
+
+        // Manual Grains
+        this.grains = new ManualGrains(this.sr);
+
+        // Reverb
+        this.reverb = new AndromedaReverb(this.sr);
+
+        // Compressor
+        this.compL = new Compressor(this.sr);
+        this.compR = new Compressor(this.sr);
+
+        // Slew limiters for smooth parameter changes
+        this.startSlew = new SlewLimiter(0.024, this.sr);
+        this.grainLevelSlew = new SlewLimiter(0.05, this.sr);
+
+        // Parameters
+        this.params = {
+            clockRate1: 2,
+            clockRate2: 3,
+            trigProb: 0.5,
+            grainStart: 0.16,
+            grainSpread: 25,
+            grainPitchSpread: 2,
+            grainDur: 0.24,
+            grainSquash: 3.98,
+            slice: 0.72,
+            samplePitch: 0,
+            rLowcut: 0.152,
+            rHighcut: 14917,
+            rDecay: 4.36,
+            rMod: 63,
+            rWet: 0.25,
+            grainLevel: 1.6,
+            sampleLevel: 0.79,
+            vol: 0.79
+        };
+
+        // Grain source: 'pad' uses modelQ2a, 'kit' uses kit samples
+        this.grainSource = 'pad';
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'start') this.playing = true;
+            if (e.data.type === 'stop') this.playing = false;
+            if (e.data.type === 'param') {
+                this.params[e.data.name] = e.data.value;
+            }
+            if (e.data.type === 'focus') {
+                this.focus = e.data.value;
+            }
+            if (e.data.type === 'loadGrainSample') {
+                this.grainSample = e.data.sample;
+                this.grains.sample = e.data.sample;
+            }
+            if (e.data.type === 'loadKitSamples') {
+                this.kitSamples = e.data.samples;
+            }
+            if (e.data.type === 'clearSamples') {
+                this.grainSample = null;
+                this.grains.sample = null;
+                this.kitSamples = [];
+            }
+            if (e.data.type === 'autoTrigger') {
+                this.autoTrigger = e.data.value;
+            }
+            if (e.data.type === 'grainsEnabled') {
+                this.grainsEnabled = e.data.value;
+            }
+            if (e.data.type === 'samplerEnabled') {
+                this.samplerEnabled = e.data.value;
+            }
+            if (e.data.type === 'grainSource') {
+                this.grainSource = e.data.value;
+            }
+            if (e.data.type === 'noteOn') {
+                // MIDI triggers sample from kit
+                if (this.kitSamples.length > 0) {
+                    const idx = (e.data.note - 36) % this.kitSamples.length;
+                    this.currentSampleIndex = Math.max(0, idx);
+                    this.samplePos = 0;
+                    this.samplePlaying = true;
+                }
+                // Also trigger a grain on MIDI
+                if (this.grainSample) {
+                    this.pitchRandom.trigger();
+                    this.grainStartRandom.trigger();
+                    const midiPitch = (e.data.note - 60) * 1; // semitones from middle C
+                    this.grains.trigger(
+                        this.params.grainStart + this.grainStartRandom.getValue() * 0.3,
+                        this.params.grainDur,
+                        1,
+                        midiPitch,
+                        this.params.grainSquash
+                    );
+                }
+            }
+            if (e.data.type === 'noteOff') {
+                // Could add release behavior here
+            }
+        };
+
+        // Sample playback state
+        this.samplePos = 0;
+        this.samplePlaying = false;
+    }
+
+    process(inputs, outputs) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1];
+
+        if (!this.playing) {
+            outL.fill(0);
+            outR.fill(0);
+            return true;
+        }
+
+        // Calculate focus value (slewed for smoothness)
+        const focusVal = this.focusSlew.process(this.focus);
+
+        // Focus affects multiple parameters:
+        // 1. Reverb decay: at focus=0, use base decay; at focus=1, decay is halved
+        const decayMod = this.params.rDecay * (1 - focusVal * 0.7);
+        this.reverb.decay = Math.max(0.1, decayMod);
+        this.reverb.lowcut = this.params.rLowcut;
+        this.reverb.highcut = this.params.rHighcut;
+        // 2. Focus increases reverb modulation
+        this.reverb.mod = this.params.rMod + focusVal * 50;
+        // 3. Focus increases reverb wet
+        this.reverb.wet = this.params.rWet + focusVal * 0.3;
+
+        // 4. Focus increases grain trigger rate
+        const grainRate = this.params.clockRate1 * (1 + focusVal * 4);
+
+        // 5. Spread is now a user parameter (0-100%), Focus adds more
+        const spreadAmount = (this.params.grainSpread / 100) + focusVal * 0.3;
+
+        // Determine which sample to use for grains
+        const useKitForGrains = this.grainSource === 'kit' && this.kitSamples.length > 0;
+        const grainSampleAvailable = useKitForGrains ? this.kitSamples.length > 0 : this.grainSample;
+
+        for (let i = 0; i < outL.length; i++) {
+            let sigL = 0, sigR = 0;
+
+            // Clock 1 - Grain triggers
+            if (this.autoTrigger && this.grainsEnabled && grainSampleAvailable) {
+                this.clock1Phase += grainRate / this.sr;
+                if (this.clock1Phase >= 1) {
+                    this.clock1Phase -= 1;
+
+                    // Trigger grain with randomized start position
+                    this.pitchRandom.trigger();
+                    this.grainStartRandom.trigger();
+
+                    // If using kit samples, randomly pick one for each grain
+                    if (useKitForGrains) {
+                        const kitIdx = Math.floor(Math.random() * this.kitSamples.length);
+                        this.grains.sample = this.kitSamples[kitIdx];
+                        // Debug: track which sample was used
+                        this.lastKitIdx = kitIdx;
+                    } else {
+                        this.grains.sample = this.grainSample;
+                        this.lastKitIdx = -1;
+                    }
+
+                    // Start position: base Start param + random offset based on Spread
+                    // Random offset ranges from -spread/2 to +spread/2
+                    const randomOffset = (this.grainStartRandom.getValue() - 0.25) * spreadAmount;
+                    const startMod = this.params.grainStart + randomOffset;
+
+                    // Pitch spread from user parameter, Focus adds more
+                    const pitchRange = this.params.grainPitchSpread + focusVal * 6;
+                    const pitchMod = (this.pitchRandom.getValue() - 0.5) * pitchRange;
+
+                    // Focus reduces grain duration for denser textures
+                    const durMod = this.params.grainDur * (1 - focusVal * 0.5);
+
+                    this.grains.trigger(
+                        Math.max(0, Math.min(0.95, startMod)),
+                        Math.max(0.01, durMod),
+                        1,
+                        pitchMod,
+                        this.params.grainSquash
+                    );
+                }
+            }
+
+            // Clock 2 - Sample triggers
+            if (this.autoTrigger && this.samplerEnabled && this.kitSamples.length > 0) {
+                this.clock2Phase += this.params.clockRate2 / this.sr;
+                if (this.clock2Phase >= 1) {
+                    this.clock2Phase -= 1;
+
+                    if (Math.random() < this.params.trigProb) {
+                        this.sliceRandom.trigger();
+                        const sliceVal = this.params.slice + this.sliceRandom.getValue() * 0.2;
+                        this.currentSampleIndex = Math.floor(sliceVal * this.kitSamples.length) % this.kitSamples.length;
+                        this.samplePos = 0;
+                        this.samplePlaying = true;
+                    }
+                }
+            }
+
+            // Process grains
+            if (this.grainsEnabled) {
+                const grainLevel = this.grainLevelSlew.process(this.params.grainLevel);
+                const grainOut = this.grains.process() * grainLevel;
+                // Slight stereo spread for grains
+                const pan = Math.sin(this.clock1Phase * Math.PI * 2) * 0.3;
+                sigL += grainOut * (1 - pan * 0.5);
+                sigR += grainOut * (1 + pan * 0.5);
+            }
+
+            // Process sample playback
+            if (this.samplerEnabled && this.samplePlaying && this.currentSampleIndex < this.kitSamples.length) {
+                const sample = this.kitSamples[this.currentSampleIndex];
+                if (sample) {
+                    const idx = Math.floor(this.samplePos);
+                    const frac = this.samplePos - idx;
+
+                    if (idx >= 0 && idx < sample.length - 1) {
+                        const s0 = sample[idx];
+                        const s1 = sample[idx + 1];
+                        const sampleOut = (s0 + frac * (s1 - s0)) * this.params.sampleLevel;
+                        sigL += sampleOut;
+                        sigR += sampleOut;
+                    }
+
+                    // Focus modulates sample playback speed
+                    const focusPitchMod = (focusVal - 0.5) * 6; // +/- 3 semitones at extremes
+                    const speed = Math.pow(2, (this.params.samplePitch + focusPitchMod) / 12);
+                    this.samplePos += speed;
+
+                    if (this.samplePos >= sample.length) {
+                        this.samplePlaying = false;
+                    }
+                }
+            }
+
+            // Modulation sine for reverb
+            this.modSine.process();
+
+            // Apply reverb
+            [sigL, sigR] = this.reverb.process(sigL, sigR);
+
+            // Compression
+            sigL = this.compL.process(sigL);
+            sigR = this.compR.process(sigR);
+
+            // Output
+            sigL *= this.params.vol;
+            sigR *= this.params.vol;
+
+            outL[i] = Math.tanh(sigL);
+            outR[i] = Math.tanh(sigR);
+        }
+
+        // Send state
+        if (Math.random() < 0.1) {
+            this.port.postMessage({
+                type: 'state',
+                sampleIndex: this.currentSampleIndex + 1,
+                focus: this.focusSlew.value,
+                decay: this.reverb.decay,
+                grainSource: this.grainSource,
+                kitSamplesCount: this.kitSamples.length,
+                lastKitIdx: this.lastKitIdx || 0
+            });
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('tunnel-vision-processor', TunnelVisionProcessor);
+`;
+
+        let audioContext, workletNode, pedalboard;
+        let isPlaying = false;
+        let loadedKitSamples = [];
+        let grainSampleLoaded = false;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const sampleInfo = document.getElementById('sampleInfo');
+
+        const sampleBasePath = 'samples/tunnel-vision/';
+
+        // Grain sample (modelQ2a for the granular pad)
+        const grainSampleFile = 'modelQ2a.wav';
+
+        // Exile Kit sample files
+        const kitSampleFiles = [
+            'blank_snare.wav', 'bsr_1.wav', 'bsr_2.wav', 'bsr_3.wav', 'bsr_4.wav',
+            'bsr_5.wav', 'bsr_6.wav', 'bsr_7.wav', 'bsr_8.wav',
+            'choir_1.wav', 'choir_2.wav', 'choir_3.wav', 'choir_4.wav',
+            'daddy_back_pile.wav', 'daddy_coo.wav', 'daddy_cub.wav', 'daddy_kick.wav',
+            'daddy_pile.wav', 'daddy_skid.wav', 'daddy_spinner.wav', 'daddy_squeak.wav',
+            'daddy_thud.wav', 'daddy_thunder.wav', 'deep_rez_tom.wav', 'deep_rez_tom_2.wav',
+            'drop_perc_1.wav', 'drop_perc_2.wav', 'faint_shape.wav', 'feedback_twat.wav',
+            'gk_conv_1.wav', 'gk_conv_2.wav', 'gk_dist.wav', 'gk_flange.wav', 'gk_ring.wav',
+            'ground_kick.wav', 'karplus_tabla.wav', 'little_pluck.wav', 'little_pluck_2.wav',
+            'radiator.wav', 'rez_tom_1.wav', 'ripe_brush.wav', 'ripe_glass.wav',
+            'ripe_glass_hi.wav', 'ripe_glass_huge.wav', 'ripe_glasslong.wav',
+            'ripe_roro_suck.wav', 'ripe_scatter.wav', 'ripe_scrape.wav', 'ripe_snare.wav',
+            'ripe_stretch_1.wav', 'ripe_wave.wav', 'ripe_wave_long.wav', 'scanzap.wav',
+            'scrape_hikik.wav', 'skitter.wav', 'slippery.wav', 'stop_glub.wav',
+            'verbzap.wav', 'verbzap1.wav'
+        ];
+
+        async function loadDefaultSamples() {
+            try {
+                sampleInfo.textContent = 'Loading samples...';
+                sampleInfo.className = 'sample-info loading';
+
+                // Load grain sample first
+                try {
+                    const response = await fetch(sampleBasePath + grainSampleFile);
+                    if (response.ok) {
+                        const buffer = await response.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(buffer);
+                        workletNode.port.postMessage({
+                            type: 'loadGrainSample',
+                            sample: audioBuffer.getChannelData(0)
+                        });
+                        grainSampleLoaded = true;
+                    }
+                } catch (e) {}
+
+                // Load kit samples
+                loadedKitSamples = [];
+                for (const filename of kitSampleFiles) {
+                    try {
+                        const response = await fetch(sampleBasePath + filename);
+                        if (response.ok) {
+                            const buffer = await response.arrayBuffer();
+                            const audioBuffer = await audioContext.decodeAudioData(buffer);
+                            loadedKitSamples.push(audioBuffer.getChannelData(0));
+                        }
+                    } catch (e) {}
+                }
+
+                if (loadedKitSamples.length > 0) {
+                    workletNode.port.postMessage({
+                        type: 'loadKitSamples',
+                        samples: loadedKitSamples
+                    });
+                }
+
+                const total = (grainSampleLoaded ? 1 : 0) + loadedKitSamples.length;
+                if (total > 0) {
+                    sampleInfo.textContent = total + ' samples loaded (1 grain + ' + loadedKitSamples.length + ' kit)';
+                    sampleInfo.className = 'sample-info ready';
+                } else {
+                    sampleInfo.textContent = 'No samples found - import your own';
+                    sampleInfo.className = 'sample-info';
+                }
+            } catch (e) {
+                sampleInfo.textContent = 'Error loading samples';
+                sampleInfo.className = 'sample-info';
+            }
+        }
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext({ sampleRate: 48000 });
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'tunnel-vision-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboard = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'tunnel-vision-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-tunnel-vision'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-tunnel-vision');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-tunnel-vision',
+                    prefix: 'vision',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Handle messages
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'state') {
+                    document.getElementById('sampleDisplay').textContent =
+                        loadedKitSamples.length > 0 ? e.data.sampleIndex + '/' + loadedKitSamples.length : '--';
+                    document.getElementById('focusDisplay').textContent = e.data.focus.toFixed(2);
+                    document.getElementById('decayDisplay').textContent = e.data.decay.toFixed(2);
+                    // Debug: show grain source info in console
+                    if (e.data.grainSource === 'kit') {
+                        console.log('Kit mode - samples:', e.data.kitSamplesCount, 'lastIdx:', e.data.lastKitIdx);
+                    }
+                }
+            };
+
+            // Visualizer
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            fxNode.connect(analyser);
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            function draw() {
+                requestAnimationFrame(draw);
+                analyser.getByteTimeDomainData(dataArray);
+                ctx.fillStyle = '#0a0a14';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#9b59b6';
+                ctx.beginPath();
+                const sliceWidth = canvas.width / dataArray.length;
+                let x = 0;
+                for (let i = 0; i < dataArray.length; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * canvas.height / 2;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                    x += sliceWidth;
+                }
+                ctx.stroke();
+            }
+            draw();
+
+            await loadDefaultSamples();
+            initMIDI();
+        }
+
+        // MIDI
+        const midiStatus = document.getElementById('midiStatus');
+
+        function handleMIDIMessage(event) {
+            const [status, note, velocity] = event.data;
+            const command = status & 0xf0;
+
+            if (command === 0x90 && velocity > 0) {
+                if (workletNode) workletNode.port.postMessage({ type: 'noteOn', note, velocity });
+            } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+                if (workletNode) workletNode.port.postMessage({ type: 'noteOff', note });
+            }
+        }
+
+        async function initMIDI() {
+            if (!navigator.requestMIDIAccess) return;
+            try {
+                const midiAccess = await navigator.requestMIDIAccess();
+                for (const input of midiAccess.inputs.values()) {
+                    input.onmidimessage = handleMIDIMessage;
+                    midiStatus.textContent = 'MIDI: Connected';
+                    midiStatus.classList.add('connected');
+                }
+                midiAccess.onstatechange = (e) => {
+                    if (e.port.type === 'input' && e.port.state === 'connected') {
+                        e.port.onmidimessage = handleMIDIMessage;
+                        midiStatus.textContent = 'MIDI: ' + e.port.name;
+                        midiStatus.classList.add('connected');
+                    }
+                };
+            } catch (err) {}
+        }
+
+        playBtn.onclick = async () => {
+            if (!audioContext) await initAudio();
+            if (audioContext.state === 'suspended') await audioContext.resume();
+
+            isPlaying = !isPlaying;
+            playBtn.textContent = isPlaying ? '\u23F9' : '\u25B6';
+            workletNode.port.postMessage({ type: isPlaying ? 'start' : 'stop' });
+        };
+
+        // Focus slider
+        document.getElementById('focus').oninput = (e) => {
+            const val = parseFloat(e.target.value);
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'focus', value: val });
+            }
+        };
+
+        // Toggle buttons
+        const autoTrigBtn = document.getElementById('autoTrigBtn');
+        autoTrigBtn.onclick = () => {
+            autoTrigBtn.classList.toggle('active');
+            if (workletNode) {
+                workletNode.port.postMessage({
+                    type: 'autoTrigger',
+                    value: autoTrigBtn.classList.contains('active')
+                });
+            }
+        };
+
+        const grainsBtn = document.getElementById('grainsBtn');
+        grainsBtn.onclick = () => {
+            grainsBtn.classList.toggle('active');
+            if (workletNode) {
+                workletNode.port.postMessage({
+                    type: 'grainsEnabled',
+                    value: grainsBtn.classList.contains('active')
+                });
+            }
+        };
+
+        const samplerBtn = document.getElementById('samplerBtn');
+        samplerBtn.onclick = () => {
+            samplerBtn.classList.toggle('active');
+            if (workletNode) {
+                workletNode.port.postMessage({
+                    type: 'samplerEnabled',
+                    value: samplerBtn.classList.contains('active')
+                });
+            }
+        };
+
+        // Sample import
+        document.getElementById('sampleInput').onchange = async (e) => {
+            if (!audioContext) await initAudio();
+            const files = e.target.files;
+            if (files.length > 0) {
+                try {
+                    loadedKitSamples = [];
+                    for (const file of files) {
+                        const buffer = await file.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(buffer);
+                        loadedKitSamples.push(audioBuffer.getChannelData(0));
+                    }
+
+                    workletNode.port.postMessage({
+                        type: 'loadKitSamples',
+                        samples: loadedKitSamples
+                    });
+
+                    sampleInfo.textContent = loadedKitSamples.length + ' custom samples loaded';
+                    sampleInfo.className = 'sample-info ready';
+                } catch (err) {
+                    sampleInfo.textContent = 'Error loading files';
+                    sampleInfo.className = 'sample-info';
+                }
+            }
+        };
+
+        // Clear samples
+        document.getElementById('clearSamples').onclick = () => {
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'clearSamples' });
+                loadedKitSamples = [];
+                grainSampleLoaded = false;
+                sampleInfo.textContent = 'No samples loaded';
+                sampleInfo.className = 'sample-info';
+            }
+        };
+
+        // Parameter controls
+        const params = ['clockRate1', 'clockRate2', 'trigProb', 'grainStart', 'grainSpread', 'grainPitchSpread',
+                        'grainDur', 'grainSquash', 'slice', 'samplePitch', 'rLowcut', 'rHighcut', 'rDecay',
+                        'rMod', 'rWet', 'grainLevel', 'sampleLevel', 'vol'];
+
+        params.forEach(name => {
+            const input = document.getElementById(name);
+            const display = document.getElementById(name + 'Val');
+            if (input && display) {
+                input.oninput = () => {
+                    const val = parseFloat(input.value);
+                    if (name === 'clockRate1' || name === 'clockRate2') {
+                        display.textContent = val.toFixed(1) + ' Hz';
+                    } else if (name === 'samplePitch') {
+                        display.textContent = val + ' st';
+                    } else if (name === 'rHighcut') {
+                        display.textContent = (val / 1000).toFixed(1) + 'k';
+                    } else if (name === 'rMod') {
+                        display.textContent = val;
+                    } else if (name === 'grainSpread') {
+                        display.textContent = val + '%';
+                    } else if (name === 'grainPitchSpread') {
+                        display.textContent = '±' + (val / 2).toFixed(0) + ' st';
+                    } else {
+                        display.textContent = val.toFixed(2);
+                    }
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'param', name, value: val });
+                    }
+                };
+            }
+        });
+
+        // Grain source toggle (Pad vs Kit)
+        const grainSourceBtn = document.getElementById('grainSourceBtn');
+        let grainSourceMode = 'pad';
+        grainSourceBtn.onclick = () => {
+            grainSourceMode = grainSourceMode === 'pad' ? 'kit' : 'pad';
+            grainSourceBtn.textContent = grainSourceMode === 'pad' ? 'Pad' : 'Kit';
+            grainSourceBtn.classList.toggle('active', grainSourceMode === 'pad');
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'grainSource', value: grainSourceMode });
+            }
+        };
+
+        // Info panel
+        if (typeof ER301InfoPanel !== 'undefined') {
+            new ER301InfoPanel(document.body, {
+                title: 'tunnel vision',
+                author: 'mudlogger',
+                origin: 'ER-301 Hyperscale Units',
+                description: 'Dual-layer granular instrument combining a granular pad (modelQ2a sample through Manual Grains) with a sample player (59 Exile Kit samples). Features a Focus macro control that modulates grain trigger rate, reverb decay, and sample pitch. Includes Andromeda Nebula reverb for lush atmospheric textures.',
+                controls: [
+                    { name: 'Focus', range: '0-1', description: 'Master macro control - affects grain rate, reverb decay, spread, and pitch modulation' },
+                    { name: 'Rate 1', range: '0.5-20 Hz', description: 'Clock rate for grain triggers' },
+                    { name: 'Rate 2', range: '0.5-20 Hz', description: 'Clock rate for sample triggers' },
+                    { name: 'Prob', range: '0-1', description: 'Probability of sample triggering on clock' },
+                    { name: 'Start', range: '0-1', description: 'Center position for grain playback in the sample' },
+                    { name: 'Spread', range: '0-100%', description: 'How much grains randomly scatter from the Start position (0% = always same position, 100% = anywhere in sample)' },
+                    { name: 'Duration', range: '0.01-1', description: 'Grain duration in seconds' },
+                    { name: 'Squash', range: '0.1-10', description: 'Grain window shape (higher = more squared off)' },
+                    { name: 'Pitch Spread', range: '0-24 st', description: 'Random pitch variation range for grains' },
+                    { name: 'Grain Source', description: 'Toggle between Pad (modelQ2a sample) or Kit (random samples from Exile Kit)' },
+                    { name: 'Slice', range: '0-1', description: 'Base sample selection from kit' },
+                    { name: 'Reverb Low/High Cut', description: 'Filter the reverb input signal' },
+                    { name: 'Reverb Decay', range: '0.1-10', description: 'Reverb tail length' },
+                    { name: 'Reverb Mod', range: '0-100', description: 'Modulation amount inside reverb' },
+                    { name: 'Reverb Wet', range: '0-1', description: 'Dry/wet mix' }
+                ],
+                tips: [
+                    'The Focus slider is the main performance control - sweep it slowly for evolving textures',
+                    'Toggle Grains Layer off to hear just the sample player, and vice versa',
+                    'Higher Focus values create more chaotic, pitch-modulated textures',
+                    'MIDI notes C2+ directly trigger kit samples (C2=sample 1, C#2=sample 2, etc.)',
+                    'Long reverb decay creates ambient, drone-like atmospheres',
+                    'Try different clock rate combinations for polyrhythmic patterns',
+                    'Import your own samples to completely change the character'
+                ]
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ambikarp - ER-301 Autogen301</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 100px;
+        }
+        .osc-section {
+            background: #0d1018;
+            border: 1px solid #2a3a4a;
+            border-radius: 8px;
+            padding: 1em;
+            margin-bottom: 1em;
+        }
+        .osc-section h3 {
+            margin: 0 0 0.75em 0;
+            font-size: 0.9em;
+            color: #6a9aff;
+        }
+        .scale-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5em;
+            margin-top: 0.5em;
+        }
+        .scale-btn {
+            background: #1a1a2a;
+            border: 1px solid #333;
+            color: #888;
+            padding: 0.4em 0.8em;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75em;
+        }
+        .scale-btn:hover {
+            border-color: #6a9aff;
+            color: #6a9aff;
+        }
+        .scale-btn.active {
+            background: #2a3a5a;
+            border-color: #6a9aff;
+            color: #fff;
+        }
+        .note-display {
+            font-family: monospace;
+            font-size: 1.5em;
+            color: #6a9aff;
+            text-align: center;
+            padding: 0.5em;
+            background: #0a0a15;
+            border-radius: 4px;
+            margin: 0.5em 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Ambikarp</h1>
+                <p>Ambient arpeggiator with scale quantization and clocked random modulation</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Oscillator Section -->
+            <div class="osc-section">
+                <h3>Single Cycle Oscillator (AKWF Saw)</h3>
+                <div class="note-display" id="noteDisplay">C4</div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Base Freq</label>
+                        <input type="range" id="baseFreq" min="20" max="880" value="220" step="1">
+                        <span class="param-value" id="baseFreqVal">220 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Shape</label>
+                        <input type="range" id="shape" min="-0.3" max="2" value="0.5" step="0.01">
+                        <span class="param-value" id="shapeVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Scan</label>
+                        <input type="range" id="scan" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="scanVal">0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scale Quantizer -->
+            <span class="section-label">Scale Quantizer</span>
+            <div class="param-controls">
+                <div class="scale-buttons">
+                    <button class="scale-btn active" data-scale="major">Major</button>
+                    <button class="scale-btn" data-scale="minor">Minor</button>
+                    <button class="scale-btn" data-scale="pentatonic">Pentatonic</button>
+                    <button class="scale-btn" data-scale="dorian">Dorian</button>
+                    <button class="scale-btn" data-scale="lydian">Lydian</button>
+                    <button class="scale-btn" data-scale="chromatic">Chromatic</button>
+                </div>
+                <div class="param-row" style="margin-top: 1em;">
+                    <div class="param-group">
+                        <label>Root Note</label>
+                        <select id="rootNote">
+                            <option value="0">C</option>
+                            <option value="1">C#</option>
+                            <option value="2">D</option>
+                            <option value="3">D#</option>
+                            <option value="4">E</option>
+                            <option value="5">F</option>
+                            <option value="6">F#</option>
+                            <option value="7">G</option>
+                            <option value="8">G#</option>
+                            <option value="9">A</option>
+                            <option value="10">A#</option>
+                            <option value="11">B</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Octave Range</label>
+                        <input type="range" id="octaveRange" min="1" max="4" value="2" step="1">
+                        <span class="param-value" id="octaveRangeVal">2 oct</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clocked Random Section -->
+            <span class="section-label">Clocked Random</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Tempo</label>
+                        <input type="range" id="tempo" min="40" max="200" value="80" step="1">
+                        <span class="param-value" id="tempoVal">80 BPM</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Gate Probability</label>
+                        <input type="range" id="gateProbability" min="0" max="1" value="0.6" step="0.01">
+                        <span class="param-value" id="gateProbabilityVal">60%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Random Scale</label>
+                        <input type="range" id="randomScale" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="randomScaleVal">0.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Envelope Section -->
+            <span class="section-label">ADSR Envelope</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Attack</label>
+                        <input type="range" id="attack" min="0.001" max="2" value="0.1" step="0.001">
+                        <span class="param-value" id="attackVal">0.10s</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Decay</label>
+                        <input type="range" id="decay" min="0.01" max="2" value="0.3" step="0.01">
+                        <span class="param-value" id="decayVal">0.30s</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Sustain</label>
+                        <input type="range" id="sustain" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="sustainVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Release</label>
+                        <input type="range" id="release" min="0.01" max="4" value="1" step="0.01">
+                        <span class="param-value" id="releaseVal">1.00s</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delay Section -->
+            <span class="section-label">Clocked Delay</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Time Mult</label>
+                        <input type="range" id="delayMult" min="1" max="8" value="3" step="1">
+                        <span class="param-value" id="delayMultVal">3x</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="delayFeedback" min="0" max="0.9" value="0.4" step="0.01">
+                        <span class="param-value" id="delayFeedbackVal">40%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mix</label>
+                        <input type="range" id="delayMix" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="delayMixVal">30%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Slew</label>
+                        <input type="range" id="slew" min="0" max="0.5" value="0.1" step="0.01">
+                        <span class="param-value" id="slewVal">0.10s</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CPR Section -->
+            <span class="section-label">CPR Compression</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Threshold</label>
+                        <input type="range" id="compThreshold" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="compThresholdVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Ratio</label>
+                        <input type="range" id="compRatio" min="1" max="10" value="2" step="0.1">
+                        <span class="param-value" id="compRatioVal">2:1</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="volume" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="volumeVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <pre class="code-block">
+// Ambikarp - ER-301 Autogen301
+// Original by mudlogger
+//
+// Ambient arpeggiator featuring:
+// - Single Cycle Oscillator (AKWF saw wavetable)
+// - Scale Quantizer for musical note selection
+// - Clocked Random Gate and CV for variation
+// - ADSR envelope with slew-limited transitions
+// - Clocked Delay synced to tempo
+// - CPR compression for dynamics control
+//
+// The "shape" parameter modulates the oscillator
+// waveshape for timbral variation</pre>
+
+            <div id="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        // Phonebook features
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        // Scales (semitone intervals from root)
+        const SCALES = {
+            major: [0, 2, 4, 5, 7, 9, 11],
+            minor: [0, 2, 3, 5, 7, 8, 10],
+            pentatonic: [0, 2, 4, 7, 9],
+            dorian: [0, 2, 3, 5, 7, 9, 10],
+            lydian: [0, 2, 4, 6, 7, 9, 11],
+            chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        };
+
+        const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+        // Audio context and nodes
+        let audioContext;
+        let workletNode;
+        let analyser;
+        let pedalboardNode = null;
+        let pedalboardUI = null;
+        let isPlaying = false;
+
+        // Wavetable
+        let wavetableBuffer = null;
+
+        // Current state
+        let currentScale = 'major';
+        let rootNote = 0;
+        let nextTrigTime = 0;
+        let currentNote = 60; // Middle C
+        let targetFreq = 261.63;
+        let currentFreq = 261.63;
+
+        // Load wavetable
+        async function loadWavetable() {
+            try {
+                const response = await fetch('../samples/autogen301/ambikarp/AKWF_saw_0001.wav');
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    wavetableBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                }
+            } catch (err) {
+                console.warn('Could not load wavetable:', err);
+            }
+        }
+
+        // Quantize to scale
+        function quantizeToScale(noteValue) {
+            const scale = SCALES[currentScale];
+            const root = parseInt(document.getElementById('rootNote').value);
+            const octaveRange = parseInt(document.getElementById('octaveRange').value);
+
+            // Map note value (0-1) to note range
+            const midiNote = Math.floor(noteValue * (scale.length * octaveRange));
+            const octave = Math.floor(midiNote / scale.length);
+            const scaleIndex = midiNote % scale.length;
+
+            const quantizedNote = 48 + root + (octave * 12) + scale[scaleIndex]; // Start from C3
+            return quantizedNote;
+        }
+
+        // MIDI note to frequency
+        function midiToFreq(midiNote) {
+            return 440 * Math.pow(2, (midiNote - 69) / 12);
+        }
+
+        // MIDI note to name
+        function midiToName(midiNote) {
+            const noteName = NOTE_NAMES[midiNote % 12];
+            const octave = Math.floor(midiNote / 12) - 1;
+            return noteName + octave;
+        }
+
+        // Create wavetable oscillator
+        function createWavetableOsc() {
+            if (!wavetableBuffer) return null;
+
+            const source = audioContext.createBufferSource();
+            source.buffer = wavetableBuffer;
+            source.loop = true;
+
+            return source;
+        }
+
+        // Initialize audio
+        async function initAudio() {
+            try {
+                await featuresLoaded;
+
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+                await loadWavetable();
+
+                // Create analyser
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+
+                // Create master gain
+                const masterGain = audioContext.createGain();
+                masterGain.gain.value = parseFloat(document.getElementById('volume').value);
+
+                // Create oscillator chain (we'll recreate osc per note)
+                const oscGain = audioContext.createGain();
+                oscGain.gain.value = 0;
+
+                // Create filter for shape control
+                const filter = audioContext.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 2000;
+                filter.Q.value = 1;
+
+                // Create delay
+                const delay = audioContext.createDelay(2);
+                const tempo = parseFloat(document.getElementById('tempo').value);
+                const delayMult = parseFloat(document.getElementById('delayMult').value);
+                delay.delayTime.value = (60 / tempo) * delayMult;
+
+                const delayFeedback = audioContext.createGain();
+                delayFeedback.gain.value = parseFloat(document.getElementById('delayFeedback').value);
+
+                const delayMix = audioContext.createGain();
+                delayMix.gain.value = parseFloat(document.getElementById('delayMix').value);
+
+                const delayDry = audioContext.createGain();
+                delayDry.gain.value = 1 - parseFloat(document.getElementById('delayMix').value);
+
+                delay.connect(delayFeedback);
+                delayFeedback.connect(delay);
+                delay.connect(delayMix);
+
+                // Create compressor
+                const compressor = audioContext.createDynamicsCompressor();
+                compressor.threshold.value = -24 + (parseFloat(document.getElementById('compThreshold').value) * 24);
+                compressor.ratio.value = parseFloat(document.getElementById('compRatio').value);
+                compressor.attack.value = 0.001;
+                compressor.release.value = 0.05;
+
+                // Connect chain
+                oscGain.connect(filter);
+                filter.connect(delayDry);
+                filter.connect(delay);
+                delayDry.connect(compressor);
+                delayMix.connect(compressor);
+                compressor.connect(masterGain);
+
+                // Store nodes
+                workletNode = {
+                    oscGain,
+                    filter,
+                    delay,
+                    delayFeedback,
+                    delayMix,
+                    delayDry,
+                    compressor,
+                    masterGain,
+                    connect: (dest) => masterGain.connect(dest),
+                    disconnect: () => masterGain.disconnect()
+                };
+
+                // Initialize pedalboard
+                const pedalboardContainer = document.getElementById('pedalboard-container');
+                if (typeof PedalboardUI !== 'undefined' && pedalboardContainer) {
+                    pedalboardUI = new PedalboardUI(pedalboardContainer, audioContext, {
+                        patchId: 'er-301-patches-autogen301-ambikarp'
+                    });
+                    pedalboardNode = await pedalboardUI.init();
+                    pedalboardUI.connect(masterGain);
+                    pedalboardNode.connect(audioContext.destination);
+                    pedalboardNode.connect(analyser);
+                } else {
+                    masterGain.connect(analyser);
+                    analyser.connect(audioContext.destination);
+                }
+
+                // Initialize phonebook features
+                const outputNode = pedalboardNode || analyser;
+                if (typeof StickyHeader !== 'undefined') {
+                    stickyHeader = new StickyHeader({
+                        patchName: 'ambikarp-er-301-autogen301',
+                        patchId: 'er-301-patches-autogen301-ambikarp'
+                    });
+                    await stickyHeader.init();
+                    await stickyHeader.initRecorder(audioContext, outputNode, audioContext.destination);
+                }
+
+                if (typeof getMidiLearn !== 'undefined') {
+                    midiLearn = await getMidiLearn('er-301-patches-autogen301-ambikarp');
+                }
+
+                if (typeof getModulationMatrix !== 'undefined') {
+                    modMatrix = getModulationMatrix();
+                    modMatrixUI = new ModMatrixUI(
+                        document.querySelector('.patch-content') || document.body,
+                        { modMatrix: modMatrix }
+                    );
+                    modMatrixUI.init();
+                }
+
+                // Auto-register all sliders for MIDI Learn and Mod Matrix
+                if (typeof autoRegisterControls !== 'undefined') {
+                    await autoRegisterControls({
+                        patchId: 'er-301-patches-autogen301-ambikarp',
+                        prefix: 'ambikarp',
+                        modMatrixUI: modMatrixUI
+                    });
+                }
+
+                document.getElementById('playBtn').disabled = false;
+
+            } catch (err) {
+                console.error('Audio init error:', err);
+            }
+        }
+
+        // Trigger a note
+        function triggerNote() {
+            if (!audioContext || !wavetableBuffer) return;
+
+            const randomScale = parseFloat(document.getElementById('randomScale').value);
+            const randomValue = Math.random() * randomScale + (1 - randomScale) * 0.5;
+
+            currentNote = quantizeToScale(randomValue);
+            targetFreq = midiToFreq(currentNote);
+
+            // Update display
+            document.getElementById('noteDisplay').textContent = midiToName(currentNote);
+
+            // Create oscillator
+            const osc = createWavetableOsc();
+            if (!osc) return;
+
+            // Apply shape parameter to filter
+            const shape = parseFloat(document.getElementById('shape').value);
+            workletNode.filter.frequency.value = 200 + shape * 4000;
+
+            // Set frequency with slew
+            const slew = parseFloat(document.getElementById('slew').value);
+            const now = audioContext.currentTime;
+
+            osc.playbackRate.value = targetFreq / (audioContext.sampleRate / wavetableBuffer.length);
+
+            // Create per-note envelope
+            const noteGain = audioContext.createGain();
+            noteGain.gain.value = 0;
+
+            const attack = parseFloat(document.getElementById('attack').value);
+            const decay = parseFloat(document.getElementById('decay').value);
+            const sustain = parseFloat(document.getElementById('sustain').value);
+            const release = parseFloat(document.getElementById('release').value);
+
+            noteGain.gain.setValueAtTime(0, now);
+            noteGain.gain.linearRampToValueAtTime(0.5, now + attack);
+            noteGain.gain.linearRampToValueAtTime(sustain * 0.5, now + attack + decay);
+            noteGain.gain.linearRampToValueAtTime(0, now + attack + decay + release);
+
+            osc.connect(noteGain);
+            noteGain.connect(workletNode.oscGain);
+            workletNode.oscGain.gain.value = 1;
+
+            osc.start(now);
+            osc.stop(now + attack + decay + release + 0.1);
+        }
+
+        // Sequencer tick
+        function sequencerTick() {
+            if (!isPlaying || !audioContext) return;
+
+            const now = audioContext.currentTime;
+            const tempo = parseFloat(document.getElementById('tempo').value);
+            const gateProbability = parseFloat(document.getElementById('gateProbability').value);
+
+            const beatInterval = 60 / tempo;
+
+            if (now >= nextTrigTime) {
+                if (Math.random() < gateProbability) {
+                    triggerNote();
+                }
+                nextTrigTime = now + beatInterval;
+            }
+
+            requestAnimationFrame(sequencerTick);
+        }
+
+        // Visualization
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width = canvas.offsetWidth * 2;
+            const height = canvas.height = canvas.offsetHeight * 2;
+
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            function draw() {
+                if (!isPlaying) {
+                    ctx.fillStyle = '#0a0a0a';
+                    ctx.fillRect(0, 0, width, height);
+                    return;
+                }
+
+                requestAnimationFrame(draw);
+                analyser.getByteFrequencyData(dataArray);
+
+                ctx.fillStyle = 'rgba(10, 10, 20, 0.1)';
+                ctx.fillRect(0, 0, width, height);
+
+                // Draw ambient waves
+                const sliceWidth = width / 128;
+                ctx.beginPath();
+                ctx.moveTo(0, height / 2);
+
+                for (let i = 0; i < 128; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = (height / 2) + (v - 1) * height * 0.4;
+                    ctx.lineTo(i * sliceWidth, y);
+                }
+
+                ctx.strokeStyle = `rgba(106, 154, 255, 0.6)`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Draw note indicator
+                const noteY = height * 0.1;
+                const noteX = ((currentNote - 36) / 48) * width;
+                ctx.beginPath();
+                ctx.arc(noteX, noteY, 8, 0, Math.PI * 2);
+                ctx.fillStyle = '#6a9aff';
+                ctx.fill();
+            }
+
+            draw();
+        }
+
+        // Toggle playback
+        async function togglePlay() {
+            if (!audioContext) {
+                await initAudio();
+            }
+
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            isPlaying = !isPlaying;
+            const btn = document.getElementById('playBtn');
+            btn.innerHTML = isPlaying ? '&#9632;' : '&#9654;';
+            btn.classList.toggle('playing', isPlaying);
+
+            if (isPlaying) {
+                if (modMatrix) modMatrix.start();
+                nextTrigTime = audioContext.currentTime;
+                sequencerTick();
+                drawVisualizer();
+            } else {
+                if (modMatrix) modMatrix.stop();
+            }
+        }
+
+        // Parameter handlers
+        function setupParameterHandlers() {
+            // Oscillator
+            document.getElementById('baseFreq').addEventListener('input', (e) => {
+                document.getElementById('baseFreqVal').textContent = e.target.value + ' Hz';
+            });
+
+            document.getElementById('shape').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('shapeVal').textContent = val.toFixed(2);
+                if (workletNode) {
+                    workletNode.filter.frequency.value = 200 + val * 4000;
+                }
+            });
+
+            document.getElementById('scan').addEventListener('input', (e) => {
+                document.getElementById('scanVal').textContent = parseFloat(e.target.value).toFixed(2);
+            });
+
+            // Scale buttons
+            document.querySelectorAll('.scale-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.scale-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentScale = btn.dataset.scale;
+                });
+            });
+
+            document.getElementById('octaveRange').addEventListener('input', (e) => {
+                document.getElementById('octaveRangeVal').textContent = e.target.value + ' oct';
+            });
+
+            // Clock
+            document.getElementById('tempo').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('tempoVal').textContent = val + ' BPM';
+                if (workletNode) {
+                    const delayMult = parseFloat(document.getElementById('delayMult').value);
+                    workletNode.delay.delayTime.value = (60 / val) * delayMult;
+                }
+            });
+
+            document.getElementById('gateProbability').addEventListener('input', (e) => {
+                document.getElementById('gateProbabilityVal').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            document.getElementById('randomScale').addEventListener('input', (e) => {
+                document.getElementById('randomScaleVal').textContent = parseFloat(e.target.value).toFixed(2);
+            });
+
+            // Envelope
+            document.getElementById('attack').addEventListener('input', (e) => {
+                document.getElementById('attackVal').textContent = parseFloat(e.target.value).toFixed(2) + 's';
+            });
+
+            document.getElementById('decay').addEventListener('input', (e) => {
+                document.getElementById('decayVal').textContent = parseFloat(e.target.value).toFixed(2) + 's';
+            });
+
+            document.getElementById('sustain').addEventListener('input', (e) => {
+                document.getElementById('sustainVal').textContent = parseFloat(e.target.value).toFixed(2);
+            });
+
+            document.getElementById('release').addEventListener('input', (e) => {
+                document.getElementById('releaseVal').textContent = parseFloat(e.target.value).toFixed(2) + 's';
+            });
+
+            // Delay
+            document.getElementById('delayMult').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('delayMultVal').textContent = val + 'x';
+                if (workletNode) {
+                    const tempo = parseFloat(document.getElementById('tempo').value);
+                    workletNode.delay.delayTime.value = (60 / tempo) * val;
+                }
+            });
+
+            document.getElementById('delayFeedback').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('delayFeedbackVal').textContent = Math.round(val * 100) + '%';
+                if (workletNode) workletNode.delayFeedback.gain.value = val;
+            });
+
+            document.getElementById('delayMix').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('delayMixVal').textContent = Math.round(val * 100) + '%';
+                if (workletNode) {
+                    workletNode.delayMix.gain.value = val;
+                    workletNode.delayDry.gain.value = 1 - val;
+                }
+            });
+
+            document.getElementById('slew').addEventListener('input', (e) => {
+                document.getElementById('slewVal').textContent = parseFloat(e.target.value).toFixed(2) + 's';
+            });
+
+            // Compression
+            document.getElementById('compThreshold').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('compThresholdVal').textContent = val.toFixed(2);
+                if (workletNode) workletNode.compressor.threshold.value = -24 + (val * 24);
+            });
+
+            document.getElementById('compRatio').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('compRatioVal').textContent = val.toFixed(1) + ':1';
+                if (workletNode) workletNode.compressor.ratio.value = val;
+            });
+
+            document.getElementById('volume').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('volumeVal').textContent = val.toFixed(2);
+                if (workletNode) workletNode.masterGain.gain.value = val;
+            });
+        }
+
+        // Initialize info panel
+        function initInfoPanel() {
+            if (typeof ER301InfoPanel !== 'undefined') {
+                ER301InfoPanel.create({
+                    title: 'Ambikarp',
+                    sections: [
+                        {
+                            title: 'Overview',
+                            content: 'Ambient arpeggiator with scale-quantized random note generation. Features a single cycle oscillator with AKWF saw wavetable, clocked random gate and CV for generative melodies, ADSR envelope, clocked delay, and CPR compression.'
+                        },
+                        {
+                            title: 'Controls',
+                            content: 'shape: Oscillator waveshape/filter modulation<br>Scale: Musical scale for note quantization<br>Random Scale: Amount of random variation in note selection'
+                        },
+                        {
+                            title: 'Signal Flow',
+                            content: 'Clock → Clocked Random Gate → Scale Quantizer → Single Cycle Osc → ADSR VCA → Clocked Delay → CPR → Out'
+                        },
+                        {
+                            title: 'Notes',
+                            content: 'Choose a scale and adjust the random scale parameter to control how much variation in the generated melody. Slower tempos and longer envelopes create more ambient textures.'
+                        }
+                    ]
+                });
+            }
+        }
+
+        // Main initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            setupParameterHandlers();
+            initInfoPanel();
+            document.getElementById('playBtn').addEventListener('click', togglePlay);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTA Rev 2 - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        :root {
+            --accent: #d35400;
+            --glow: rgba(211, 84, 0, 0.4);
+        }
+        .info-toggle {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .info-toggle:hover { border-color: var(--accent); color: var(--accent); }
+        .info-panel {
+            display: none;
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: min(520px, 90vw);
+            height: 100vh;
+            background: var(--bg-primary);
+            border-left: 1px solid var(--border);
+            padding: 2rem;
+            overflow-y: auto;
+            z-index: 200;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+        }
+        .info-panel.visible { display: block; }
+        .info-panel h2 { color: var(--accent); margin-bottom: 1rem; }
+        .info-panel h3 { color: var(--text-primary); margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        .info-panel p, .info-panel li { color: var(--text-secondary); line-height: 1.6; }
+        .info-panel ul { padding-left: 1.5rem; }
+        .info-panel .close-btn {
+            position: absolute; top: 1rem; right: 1rem;
+            background: none; border: none; color: var(--text-secondary);
+            font-size: 1.5rem; cursor: pointer;
+        }
+        .info-panel code { background: var(--bg-card); padding: 2px 6px; border-radius: 3px; }
+        .synth-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.6rem;
+            margin-bottom: 0.6rem;
+        }
+        .synth-section h3 {
+            color: var(--accent);
+            margin: 0 0 0.4rem 0;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .param-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+            gap: 0.4rem;
+        }
+        .param-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.1rem;
+            min-width: 0;
+        }
+        .param-group label {
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+        .param-group input[type="range"] { width: 100%; min-width: 0; height: 4px; }
+        .param-group .value { font-size: 0.6rem; color: var(--accent); text-align: center; }
+        .controls-row {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 0.6rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .trigger-btn, .autogen-btn {
+            background: var(--bg-card);
+            border: 2px solid var(--accent);
+            color: var(--accent);
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.8rem;
+            transition: all 0.1s;
+        }
+        .trigger-btn:hover, .trigger-btn.active,
+        .autogen-btn:hover, .autogen-btn.active {
+            background: var(--accent);
+            color: white;
+        }
+        .waveform-display {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.4rem;
+            margin-bottom: 0.6rem;
+            text-align: center;
+        }
+        .waveform-display canvas { width: 100%; max-width: 500px; height: 50px; }
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.6rem;
+            width: 100%;
+            max-width: 100%;
+        }
+        .three-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.6rem;
+            width: 100%;
+            max-width: 100%;
+        }
+        .synth-section {
+            min-width: 0;
+            overflow: hidden;
+        }
+        @media (max-width: 700px) {
+            .two-col, .three-col { grid-template-columns: 1fr; }
+        }
+        .keyboard-hint {
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-top: 0.4rem;
+        }
+        #effectsPanel {
+            margin-top: 0.8rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.6rem;
+        }
+        #effectsPanel h3 {
+            color: var(--accent);
+            margin: 0 0 0.4rem 0;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+        .scale-select {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.3rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header" style="position: relative; justify-content: center;">
+            <a href="../../../index.html" class="back-link" style="position: absolute; left: 2rem;">&larr; Back</a>
+            <div style="text-align: center;">
+                <h1>OTA Rev 2</h1>
+                <p style="color: var(--text-secondary); font-size: 0.85rem;">Generative Synth with LPG, Scale Quantizer & Autogen</p>
+            </div>
+            <button class="info-toggle" id="infoToggle">?</button>
+        </header>
+
+        <div class="info-panel" id="infoPanel">
+            <button class="close-btn" id="closeInfo">&times;</button>
+            <h2>OTA Rev 2</h2>
+            <p>An enhanced generative synthesizer building on OTA with autogen mode, scale quantization, Low Pass Gate, and advanced noise shaping.</p>
+
+            <h3>New in Rev 2</h3>
+            <ul>
+                <li><strong>Autogen Mode:</strong> Self-generating patterns triggered by internal clock</li>
+                <li><strong>Clock with Mul/Div:</strong> Tempo-synced triggering with multiplier/divider</li>
+                <li><strong>Scale Quantizer:</strong> Constrain pitches to musical scales</li>
+                <li><strong>Trigger Probability:</strong> Probabilistic note triggering</li>
+                <li><strong>Strike LPG:</strong> West Coast Low Pass Gate with rise/fall/bend</li>
+                <li><strong>Bandpass Noise:</strong> Filtered noise added post-oscillators</li>
+                <li><strong>Tanh Saturation:</strong> Warm drive on the output</li>
+            </ul>
+
+            <h3>Autogen Section</h3>
+            <ul>
+                <li><strong>Autogen:</strong> Enable self-generating mode</li>
+                <li><strong>BPM:</strong> Master tempo (40-200 BPM)</li>
+                <li><strong>Mul/Div:</strong> Clock multiplier and divider</li>
+                <li><strong>Trig Prob:</strong> Probability of each trigger firing</li>
+                <li><strong>Scale:</strong> Musical scale for pitch quantization</li>
+                <li><strong>Offset:</strong> Root note offset in semitones</li>
+            </ul>
+
+            <h3>Oscillator Section</h3>
+            <ul>
+                <li><strong>Freq 1/2:</strong> Fine frequency adjustment</li>
+                <li><strong>Vol 1/2:</strong> Individual oscillator volumes</li>
+                <li><strong>Oct 1/2:</strong> Octave shift per oscillator</li>
+                <li><strong>Osc Sync:</strong> Hard sync amount</li>
+            </ul>
+
+            <h3>LPG (Low Pass Gate)</h3>
+            <ul>
+                <li><strong>LPG Rise:</strong> Attack time</li>
+                <li><strong>LPG Fall:</strong> Decay time</li>
+                <li><strong>LPG Bend:</strong> Envelope curve</li>
+                <li><strong>LPG Hght:</strong> Maximum gate opening</li>
+            </ul>
+
+            <h3>Noise Section</h3>
+            <ul>
+                <li><strong>Noise:</strong> Pre-oscillator noise</li>
+                <li><strong>P Noise:</strong> Post-oscillator noise</li>
+                <li><strong>BP Freq/Q:</strong> Bandpass filter for post noise</li>
+            </ul>
+
+            <h3>MIDI Control</h3>
+            <ul>
+                <li><strong>Notes:</strong> Pitch and trigger (overrides autogen)</li>
+                <li><strong>Mod Wheel:</strong> Filter cutoff</li>
+                <li><strong>CC 2:</strong> LPG Fall time</li>
+            </ul>
+
+            <h3>Keyboard</h3>
+            <ul>
+                <li><strong>Space:</strong> Toggle autogen</li>
+                <li><strong>Z-M:</strong> Play notes manually</li>
+                <li><strong>1-5:</strong> Quick scale presets</li>
+            </ul>
+
+            <h3>Original ER-301 Unit</h3>
+            <p>Based on <code>ota rev 2.pkg</code> from mudlogger's Hyperscale collection. Adds Clocked Random Gate, Scale Quantizer, Strike LPG, bandpass noise, and autogen mode to the original OTA.</p>
+        </div>
+
+        <main class="patch-content" style="max-width: 750px; margin: 0 auto; padding: 0.5rem; overflow-x: hidden;">
+            <div class="controls-row">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+                <button class="autogen-btn" id="autogenBtn">AUTOGEN</button>
+                <button class="trigger-btn" id="trigBtn">TRIGGER</button>
+            </div>
+
+            <div class="waveform-display">
+                <canvas id="waveform" width="500" height="50"></canvas>
+            </div>
+
+            <div class="synth-section">
+                <h3>Autogen / Clock</h3>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>BPM</label>
+                        <input type="range" id="bpm" min="40" max="200" step="1" value="120">
+                        <span class="value" id="bpmVal">120</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mul</label>
+                        <input type="range" id="mul" min="1" max="8" step="1" value="1">
+                        <span class="value" id="mulVal">1</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Div</label>
+                        <input type="range" id="div" min="1" max="8" step="1" value="1">
+                        <span class="value" id="divVal">1</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Trig Prob</label>
+                        <input type="range" id="trigProb" min="0" max="1" step="0.01" value="0.7">
+                        <span class="value" id="trigProbVal">0.70</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Scale</label>
+                        <select id="scale" class="scale-select">
+                            <option value="chromatic">Chromatic</option>
+                            <option value="major">Major</option>
+                            <option value="minor">Minor</option>
+                            <option value="dorian">Dorian</option>
+                            <option value="phrygian">Phrygian</option>
+                            <option value="lydian">Lydian</option>
+                            <option value="mixolydian">Mixolydian</option>
+                            <option value="pentatonic">Pentatonic</option>
+                            <option value="blues">Blues</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Offset</label>
+                        <input type="range" id="offset" min="-12" max="12" step="1" value="0">
+                        <span class="value" id="offsetVal">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="two-col">
+                <div class="synth-section">
+                    <h3>Oscillator 1</h3>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Freq 1</label>
+                            <input type="range" id="freq1" min="0.5" max="2" step="0.01" value="1">
+                            <span class="value" id="freq1Val">1.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Vol 1</label>
+                            <input type="range" id="vol1" min="0" max="1" step="0.01" value="0.7">
+                            <span class="value" id="vol1Val">0.70</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Oct 1</label>
+                            <input type="range" id="oct1" min="-2" max="2" step="1" value="0">
+                            <span class="value" id="oct1Val">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="synth-section">
+                    <h3>Oscillator 2</h3>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Freq 2</label>
+                            <input type="range" id="freq2" min="0.5" max="2" step="0.01" value="1.01">
+                            <span class="value" id="freq2Val">1.01</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Vol 2</label>
+                            <input type="range" id="vol2" min="0" max="1" step="0.01" value="0.5">
+                            <span class="value" id="vol2Val">0.50</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Oct 2</label>
+                            <input type="range" id="oct2" min="-2" max="2" step="1" value="0">
+                            <span class="value" id="oct2Val">0</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Sync</label>
+                            <input type="range" id="oscSync" min="0" max="1" step="0.01" value="0">
+                            <span class="value" id="oscSyncVal">0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="two-col">
+                <div class="synth-section">
+                    <h3>Ring Mod</h3>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>RM</label>
+                            <input type="range" id="rm" min="0" max="1" step="0.01" value="0">
+                            <span class="value" id="rmVal">0.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>RM Freq</label>
+                            <input type="range" id="rmFreq" min="20" max="2000" step="1" value="200">
+                            <span class="value" id="rmFreqVal">200</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="synth-section">
+                    <h3>Noise</h3>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Noise</label>
+                            <input type="range" id="noise" min="0" max="1" step="0.01" value="0">
+                            <span class="value" id="noiseVal">0.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>White</label>
+                            <input type="range" id="white" min="0" max="1" step="0.01" value="0.5">
+                            <span class="value" id="whiteVal">0.50</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Pink</label>
+                            <input type="range" id="pink" min="0" max="1" step="0.01" value="0.5">
+                            <span class="value" id="pinkVal">0.50</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="two-col">
+                <div class="synth-section">
+                    <h3>LPG (Low Pass Gate)</h3>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Rise</label>
+                            <input type="range" id="lpgRise" min="0.001" max="0.5" step="0.001" value="0.01">
+                            <span class="value" id="lpgRiseVal">0.01</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Fall</label>
+                            <input type="range" id="lpgFall" min="0.01" max="2" step="0.01" value="0.3">
+                            <span class="value" id="lpgFallVal">0.30</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Bend</label>
+                            <input type="range" id="lpgBend" min="-1" max="1" step="0.01" value="0">
+                            <span class="value" id="lpgBendVal">0.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Hght</label>
+                            <input type="range" id="lpgHght" min="0" max="1" step="0.01" value="1">
+                            <span class="value" id="lpgHghtVal">1.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="synth-section">
+                    <h3>Post Noise (BP)</h3>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>P Noise</label>
+                            <input type="range" id="pNoise" min="0" max="1" step="0.01" value="0">
+                            <span class="value" id="pNoiseVal">0.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>BP Freq</label>
+                            <input type="range" id="bpFreq" min="100" max="8000" step="1" value="1000">
+                            <span class="value" id="bpFreqVal">1000</span>
+                        </div>
+                        <div class="param-group">
+                            <label>BP Q</label>
+                            <input type="range" id="bpQ" min="0.1" max="0.95" step="0.01" value="0.5">
+                            <span class="value" id="bpQVal">0.50</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="two-col">
+                <div class="synth-section">
+                    <h3>Mod Envelope</h3>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Mod</label>
+                            <input type="range" id="modEnv" min="0" max="1" step="0.01" value="0.3">
+                            <span class="value" id="modEnvVal">0.30</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Rise</label>
+                            <input type="range" id="rise" min="0.001" max="1" step="0.001" value="0.01">
+                            <span class="value" id="riseVal">0.01</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Fall</label>
+                            <input type="range" id="fall" min="0.01" max="2" step="0.01" value="0.5">
+                            <span class="value" id="fallVal">0.50</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Bend</label>
+                            <input type="range" id="bend" min="-1" max="1" step="0.01" value="0">
+                            <span class="value" id="bendVal">0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="synth-section">
+                    <h3>LP Filter</h3>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Cutoff</label>
+                            <input type="range" id="cutoff" min="100" max="10000" step="1" value="2000">
+                            <span class="value" id="cutoffVal">2000</span>
+                        </div>
+                        <div class="param-group">
+                            <label>LP Q</label>
+                            <input type="range" id="lpQ" min="0.1" max="0.95" step="0.01" value="0.3">
+                            <span class="value" id="lpQVal">0.30</span>
+                        </div>
+                        <div class="param-group">
+                            <label>LP Gain</label>
+                            <input type="range" id="lpGain" min="0" max="2" step="0.01" value="1">
+                            <span class="value" id="lpGainVal">1.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="synth-section">
+                <h3>Spread Delay & Output</h3>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>D Time</label>
+                        <input type="range" id="dTime" min="0.01" max="1" step="0.01" value="0.3">
+                        <span class="value" id="dTimeVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>D Spread</label>
+                        <input type="range" id="dSpread" min="0" max="1" step="0.01" value="0.5">
+                        <span class="value" id="dSpreadVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>D Fdbk</label>
+                        <input type="range" id="dFdbk" min="0" max="0.9" step="0.01" value="0.4">
+                        <span class="value" id="dFdbkVal">0.40</span>
+                    </div>
+                    <div class="param-group">
+                        <label>D W/D</label>
+                        <input type="range" id="dWet" min="0" max="1" step="0.01" value="0.3">
+                        <span class="value" id="dWetVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="volume" min="0" max="1" step="0.01" value="0.6">
+                        <span class="value" id="volumeVal">0.60</span>
+                    </div>
+                </div>
+            </div>
+
+            <p class="keyboard-hint">SPACE=Toggle Autogen | Z-M=Notes | 1-5=Scale Presets | MIDI supported</p>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+const processorCode = `
+class OTARev2Processor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = 48000;
+
+        // Oscillators
+        this.osc1Phase = 0;
+        this.osc2Phase = 0;
+        this.rmPhase = 0;
+
+        // Pitch
+        this.currentPitch = 0;
+        this.targetPitch = 0;
+
+        // LPG envelope
+        this.lpgEnv = 0;
+        this.lpgStage = 'idle';
+
+        // Mod envelope
+        this.modEnvValue = 0;
+        this.modEnvStage = 'idle';
+
+        // Filter states
+        this.lpX1 = 0; this.lpX2 = 0; this.lpY1 = 0; this.lpY2 = 0;
+        this.bpX1 = 0; this.bpX2 = 0; this.bpY1 = 0; this.bpY2 = 0;
+
+        // Pink noise
+        this.pinkB = [0, 0, 0, 0, 0, 0, 0];
+
+        // Delay lines
+        this.delayL = new Float32Array(48000);
+        this.delayR = new Float32Array(48000);
+        this.delayWriteIdx = 0;
+
+        // CPR
+        this.cprEnv = 0;
+
+        // Autogen clock
+        this.clockPhase = 0;
+        this.autogen = false;
+        this.gate = false;
+
+        // Scale definitions
+        this.scales = {
+            chromatic: [0,1,2,3,4,5,6,7,8,9,10,11],
+            major: [0,2,4,5,7,9,11],
+            minor: [0,2,3,5,7,8,10],
+            dorian: [0,2,3,5,7,9,10],
+            phrygian: [0,1,3,5,7,8,10],
+            lydian: [0,2,4,6,7,9,11],
+            mixolydian: [0,2,4,5,7,9,10],
+            pentatonic: [0,2,4,7,9],
+            blues: [0,3,5,6,7,10]
+        };
+        this.currentScale = 'chromatic';
+
+        // Random pitch state
+        this.randomPitch = 0;
+
+        // Parameters
+        this.params = {
+            bpm: 120, mul: 1, div: 1, trigProb: 0.7, offset: 0,
+            freq1: 1, vol1: 0.7, oct1: 0,
+            freq2: 1.01, vol2: 0.5, oct2: 0, oscSync: 0,
+            rm: 0, rmFreq: 200,
+            noise: 0, white: 0.5, pink: 0.5,
+            pNoise: 0, bpFreq: 1000, bpQ: 0.5,
+            lpgRise: 0.01, lpgFall: 0.3, lpgBend: 0, lpgHght: 1,
+            modEnv: 0.3, rise: 0.01, fall: 0.5, bend: 0,
+            cutoff: 2000, lpQ: 0.3, lpGain: 1,
+            dTime: 0.3, dSpread: 0.5, dFdbk: 0.4, dWet: 0.3,
+            volume: 0.6
+        };
+
+        // Waveform buffer
+        this.waveformBuffer = new Float32Array(256);
+        this.waveformIdx = 0;
+        this.sampleCounter = 0;
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'setParam') {
+                this.params[e.data.param] = e.data.value;
+            } else if (e.data.type === 'gate') {
+                this.gate = e.data.value;
+                if (this.gate) {
+                    this.lpgStage = 'attack';
+                    this.modEnvStage = 'attack';
+                } else {
+                    this.lpgStage = 'release';
+                    this.modEnvStage = 'release';
+                }
+            } else if (e.data.type === 'pitch') {
+                this.targetPitch = e.data.value;
+            } else if (e.data.type === 'autogen') {
+                this.autogen = e.data.value;
+            } else if (e.data.type === 'scale') {
+                this.currentScale = e.data.value;
+            }
+        };
+    }
+
+    // Quantize to scale
+    quantizeToScale(semitones) {
+        const scale = this.scales[this.currentScale] || this.scales.chromatic;
+        const octave = Math.floor(semitones / 12);
+        const note = ((semitones % 12) + 12) % 12;
+
+        let closest = scale[0];
+        let minDist = 12;
+        for (const s of scale) {
+            const dist = Math.abs(note - s);
+            if (dist < minDist) {
+                minDist = dist;
+                closest = s;
+            }
+        }
+        return octave * 12 + closest;
+    }
+
+    aliasingTriangle(phase) {
+        const p = phase % 1;
+        return p < 0.5 ? 4 * p - 1 : 3 - 4 * p;
+    }
+
+    whiteNoise() {
+        return Math.random() * 2 - 1;
+    }
+
+    pinkNoise() {
+        const white = this.whiteNoise();
+        this.pinkB[0] = 0.99886 * this.pinkB[0] + white * 0.0555179;
+        this.pinkB[1] = 0.99332 * this.pinkB[1] + white * 0.0750759;
+        this.pinkB[2] = 0.96900 * this.pinkB[2] + white * 0.1538520;
+        this.pinkB[3] = 0.86650 * this.pinkB[3] + white * 0.3104856;
+        this.pinkB[4] = 0.55000 * this.pinkB[4] + white * 0.5329522;
+        this.pinkB[5] = -0.7616 * this.pinkB[5] - white * 0.0168980;
+        const pink = this.pinkB[0] + this.pinkB[1] + this.pinkB[2] + this.pinkB[3] + this.pinkB[4] + this.pinkB[5] + this.pinkB[6] + white * 0.5362;
+        this.pinkB[6] = white * 0.115926;
+        return pink * 0.11;
+    }
+
+    processLPFilter(input, cutoff, q) {
+        const omega = 2 * Math.PI * Math.min(cutoff, this.sampleRate * 0.45) / this.sampleRate;
+        const sinO = Math.sin(omega);
+        const cosO = Math.cos(omega);
+        const alpha = sinO / (2 * (1 - q * 0.99));
+
+        const b0 = (1 - cosO) / 2;
+        const b1 = 1 - cosO;
+        const b2 = (1 - cosO) / 2;
+        const a0 = 1 + alpha;
+        const a1 = -2 * cosO;
+        const a2 = 1 - alpha;
+
+        const out = (b0/a0) * input + (b1/a0) * this.lpX1 + (b2/a0) * this.lpX2
+                  - (a1/a0) * this.lpY1 - (a2/a0) * this.lpY2;
+
+        this.lpX2 = this.lpX1; this.lpX1 = input;
+        this.lpY2 = this.lpY1; this.lpY1 = Math.max(-5, Math.min(5, out));
+        return this.lpY1;
+    }
+
+    processBPFilter(input, cutoff, q) {
+        const omega = 2 * Math.PI * Math.min(cutoff, this.sampleRate * 0.45) / this.sampleRate;
+        const sinO = Math.sin(omega);
+        const cosO = Math.cos(omega);
+        const alpha = sinO / (2 * (1 - q * 0.99));
+
+        const b0 = alpha;
+        const b1 = 0;
+        const b2 = -alpha;
+        const a0 = 1 + alpha;
+        const a1 = -2 * cosO;
+        const a2 = 1 - alpha;
+
+        const out = (b0/a0) * input + (b1/a0) * this.bpX1 + (b2/a0) * this.bpX2
+                  - (a1/a0) * this.bpY1 - (a2/a0) * this.bpY2;
+
+        this.bpX2 = this.bpX1; this.bpX1 = input;
+        this.bpY2 = this.bpY1; this.bpY1 = Math.max(-5, Math.min(5, out));
+        return this.bpY1;
+    }
+
+    processCPR(input) {
+        const abs = Math.abs(input);
+        const rise = abs > this.cprEnv ? 0.01 : 0.0001;
+        this.cprEnv += (abs - this.cprEnv) * rise;
+        if (this.cprEnv > 0.5) {
+            return input * (0.5 + (this.cprEnv - 0.5) * 0.5) / this.cprEnv;
+        }
+        return input;
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+        if (!left || !right) return true;
+
+        const p = this.params;
+        const baseFreq = 261.63;
+
+        // Clock rate
+        const clockHz = (p.bpm / 60) * p.mul / p.div;
+        const clockInc = clockHz / this.sampleRate;
+
+        for (let i = 0; i < left.length; i++) {
+            // Autogen clock
+            if (this.autogen) {
+                const prevPhase = this.clockPhase;
+                this.clockPhase += clockInc;
+                if (this.clockPhase >= 1) {
+                    this.clockPhase -= 1;
+                    // Trigger with probability
+                    if (Math.random() < p.trigProb) {
+                        // Generate random pitch in range and quantize
+                        const rawPitch = (Math.random() * 24 - 12) + p.offset;
+                        this.randomPitch = this.quantizeToScale(Math.round(rawPitch));
+                        this.targetPitch = this.randomPitch / 12;
+                        this.lpgStage = 'attack';
+                        this.modEnvStage = 'attack';
+                    }
+                }
+            }
+
+            // Slew pitch
+            this.currentPitch += (this.targetPitch - this.currentPitch) * 0.01;
+
+            // Calculate frequencies
+            const pitchMult = Math.pow(2, this.currentPitch);
+            const osc1Freq = baseFreq * pitchMult * p.freq1 * Math.pow(2, p.oct1);
+            const osc2Freq = baseFreq * pitchMult * p.freq2 * Math.pow(2, p.oct2);
+
+            // Oscillator 1
+            this.osc1Phase += osc1Freq / this.sampleRate;
+            if (this.osc1Phase >= 1) this.osc1Phase -= 1;
+            let osc1 = this.aliasingTriangle(this.osc1Phase);
+
+            // Oscillator 2 with sync
+            this.osc2Phase += osc2Freq / this.sampleRate;
+            if (p.oscSync > 0 && this.osc1Phase < osc1Freq / this.sampleRate) {
+                this.osc2Phase = this.osc2Phase * (1 - p.oscSync);
+            }
+            if (this.osc2Phase >= 1) this.osc2Phase -= 1;
+            let osc2 = this.aliasingTriangle(this.osc2Phase);
+
+            // Mix oscillators
+            let oscMix = osc1 * p.vol1 + osc2 * p.vol2;
+
+            // Pre-oscillator noise
+            if (p.noise > 0) {
+                const noiseSum = this.whiteNoise() * p.white + this.pinkNoise() * p.pink;
+                oscMix += noiseSum * p.noise * 0.5;
+            }
+
+            // Ring modulator
+            if (p.rm > 0) {
+                this.rmPhase += p.rmFreq / this.sampleRate;
+                if (this.rmPhase >= 1) this.rmPhase -= 1;
+                const rmOsc = Math.sin(this.rmPhase * Math.PI * 2);
+                oscMix = oscMix * (1 - p.rm) + (oscMix * rmOsc) * p.rm;
+            }
+
+            // LPG envelope
+            if (this.lpgStage === 'attack') {
+                this.lpgEnv += 1 / (p.lpgRise * this.sampleRate);
+                if (this.lpgEnv >= p.lpgHght) {
+                    this.lpgEnv = p.lpgHght;
+                    this.lpgStage = 'release';
+                }
+            } else if (this.lpgStage === 'release') {
+                this.lpgEnv -= 1 / (p.lpgFall * this.sampleRate);
+                if (this.lpgEnv <= 0) {
+                    this.lpgEnv = 0;
+                    this.lpgStage = 'idle';
+                }
+            }
+
+            // Apply LPG bend
+            let lpgShaped = this.lpgEnv;
+            if (p.lpgBend > 0) {
+                lpgShaped = Math.pow(this.lpgEnv, 1 + p.lpgBend * 2);
+            } else if (p.lpgBend < 0) {
+                lpgShaped = 1 - Math.pow(1 - this.lpgEnv, 1 - p.lpgBend * 2);
+            }
+
+            // Apply LPG (combined amplitude and filter)
+            oscMix *= lpgShaped;
+
+            // Mod envelope for filter
+            if (this.modEnvStage === 'attack') {
+                this.modEnvValue += 1 / (p.rise * this.sampleRate);
+                if (this.modEnvValue >= 1) {
+                    this.modEnvValue = 1;
+                    this.modEnvStage = 'decay';
+                }
+            } else if (this.modEnvStage === 'decay' || this.modEnvStage === 'release') {
+                this.modEnvValue -= 1 / (p.fall * this.sampleRate);
+                if (this.modEnvValue <= 0) {
+                    this.modEnvValue = 0;
+                    this.modEnvStage = 'idle';
+                }
+            }
+
+            // Apply bend to mod envelope
+            let modEnvShaped = this.modEnvValue;
+            if (p.bend > 0) {
+                modEnvShaped = Math.pow(this.modEnvValue, 1 + p.bend * 2);
+            } else if (p.bend < 0) {
+                modEnvShaped = 1 - Math.pow(1 - this.modEnvValue, 1 - p.bend * 2);
+            }
+
+            // LP Filter with envelope
+            const filterCutoff = p.cutoff + modEnvShaped * p.modEnv * 6000;
+            let filtered = this.processLPFilter(oscMix, filterCutoff, p.lpQ) * p.lpGain;
+
+            // Post noise (bandpass filtered)
+            if (p.pNoise > 0) {
+                const postNoise = this.processBPFilter(this.whiteNoise(), p.bpFreq, p.bpQ);
+                filtered += postNoise * p.pNoise * lpgShaped;
+            }
+
+            // Tanh saturation
+            filtered = Math.tanh(filtered * 1.5);
+
+            // Spread delay
+            const delayTimeL = Math.floor(p.dTime * this.sampleRate);
+            const delayTimeR = Math.floor(p.dTime * (1 + p.dSpread * 0.3) * this.sampleRate);
+
+            const delayedL = this.delayL[(this.delayWriteIdx - delayTimeL + this.delayL.length) % this.delayL.length];
+            const delayedR = this.delayR[(this.delayWriteIdx - delayTimeR + this.delayR.length) % this.delayR.length];
+
+            this.delayL[this.delayWriteIdx] = filtered + delayedL * p.dFdbk;
+            this.delayR[this.delayWriteIdx] = filtered + delayedR * p.dFdbk;
+            this.delayWriteIdx = (this.delayWriteIdx + 1) % this.delayL.length;
+
+            let outL = filtered * (1 - p.dWet) + delayedL * p.dWet;
+            let outR = filtered * (1 - p.dWet) + delayedR * p.dWet;
+
+            // CPR and output
+            outL = this.processCPR(outL) * p.volume;
+            outR = this.processCPR(outR) * p.volume;
+
+            left[i] = Math.tanh(outL);
+            right[i] = Math.tanh(outR);
+
+            // Waveform buffer
+            this.sampleCounter++;
+            if (this.sampleCounter >= 188) {
+                this.waveformBuffer[this.waveformIdx] = (left[i] + right[i]) * 0.5;
+                this.waveformIdx = (this.waveformIdx + 1) % 256;
+                this.sampleCounter = 0;
+            }
+        }
+
+        if (Math.random() < 0.05) {
+            this.port.postMessage({ type: 'waveform', data: Array.from(this.waveformBuffer) });
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('ota-rev2-processor', OTARev2Processor);
+`;
+
+        let audioContext, workletNode, pedalboard;
+        let isPlaying = false;
+        let autogenActive = false;
+        let waveformData = new Float32Array(256);
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const waveformCanvas = document.getElementById('waveform');
+        const waveformCtx = waveformCanvas.getContext('2d');
+
+        // Parameter mapping
+        const paramDefs = {
+            bpm: { format: v => Math.round(v) },
+            mul: { format: v => v.toFixed(0) },
+            div: { format: v => v.toFixed(0) },
+            trigProb: { format: v => v.toFixed(2) },
+            offset: { format: v => v.toFixed(0) },
+            freq1: { format: v => v.toFixed(2) },
+            vol1: { format: v => v.toFixed(2) },
+            oct1: { format: v => v.toFixed(0) },
+            freq2: { format: v => v.toFixed(2) },
+            vol2: { format: v => v.toFixed(2) },
+            oct2: { format: v => v.toFixed(0) },
+            oscSync: { format: v => v.toFixed(2) },
+            rm: { format: v => v.toFixed(2) },
+            rmFreq: { format: v => Math.round(v) },
+            noise: { format: v => v.toFixed(2) },
+            white: { format: v => v.toFixed(2) },
+            pink: { format: v => v.toFixed(2) },
+            pNoise: { format: v => v.toFixed(2) },
+            bpFreq: { format: v => Math.round(v) },
+            bpQ: { format: v => v.toFixed(2) },
+            lpgRise: { format: v => v.toFixed(2) },
+            lpgFall: { format: v => v.toFixed(2) },
+            lpgBend: { format: v => v.toFixed(2) },
+            lpgHght: { format: v => v.toFixed(2) },
+            modEnv: { format: v => v.toFixed(2) },
+            rise: { format: v => v.toFixed(2) },
+            fall: { format: v => v.toFixed(2) },
+            bend: { format: v => v.toFixed(2) },
+            cutoff: { format: v => Math.round(v) },
+            lpQ: { format: v => v.toFixed(2) },
+            lpGain: { format: v => v.toFixed(2) },
+            dTime: { format: v => v.toFixed(2) },
+            dSpread: { format: v => v.toFixed(2) },
+            dFdbk: { format: v => v.toFixed(2) },
+            dWet: { format: v => v.toFixed(2) },
+            volume: { format: v => v.toFixed(2) }
+        };
+
+        // Set up parameter listeners
+        Object.keys(paramDefs).forEach(key => {
+            const el = document.getElementById(key);
+            const valEl = document.getElementById(key + 'Val');
+            if (el && valEl) {
+                el.addEventListener('input', () => {
+                    const value = parseFloat(el.value);
+                    valEl.textContent = paramDefs[key].format(value);
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'setParam', param: key, value });
+                    }
+                });
+                valEl.textContent = paramDefs[key].format(parseFloat(el.value));
+            }
+        });
+
+        // Scale selector
+        document.getElementById('scale').addEventListener('change', (e) => {
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'scale', value: e.target.value });
+            }
+        });
+
+        // Waveform
+        function drawWaveform() {
+            const width = waveformCanvas.width;
+            const height = waveformCanvas.height;
+            waveformCtx.fillStyle = '#1a1a2e';
+            waveformCtx.fillRect(0, 0, width, height);
+            waveformCtx.strokeStyle = '#d35400';
+            waveformCtx.lineWidth = 1.5;
+            waveformCtx.beginPath();
+            for (let i = 0; i < waveformData.length; i++) {
+                const x = (i / waveformData.length) * width;
+                const y = (0.5 - waveformData[i] * 0.4) * height;
+                if (i === 0) waveformCtx.moveTo(x, y);
+                else waveformCtx.lineTo(x, y);
+            }
+            waveformCtx.stroke();
+            if (isPlaying) requestAnimationFrame(drawWaveform);
+        }
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext({ sampleRate: 48000 });
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'ota-rev2-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'waveform') {
+                    waveformData = new Float32Array(e.data.data);
+                }
+            };
+
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboard = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'ota-rev-2-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-ota-rev-2'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-ota-rev-2');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-ota-rev-2',
+                    prefix: '2',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Send initial params
+            Object.keys(paramDefs).forEach(key => {
+                const el = document.getElementById(key);
+                if (el) {
+                    workletNode.port.postMessage({ type: 'setParam', param: key, value: parseFloat(el.value) });
+                }
+            });
+
+            workletNode.port.postMessage({ type: 'scale', value: document.getElementById('scale').value });
+
+            // Initialize MIDI after audio is ready
+            initMIDI();
+        }
+
+        // Play button
+        const playBtn = document.getElementById('playBtn');
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) await initAudio();
+            if (isPlaying) {
+                await audioContext.suspend();
+                playBtn.textContent = '\u25B6';
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.textContent = '\u23F9';
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                drawWaveform();
+            }
+        });
+
+        // Autogen button
+        const autogenBtn = document.getElementById('autogenBtn');
+        autogenBtn.addEventListener('click', async () => {
+            if (!audioContext) await initAudio();
+            if (!isPlaying) {
+                await audioContext.resume();
+                playBtn.textContent = '\u23F9';
+                isPlaying = true;
+                drawWaveform();
+            }
+            autogenActive = !autogenActive;
+            autogenBtn.classList.toggle('active', autogenActive);
+            workletNode.port.postMessage({ type: 'autogen', value: autogenActive });
+        });
+
+        // Trigger button
+        const trigBtn = document.getElementById('trigBtn');
+        trigBtn.addEventListener('mousedown', () => {
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'gate', value: true });
+                trigBtn.classList.add('active');
+            }
+        });
+        trigBtn.addEventListener('mouseup', () => {
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'gate', value: false });
+                trigBtn.classList.remove('active');
+            }
+        });
+        trigBtn.addEventListener('mouseleave', () => {
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'gate', value: false });
+                trigBtn.classList.remove('active');
+            }
+        });
+
+        // Info panel
+        document.getElementById('infoToggle').addEventListener('click', () => {
+            document.getElementById('infoPanel').classList.add('visible');
+        });
+        document.getElementById('closeInfo').addEventListener('click', () => {
+            document.getElementById('infoPanel').classList.remove('visible');
+        });
+
+        // Keyboard (only works after audio is initialized via play button)
+        const keyNotes = { 'KeyZ': -12, 'KeyS': -11, 'KeyX': -10, 'KeyD': -9, 'KeyC': -8, 'KeyV': -7, 'KeyG': -6, 'KeyB': -5, 'KeyH': -4, 'KeyN': -3, 'KeyJ': -2, 'KeyM': -1, 'Comma': 0 };
+        const scalePresets = { 'Digit1': 'major', 'Digit2': 'minor', 'Digit3': 'dorian', 'Digit4': 'pentatonic', 'Digit5': 'blues' };
+        const activeKeys = new Set();
+
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+            if (e.code === 'Space') {
+                e.preventDefault();
+                autogenBtn.click();
+                return;
+            }
+
+            if (scalePresets[e.code]) {
+                document.getElementById('scale').value = scalePresets[e.code];
+                document.getElementById('scale').dispatchEvent(new Event('change'));
+                return;
+            }
+
+            if (keyNotes[e.code] !== undefined && !activeKeys.has(e.code) && workletNode) {
+                activeKeys.add(e.code);
+                workletNode.port.postMessage({ type: 'pitch', value: keyNotes[e.code] / 12 });
+                workletNode.port.postMessage({ type: 'gate', value: true });
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (keyNotes[e.code] !== undefined) {
+                activeKeys.delete(e.code);
+                if (activeKeys.size === 0 && workletNode) {
+                    workletNode.port.postMessage({ type: 'gate', value: false });
+                }
+            }
+        });
+
+        // MIDI (initialized after audio is ready)
+        function handleMIDIMessage(e) {
+            if (!workletNode) return;
+            const [status, note, velocity] = e.data;
+            const command = status >> 4;
+
+            if (command === 9 && velocity > 0) {
+                const pitch = (note - 60) / 12;
+                workletNode.port.postMessage({ type: 'pitch', value: pitch });
+                workletNode.port.postMessage({ type: 'gate', value: true });
+            } else if (command === 8 || (command === 9 && velocity === 0)) {
+                workletNode.port.postMessage({ type: 'gate', value: false });
+            } else if (command === 11) {
+                if (note === 1) { // Mod wheel
+                    const cutoff = 100 + (velocity / 127) * 8000;
+                    document.getElementById('cutoff').value = cutoff;
+                    document.getElementById('cutoff').dispatchEvent(new Event('input'));
+                } else if (note === 2) { // CC2 -> LPG Fall
+                    const lpgFall = 0.01 + (velocity / 127) * 1.99;
+                    document.getElementById('lpgFall').value = lpgFall;
+                    document.getElementById('lpgFall').dispatchEvent(new Event('input'));
+                }
+            }
+        }
+
+        async function initMIDI() {
+            if (!navigator.requestMIDIAccess) return;
+            try {
+                const midiAccess = await navigator.requestMIDIAccess();
+                for (const input of midiAccess.inputs.values()) {
+                    input.onmidimessage = handleMIDIMessage;
+                }
+                midiAccess.onstatechange = (e) => {
+                    if (e.port.type === 'input' && e.port.state === 'connected') {
+                        e.port.onmidimessage = handleMIDIMessage;
+                    }
+                };
+            } catch (err) {}
+        }
+
+        // Initial waveform
+        waveformCtx.fillStyle = '#1a1a2e';
+        waveformCtx.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+        waveformCtx.strokeStyle = '#333';
+        waveformCtx.beginPath();
+        waveformCtx.moveTo(0, waveformCanvas.height / 2);
+        waveformCtx.lineTo(waveformCanvas.width, waveformCanvas.height / 2);
+        waveformCtx.stroke();
+    </script>
+</body>
+</html>

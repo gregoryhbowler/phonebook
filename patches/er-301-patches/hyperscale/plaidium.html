@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>plaidium - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 80px;
+        }
+        .status-display {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .status-card {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 10px 16px;
+            text-align: center;
+            min-width: 70px;
+        }
+        .status-card .label {
+            font-size: 0.6em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .status-card .value {
+            font-size: 1em;
+            color: #e74c3c;
+            font-family: 'SF Mono', monospace;
+        }
+        .grain-meter {
+            height: 6px;
+            background: #1a1a2e;
+            border-radius: 3px;
+            margin: 1em 0;
+            overflow: hidden;
+        }
+        .grain-meter-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #e74c3c, #f39c12);
+            width: 0%;
+            transition: width 0.1s;
+        }
+        .sample-info {
+            text-align: center;
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+        .sample-info.loading { color: #f39c12; }
+        .sample-info.ready { color: #e74c3c; }
+        .sample-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 1em 0;
+        }
+        .sample-actions button {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+        .sample-actions button:hover {
+            border-color: #e74c3c;
+            color: #e74c3c;
+        }
+        .midi-status {
+            text-align: center;
+            font-size: 0.75em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+        .midi-status.connected { color: #e74c3c; }
+        .toggle-btn {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+        .toggle-btn.active {
+            border-color: #e74c3c;
+            color: #e74c3c;
+            background: rgba(231, 76, 60, 0.1);
+        }
+        .toggle-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 1em;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>plaidium</h1>
+                <p>Plaid-inspired granular texture generator with multi-sample drum kit</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="midi-status" id="midiStatus">MIDI: Connect a controller for pitch control</div>
+
+            <div class="sample-info" id="sampleInfo">Loading samples...</div>
+
+            <div class="grain-meter">
+                <div class="grain-meter-fill" id="grainMeter"></div>
+            </div>
+
+            <!-- Status Display -->
+            <div class="status-display">
+                <div class="status-card">
+                    <div class="label">Grains</div>
+                    <div class="value" id="grainDisplay">0</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Speed</div>
+                    <div class="value" id="speedDisplay">0.50</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Position</div>
+                    <div class="value" id="posDisplay">41%</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Pan</div>
+                    <div class="value" id="panDisplay">C</div>
+                </div>
+            </div>
+
+            <div class="toggle-row">
+                <button class="toggle-btn active" id="hpBtn">HP Filter</button>
+            </div>
+
+            <div class="sample-actions">
+                <input type="file" id="sampleInput" accept="audio/*" multiple style="display: none;">
+                <button onclick="document.getElementById('sampleInput').click()">Import Samples</button>
+                <button id="clearSamples">Clear Samples</button>
+            </div>
+
+            <!-- Grain Stretch Section -->
+            <span class="section-label">Grain Stretch</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Pitch</label>
+                        <input type="range" id="pitch" min="-24" max="24" value="0" step="1">
+                        <span class="param-value" id="pitchVal">0 st</span>
+                    </div>
+                    <div class="param-group">
+                        <label>MSpeed</label>
+                        <input type="range" id="mspeed" min="-1.1" max="1.1" value="0.5" step="0.01">
+                        <span class="param-value" id="mspeedVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Zoom</label>
+                        <input type="range" id="zoom" min="0" max="1" value="0.41" step="0.01">
+                        <span class="param-value" id="zoomVal">0.41</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grain Density Section -->
+            <span class="section-label">Grain Density</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Density</label>
+                        <input type="range" id="density" min="1" max="50" value="15" step="1">
+                        <span class="param-value" id="densityVal">15 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Duration</label>
+                        <input type="range" id="duration" min="0.02" max="0.5" value="0.1" step="0.01">
+                        <span class="param-value" id="durationVal">100 ms</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Prob</label>
+                        <input type="range" id="prob" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="probVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pitch Modulation Section -->
+            <span class="section-label">Pitch Modulation</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Rnd Amt</label>
+                        <input type="range" id="pitchRnd" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="pitchRndVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Slew</label>
+                        <input type="range" id="pitchSlew" min="0.1" max="10" value="6.14" step="0.1">
+                        <span class="param-value" id="pitchSlewVal">6.1 s</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HP Filter Section -->
+            <span class="section-label">HP Filter</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>HP Freq</label>
+                        <input type="range" id="hpFreq" min="200" max="8000" value="2000" step="10">
+                        <span class="param-value" id="hpFreqVal">2000 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Q</label>
+                        <input type="range" id="q" min="0.1" max="2" value="0.8" step="0.1">
+                        <span class="param-value" id="qVal">0.8</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stereo Section -->
+            <span class="section-label">Halo Stereo</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Halo</label>
+                        <input type="range" id="halo" min="-1" max="1" value="-0.07" step="0.01">
+                        <span class="param-value" id="haloVal">-0.07</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delay Section -->
+            <span class="section-label">Delay</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="feedback" min="0" max="0.9" value="0.4" step="0.01">
+                        <span class="param-value" id="feedbackVal">0.40</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Wet</label>
+                        <input type="range" id="delayWet" min="0" max="1" value="0.2" step="0.01">
+                        <span class="param-value" id="delayWetVal">0.20</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="vol" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="volVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        const processorCode = `
+// ============================================================================
+// DELAY LINE
+// ============================================================================
+class DelayLine {
+    constructor(maxDelay) {
+        this.buffer = new Float32Array(maxDelay);
+        this.maxDelay = maxDelay;
+        this.writeIndex = 0;
+    }
+
+    write(sample) {
+        this.buffer[this.writeIndex] = sample;
+        this.writeIndex = (this.writeIndex + 1) % this.maxDelay;
+    }
+
+    readLinear(delaySamples) {
+        const delay = Math.max(0, Math.min(delaySamples, this.maxDelay - 1));
+        const intDelay = Math.floor(delay);
+        const frac = delay - intDelay;
+        let idx0 = this.writeIndex - intDelay - 1;
+        let idx1 = this.writeIndex - intDelay;
+        if (idx0 < 0) idx0 += this.maxDelay;
+        if (idx1 < 0) idx1 += this.maxDelay;
+        return this.buffer[idx1] + frac * (this.buffer[idx0] - this.buffer[idx1]);
+    }
+}
+
+// ============================================================================
+// SLEW LIMITER
+// ============================================================================
+class SlewLimiter {
+    constructor(time, sr) {
+        this.sr = sr;
+        this.setTime(time);
+        this.value = 0;
+    }
+
+    setTime(time) {
+        this.rate = 1 / (Math.max(0.001, time) * this.sr + 1);
+    }
+
+    process(target) {
+        const diff = target - this.value;
+        this.value += diff * this.rate;
+        return this.value;
+    }
+}
+
+// ============================================================================
+// BIQUAD HP FILTER
+// ============================================================================
+class BiquadHP {
+    constructor(sr) {
+        this.sr = sr;
+        this.b0 = 1; this.b1 = 0; this.b2 = 0;
+        this.a1 = 0; this.a2 = 0;
+        this.x1 = 0; this.x2 = 0;
+        this.y1 = 0; this.y2 = 0;
+    }
+
+    setParams(freq, q) {
+        const w0 = 2 * Math.PI * Math.min(freq, this.sr * 0.45) / this.sr;
+        const cosW0 = Math.cos(w0);
+        const alpha = Math.sin(w0) / (2 * Math.max(0.1, q));
+
+        const b0 = (1 + cosW0) / 2;
+        const b1 = -(1 + cosW0);
+        const b2 = (1 + cosW0) / 2;
+        const a0 = 1 + alpha;
+        const a1 = -2 * cosW0;
+        const a2 = 1 - alpha;
+
+        this.b0 = b0 / a0;
+        this.b1 = b1 / a0;
+        this.b2 = b2 / a0;
+        this.a1 = a1 / a0;
+        this.a2 = a2 / a0;
+    }
+
+    process(x) {
+        const y = this.b0 * x + this.b1 * this.x1 + this.b2 * this.x2
+                  - this.a1 * this.y1 - this.a2 * this.y2;
+        this.x2 = this.x1; this.x1 = x;
+        this.y2 = this.y1; this.y1 = y;
+        return y;
+    }
+}
+
+// ============================================================================
+// COMPRESSOR
+// ============================================================================
+class Compressor {
+    constructor(sr) {
+        this.sr = sr;
+        this.envelope = 0;
+        this.threshold = 0.5;
+        this.ratio = 4;
+        this.attackCoeff = Math.exp(-1 / (0.001 * sr));
+        this.releaseCoeff = Math.exp(-1 / (0.05 * sr));
+    }
+
+    process(x) {
+        const level = Math.abs(x);
+        if (level > this.envelope) {
+            this.envelope = this.attackCoeff * this.envelope + (1 - this.attackCoeff) * level;
+        } else {
+            this.envelope = this.releaseCoeff * this.envelope + (1 - this.releaseCoeff) * level;
+        }
+
+        let gain = 1;
+        if (this.envelope > this.threshold) {
+            const dBOver = 20 * Math.log10(this.envelope / this.threshold);
+            const reduction = dBOver * (1 - 1 / this.ratio);
+            gain = Math.pow(10, -reduction / 20);
+        }
+        return x * gain;
+    }
+}
+
+// ============================================================================
+// GRAIN (with multi-sample support)
+// ============================================================================
+class Grain {
+    constructor(sample, startPos, duration, speed, pan) {
+        this.sample = sample;
+        this.position = startPos * sample.length;
+        this.duration = duration;
+        this.age = 0;
+        this.speed = speed;
+        this.pan = pan;
+    }
+
+    process() {
+        if (this.age >= this.duration) return { done: true };
+
+        const windowPos = this.age / this.duration;
+        const window = 0.5 * (1 - Math.cos(2 * Math.PI * windowPos));
+
+        const len = this.sample.length;
+        let pos = this.position % len;
+        if (pos < 0) pos += len;
+
+        const idx = Math.floor(pos);
+        const frac = pos - idx;
+        const idx2 = (idx + 1) % len;
+
+        const value = this.sample[idx] + frac * (this.sample[idx2] - this.sample[idx]);
+
+        this.position += this.speed;
+        this.age++;
+
+        return {
+            done: false,
+            left: value * window * (1 - this.pan) * 0.5,
+            right: value * window * this.pan * 0.5
+        };
+    }
+}
+
+// ============================================================================
+// PLAIDIUM PROCESSOR
+// ============================================================================
+class PlaidiumProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+        this.playing = false;
+        this.samples = [];
+
+        // Grains
+        this.grains = [];
+        this.maxGrains = 48;
+        this.grainClock = 0;
+
+        // Random modulation (Pingable Scaled Random style)
+        this.randomValue = 0.5;
+        this.targetRandom = 0.5;
+        this.randomClock = 0;
+        this.pitchSlew = new SlewLimiter(6.14, this.sr);
+
+        // Halo stereo spread
+        this.panSlew = new SlewLimiter(0.5, this.sr);
+        this.targetPan = 0.5;
+
+        // HP Filter
+        this.hpL = new BiquadHP(this.sr);
+        this.hpR = new BiquadHP(this.sr);
+        this.hpEnabled = true;
+
+        // Delay
+        const maxDelay = Math.ceil(this.sr * 0.5);
+        this.delayL = new DelayLine(maxDelay);
+        this.delayR = new DelayLine(maxDelay);
+
+        // Compressor
+        this.compL = new Compressor(this.sr);
+        this.compR = new Compressor(this.sr);
+
+        // MIDI
+        this.midiPitch = 0;
+
+        // Parameters
+        this.params = {
+            pitch: 0,
+            mspeed: 0.5,
+            zoom: 0.41,
+            density: 15,
+            duration: 0.1,
+            prob: 0.7,
+            pitchRnd: 0.3,
+            pitchSlew: 6.14,
+            hpFreq: 2000,
+            q: 0.8,
+            halo: -0.07,
+            feedback: 0.4,
+            delayWet: 0.2,
+            vol: 0.7
+        };
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'start') this.playing = true;
+            if (e.data.type === 'stop') this.playing = false;
+            if (e.data.type === 'param') {
+                this.params[e.data.name] = e.data.value;
+                if (e.data.name === 'pitchSlew') {
+                    this.pitchSlew.setTime(e.data.value);
+                }
+            }
+            if (e.data.type === 'loadSamples') {
+                this.samples = e.data.samples;
+            }
+            if (e.data.type === 'clearSamples') {
+                this.samples = [];
+                this.grains = [];
+            }
+            if (e.data.type === 'hpEnabled') {
+                this.hpEnabled = e.data.value;
+            }
+            if (e.data.type === 'noteOn') {
+                this.midiPitch = e.data.note - 60;
+            }
+            if (e.data.type === 'noteOff') {
+                this.midiPitch = 0;
+            }
+        };
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1];
+
+        if (!this.playing || this.samples.length === 0) {
+            outL.fill(0);
+            outR.fill(0);
+            return true;
+        }
+
+        // Update HP filter once per block
+        this.hpL.setParams(this.params.hpFreq, this.params.q);
+        this.hpR.setParams(this.params.hpFreq, this.params.q);
+
+        for (let i = 0; i < outL.length; i++) {
+            // Random modulation clock (slower - creates evolving texture)
+            this.randomClock++;
+            if (this.randomClock >= this.sr * 0.3) {
+                this.randomClock = 0;
+                this.targetRandom = Math.random();
+                // Update pan target based on halo
+                this.targetPan = 0.5 + (Math.random() - 0.5) * Math.abs(this.params.halo);
+            }
+
+            // Smooth random pitch modulation
+            this.randomValue = this.pitchSlew.process(this.targetRandom);
+            const currentPan = this.panSlew.process(this.targetPan);
+
+            // Grain spawning - probability-based
+            this.grainClock++;
+            const grainInterval = this.sr / this.params.density;
+
+            if (this.grainClock >= grainInterval) {
+                this.grainClock = 0;
+
+                // Probability check for spawning
+                if (Math.random() < this.params.prob && this.grains.length < this.maxGrains) {
+                    // Pick random sample from pool
+                    const sampleIdx = Math.floor(Math.random() * this.samples.length);
+                    const sample = this.samples[sampleIdx];
+
+                    // Calculate pitch with random modulation
+                    const pitchMod = (this.randomValue - 0.5) * 2 * this.params.pitchRnd * 12;
+                    const totalPitch = this.params.pitch + this.midiPitch + pitchMod;
+                    const pitchRatio = Math.pow(2, totalPitch / 12);
+
+                    // mspeed directly controls playback speed
+                    const speed = this.params.mspeed * pitchRatio;
+
+                    // Grain parameters
+                    const startPos = this.params.zoom;
+                    const duration = this.params.duration * this.sr;
+
+                    // Pan with halo spread
+                    const pan = this.params.halo < 0
+                        ? currentPan  // Random pan
+                        : 0.5 + this.params.halo * 0.5; // Fixed position
+
+                    this.grains.push(new Grain(sample, startPos, duration, speed, pan));
+                }
+            }
+
+            // Process grains
+            let grainOutL = 0;
+            let grainOutR = 0;
+
+            for (let g = this.grains.length - 1; g >= 0; g--) {
+                const result = this.grains[g].process();
+                if (result.done) {
+                    this.grains.splice(g, 1);
+                } else {
+                    grainOutL += result.left;
+                    grainOutR += result.right;
+                }
+            }
+
+            // Normalize by grain count
+            const grainScale = 2 / Math.max(1, Math.sqrt(this.grains.length));
+            grainOutL *= grainScale;
+            grainOutR *= grainScale;
+
+            // HP Filter
+            if (this.hpEnabled) {
+                grainOutL = this.hpL.process(grainOutL);
+                grainOutR = this.hpR.process(grainOutR);
+            }
+
+            // Stereo delay
+            const delaySamples = 0.15 * this.sr;
+            const delayedL = this.delayL.readLinear(delaySamples);
+            const delayedR = this.delayR.readLinear(delaySamples * 1.1);
+
+            this.delayL.write(grainOutL + delayedR * this.params.feedback);
+            this.delayR.write(grainOutR + delayedL * this.params.feedback);
+
+            let sigL = grainOutL * (1 - this.params.delayWet) + delayedL * this.params.delayWet;
+            let sigR = grainOutR * (1 - this.params.delayWet) + delayedR * this.params.delayWet;
+
+            // Compressor
+            sigL = this.compL.process(sigL);
+            sigR = this.compR.process(sigR);
+
+            // Output
+            sigL *= this.params.vol;
+            sigR *= this.params.vol;
+
+            outL[i] = Math.tanh(sigL);
+            outR[i] = Math.tanh(sigR);
+        }
+
+        // Send state (throttled)
+        if (Math.random() < 0.1) {
+            this.port.postMessage({
+                type: 'state',
+                grainCount: this.grains.length,
+                speed: this.params.mspeed,
+                position: this.params.zoom,
+                pan: this.panSlew.value
+            });
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('plaidium-processor', PlaidiumProcessor);
+`;
+
+        let audioContext, workletNode, pedalboard;
+        let isPlaying = false;
+        let loadedSamples = [];
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const sampleInfo = document.getElementById('sampleInfo');
+        const grainMeter = document.getElementById('grainMeter');
+
+        const sampleBasePath = 'samples/plaidium/';
+        const sampleFiles = [
+            'BatTap01.wav', 'BatTap02.wav', 'BatTap03.wav', 'BatTap04.wav', 'BatTap05.wav',
+            'BatTap06.wav', 'BatTap07.wav', 'BatTap08.wav', 'BatTap09.wav', 'BatTap10.wav',
+            'BatTap11.wav', 'BatTap12.wav', 'BatTap13.wav', 'BatTap14.wav', 'BatTap15.wav',
+            'BatTap16.wav', 'BatTap17.wav', 'BatTap18.wav', 'BatTap19.wav', 'BatTap20.wav',
+            'BatTap21.wav', 'BatTap22.wav', 'BatTap23.wav', 'BatTap24.wav', 'BatTap25.wav',
+            'BatTap26.wav', 'BatTap27.wav', 'BatTap28.wav', 'BatTap29.wav', 'BatTap30.wav',
+            'notbat01hikik.wav', 'notbat02disthit.wav', 'notbat03fmzap.wav', 'notbat04modbell.wav',
+            'notbat05gruffzap.wav', 'notbat06hifm.wav', 'notbat07wobbzap.wav', 'notbat08krinkzap.wav',
+            'notbat09zipzap.wav', 'notbat10hofsnare.wav', 'notbat11boomA.wav', 'notbat12boomB.wav',
+            'notbat13boomC.wav', 'notbat14boomD.wav', 'notbat15modbass.wav', 'notbat16halfkik.wav'
+        ];
+
+        async function loadDefaultSamples() {
+            try {
+                sampleInfo.textContent = 'Loading 46 Plaidbat samples...';
+                sampleInfo.className = 'sample-info loading';
+
+                loadedSamples = [];
+                let loadedCount = 0;
+
+                for (const filename of sampleFiles) {
+                    try {
+                        const response = await fetch(sampleBasePath + filename);
+                        if (response.ok) {
+                            const buffer = await response.arrayBuffer();
+                            const audioBuffer = await audioContext.decodeAudioData(buffer);
+                            loadedSamples.push(audioBuffer.getChannelData(0));
+                            loadedCount++;
+                        }
+                    } catch (e) {
+                        // Skip failed samples
+                    }
+                }
+
+                if (loadedSamples.length > 0) {
+                    workletNode.port.postMessage({
+                        type: 'loadSamples',
+                        samples: loadedSamples
+                    });
+                    sampleInfo.textContent = loadedSamples.length + ' Plaidbat samples loaded';
+                    sampleInfo.className = 'sample-info ready';
+                } else {
+                    sampleInfo.textContent = 'No samples found - import your own';
+                    sampleInfo.className = 'sample-info';
+                }
+            } catch (e) {
+                sampleInfo.textContent = 'Error loading samples - import your own';
+                sampleInfo.className = 'sample-info';
+            }
+        }
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext({ sampleRate: 48000 });
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'plaidium-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboard = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'plaidium-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-plaidium'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-plaidium');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-plaidium',
+                    prefix: 'plaidium',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Handle messages
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'state') {
+                    document.getElementById('grainDisplay').textContent = e.data.grainCount;
+                    document.getElementById('speedDisplay').textContent = e.data.speed.toFixed(2);
+                    document.getElementById('posDisplay').textContent = Math.round(e.data.position * 100) + '%';
+                    const pan = e.data.pan;
+                    document.getElementById('panDisplay').textContent = pan < 0.4 ? 'L' : pan > 0.6 ? 'R' : 'C';
+                    grainMeter.style.width = Math.min(100, e.data.grainCount * 3) + '%';
+                }
+            };
+
+            // Visualizer
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            fxNode.connect(analyser);
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            function draw() {
+                requestAnimationFrame(draw);
+                analyser.getByteTimeDomainData(dataArray);
+                ctx.fillStyle = '#0a0a14';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#e74c3c';
+                ctx.beginPath();
+                const sliceWidth = canvas.width / dataArray.length;
+                let x = 0;
+                for (let i = 0; i < dataArray.length; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * canvas.height / 2;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                    x += sliceWidth;
+                }
+                ctx.stroke();
+            }
+            draw();
+
+            await loadDefaultSamples();
+            initMIDI();
+        }
+
+        // MIDI
+        const midiStatus = document.getElementById('midiStatus');
+
+        function handleMIDIMessage(event) {
+            const [status, note, velocity] = event.data;
+            const command = status & 0xf0;
+
+            if (command === 0x90 && velocity > 0) {
+                if (workletNode) workletNode.port.postMessage({ type: 'noteOn', note, velocity });
+            } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+                if (workletNode) workletNode.port.postMessage({ type: 'noteOff', note });
+            }
+        }
+
+        async function initMIDI() {
+            if (!navigator.requestMIDIAccess) return;
+            try {
+                const midiAccess = await navigator.requestMIDIAccess();
+                for (const input of midiAccess.inputs.values()) {
+                    input.onmidimessage = handleMIDIMessage;
+                    midiStatus.textContent = 'MIDI: Connected';
+                    midiStatus.classList.add('connected');
+                }
+                midiAccess.onstatechange = (e) => {
+                    if (e.port.type === 'input' && e.port.state === 'connected') {
+                        e.port.onmidimessage = handleMIDIMessage;
+                        midiStatus.textContent = 'MIDI: ' + e.port.name;
+                        midiStatus.classList.add('connected');
+                    }
+                };
+            } catch (err) {}
+        }
+
+        playBtn.onclick = async () => {
+            if (!audioContext) await initAudio();
+            if (audioContext.state === 'suspended') await audioContext.resume();
+
+            isPlaying = !isPlaying;
+            playBtn.textContent = isPlaying ? '\u23F9' : '\u25B6';
+            workletNode.port.postMessage({ type: isPlaying ? 'start' : 'stop' });
+        };
+
+        // Toggle buttons
+        const hpBtn = document.getElementById('hpBtn');
+        hpBtn.onclick = () => {
+            hpBtn.classList.toggle('active');
+            if (workletNode) {
+                workletNode.port.postMessage({
+                    type: 'hpEnabled',
+                    value: hpBtn.classList.contains('active')
+                });
+            }
+        };
+
+        // Sample import
+        document.getElementById('sampleInput').onchange = async (e) => {
+            if (!audioContext) await initAudio();
+            const files = e.target.files;
+            if (files.length > 0) {
+                try {
+                    loadedSamples = [];
+                    for (const file of files) {
+                        const buffer = await file.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(buffer);
+                        loadedSamples.push(audioBuffer.getChannelData(0));
+                    }
+
+                    workletNode.port.postMessage({
+                        type: 'loadSamples',
+                        samples: loadedSamples
+                    });
+
+                    sampleInfo.textContent = loadedSamples.length + ' custom samples loaded';
+                    sampleInfo.className = 'sample-info ready';
+                } catch (err) {
+                    sampleInfo.textContent = 'Error loading files';
+                    sampleInfo.className = 'sample-info';
+                }
+            }
+        };
+
+        // Clear samples
+        document.getElementById('clearSamples').onclick = () => {
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'clearSamples' });
+                loadedSamples = [];
+                sampleInfo.textContent = 'No samples loaded';
+                sampleInfo.className = 'sample-info';
+            }
+        };
+
+        // Parameter controls
+        const params = ['pitch', 'mspeed', 'zoom', 'density', 'duration', 'prob',
+                        'pitchRnd', 'pitchSlew', 'hpFreq', 'q', 'halo',
+                        'feedback', 'delayWet', 'vol'];
+
+        params.forEach(name => {
+            const input = document.getElementById(name);
+            const display = document.getElementById(name + 'Val');
+            if (input && display) {
+                input.oninput = () => {
+                    const val = parseFloat(input.value);
+                    if (name === 'pitch') {
+                        display.textContent = val + ' st';
+                    } else if (name === 'density') {
+                        display.textContent = val + ' Hz';
+                    } else if (name === 'duration') {
+                        display.textContent = Math.round(val * 1000) + ' ms';
+                    } else if (name === 'pitchSlew') {
+                        display.textContent = val.toFixed(1) + ' s';
+                    } else if (name === 'hpFreq') {
+                        display.textContent = Math.round(val) + ' Hz';
+                    } else {
+                        display.textContent = val.toFixed(2);
+                    }
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'param', name, value: val });
+                    }
+                };
+            }
+        });
+
+        // Info panel
+        if (typeof ER301InfoPanel !== 'undefined') {
+            new ER301InfoPanel(document.body, {
+                title: 'plaidium',
+                author: 'mudlogger',
+                origin: 'ER-301 Hyperscale Units',
+                description: 'Plaid-inspired granular texture generator using Grain Stretch with a pool of 46 Plaidbat Kit samples. Creates dense, evolving sonic textures by randomly selecting samples and applying granular stretching with probability-based density, pitch modulation, and stereo spread.',
+                controls: [
+                    { name: 'Pitch', range: '-24 to +24 st', description: 'Base pitch transposition in semitones' },
+                    { name: 'MSpeed', range: '-1.1 to 1.1', description: 'Grain playback speed (negative = reverse)' },
+                    { name: 'Zoom', range: '0-1', description: 'Sample start position for grains' },
+                    { name: 'Density', range: '1-50 Hz', description: 'Grain spawn rate' },
+                    { name: 'Duration', range: '20-500 ms', description: 'Individual grain length' },
+                    { name: 'Prob', range: '0-1', description: 'Probability of spawning each grain' },
+                    { name: 'Rnd Amt', range: '0-1', description: 'Random pitch modulation depth' },
+                    { name: 'Slew', range: '0.1-10 s', description: 'Pitch modulation smoothing time' },
+                    { name: 'HP Freq', range: '200-8000 Hz', description: 'High-pass filter cutoff' },
+                    { name: 'Q', range: '0.1-2', description: 'HP filter resonance' },
+                    { name: 'Halo', range: '-1 to 1', description: 'Stereo spread (negative = random pan)' }
+                ],
+                tips: [
+                    'Negative MSpeed plays grains in reverse',
+                    'Lower Prob creates sparser, more rhythmic textures',
+                    'Higher Density creates denser granular clouds',
+                    'Negative Halo enables random panning per grain',
+                    'Long Slew times create slowly evolving pitch drifts',
+                    'HP filter helps tame low-end buildup',
+                    'Import your own samples for unique textures',
+                    'MIDI notes transpose the overall pitch'
+                ]
+            });
+        }
+    </script>
+</body>
+</html>

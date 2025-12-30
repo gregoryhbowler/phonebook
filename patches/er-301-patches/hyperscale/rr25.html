@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R+R25 - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <style>
+        :root {
+            --accent: #e74c3c;
+            --glow: rgba(231, 76, 60, 0.4);
+        }
+        .info-toggle {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .info-toggle:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .info-panel {
+            display: none;
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: min(500px, 90vw);
+            height: 100vh;
+            background: var(--bg-primary);
+            border-left: 1px solid var(--border);
+            padding: 2rem;
+            overflow-y: auto;
+            z-index: 200;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+        }
+        .info-panel.visible { display: block; }
+        .info-panel h2 { color: var(--accent); margin-bottom: 1rem; }
+        .info-panel h3 { color: var(--text-primary); margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        .info-panel p, .info-panel li { color: var(--text-secondary); line-height: 1.6; }
+        .info-panel ul { padding-left: 1.5rem; }
+        .info-panel .close-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .info-panel code {
+            background: var(--bg-card);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        .synth-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        .synth-section h3 {
+            color: var(--accent);
+            margin: 0 0 0.5rem 0;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .param-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 0.5rem;
+        }
+        .param-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+        .param-group label {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+        .param-group input[type="range"] {
+            width: 100%;
+            height: 4px;
+        }
+        .param-group .value {
+            font-size: 0.65rem;
+            color: var(--accent);
+            text-align: center;
+        }
+        .waveform-display {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.5rem;
+            margin-bottom: 0.75rem;
+            text-align: center;
+        }
+        .waveform-display canvas {
+            width: 100%;
+            max-width: 600px;
+            height: 100px;
+        }
+        .controls-row {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+        @media (max-width: 600px) {
+            .two-col { grid-template-columns: 1fr; }
+        }
+        .chaos-indicator {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 0.75rem;
+        }
+        .chaos-dot {
+            width: 16px;
+            height: 16px;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 50%;
+            transition: all 0.1s;
+        }
+        .chaos-dot.osc1 { border-color: #e74c3c; }
+        .chaos-dot.osc2 { border-color: #3498db; }
+        .chaos-dot.rungle { border-color: #2ecc71; }
+        .chaos-dot.filter { border-color: #f39c12; }
+        .chaos-dot.active {
+            box-shadow: 0 0 12px currentColor;
+        }
+        .chaos-dot.osc1.active { background: #e74c3c; }
+        .chaos-dot.osc2.active { background: #3498db; }
+        .chaos-dot.rungle.active { background: #2ecc71; }
+        .chaos-dot.filter.active { background: #f39c12; }
+        .status-row {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .status-item .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .pedalboard-container {
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header" style="position: relative; justify-content: center;">
+            <a href="../../../index.html" class="back-link" style="position: absolute; left: 2rem;">&larr; Back</a>
+            <div style="text-align: center;">
+                <h1>R+R25</h1>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">Blippoo Box-inspired Chaotic Generative Synthesizer</p>
+            </div>
+            <button class="info-toggle" id="infoToggle">?</button>
+        </header>
+
+        <div class="info-panel" id="infoPanel">
+            <button class="close-btn" id="closeInfo">&times;</button>
+            <h2>R+R25 Synthesizer</h2>
+            <p>A self-generating chaotic synthesizer inspired by Rob Hordijk's Blippoo Box and the Rungler circuit. Named after Richard (D. James) and Rob (Hordijk), this patch creates evolving, unpredictable sonic textures through cross-modulated oscillators and a shift register "rungler".</p>
+
+            <h3>How It Works</h3>
+            <p>Two oscillators cross-modulate each other's frequencies, creating chaotic FM interactions. A 16-step shift register (Rungler) samples one oscillator and uses it to modulate pitch and filter parameters. The result is self-evolving generative music that never repeats.</p>
+
+            <h3>Oscillator Section</h3>
+            <ul>
+                <li><strong>Richard (Osc 1):</strong> Square wave oscillator frequency (0-500 Hz)</li>
+                <li><strong>Rob (Osc 2):</strong> Saw wave oscillator frequency (10-500 Hz)</li>
+                <li><strong>XMod 1:</strong> Cross-modulation from Osc 2 to Osc 1</li>
+                <li><strong>XMod 2:</strong> Cross-modulation from Osc 1 to Osc 2</li>
+            </ul>
+
+            <h3>Rungler Section</h3>
+            <ul>
+                <li><strong>Length:</strong> Shift register length (1-64 steps)</li>
+                <li><strong>Stride:</strong> Step size through register</li>
+                <li><strong>Drift:</strong> Random variation amount</li>
+                <li><strong>R Mod:</strong> Rungle to oscillator modulation depth</li>
+            </ul>
+
+            <h3>Filter (Bique)</h3>
+            <ul>
+                <li><strong>Q:</strong> Filter Q/resonance modulation</li>
+                <li><strong>Res:</strong> Base resonance amount</li>
+            </ul>
+
+            <h3>Effects</h3>
+            <ul>
+                <li><strong>Delay:</strong> Feedback delay network</li>
+                <li><strong>Spread:</strong> Stereo spread delay</li>
+                <li><strong>Reverb:</strong> Freeverb with chaos modulation</li>
+            </ul>
+
+            <h3>Tips</h3>
+            <ul>
+                <li>Start with Richard and Rob near similar frequencies for beating effects</li>
+                <li>Increase XMod values for more chaotic behavior</li>
+                <li>Lower Stride values create more repetitive patterns</li>
+                <li>This is a self-generating patch - just press play and explore</li>
+            </ul>
+
+            <h3>Original ER-301 Unit</h3>
+            <p>Based on <code>r+r25.pkg</code> from mudlogger's Hyperscale collection. Features cross-modulated Square and Saw oscillators, 64-step Register (Rungler), Scale Quantizer, Bique bandpass filter, SFDN, Spread Delay, Freeverb, and CPR compression.</p>
+        </div>
+
+        <main class="patch-content" style="max-width: 700px; margin: 0 auto; padding: 0.5rem;">
+            <div class="controls-row">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="status-row">
+                <div class="status-item"><div class="dot" style="background: #e74c3c;"></div> Osc1 (Sqr)</div>
+                <div class="status-item"><div class="dot" style="background: #3498db;"></div> Osc2 (Saw)</div>
+                <div class="status-item"><div class="dot" style="background: #2ecc71;"></div> Rungle</div>
+                <div class="status-item"><div class="dot" style="background: #f39c12;"></div> Filter</div>
+            </div>
+
+            <div class="chaos-indicator" id="chaosIndicator">
+                <div class="chaos-dot osc1"></div>
+                <div class="chaos-dot osc2"></div>
+                <div class="chaos-dot rungle"></div>
+                <div class="chaos-dot filter"></div>
+            </div>
+
+            <div class="waveform-display">
+                <canvas id="waveform" width="600" height="100"></canvas>
+            </div>
+
+            <div class="two-col">
+                <div class="synth-section">
+                    <h3>Oscillators</h3>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Richard</label>
+                            <input type="range" id="richard" min="0" max="500" step="1" value="50">
+                            <span class="value" id="richardVal">50 Hz</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Rob</label>
+                            <input type="range" id="rob" min="10" max="500" step="1" value="55">
+                            <span class="value" id="robVal">55 Hz</span>
+                        </div>
+                    </div>
+                    <div class="param-row" style="margin-top: 0.5rem;">
+                        <div class="param-group">
+                            <label>XMod 1</label>
+                            <input type="range" id="xmod1" min="0" max="2" step="0.01" value="0.4">
+                            <span class="value" id="xmod1Val">0.40</span>
+                        </div>
+                        <div class="param-group">
+                            <label>XMod 2</label>
+                            <input type="range" id="xmod2" min="0" max="2" step="0.01" value="0.6">
+                            <span class="value" id="xmod2Val">0.60</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="synth-section">
+                    <h3>Rungler</h3>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Length</label>
+                            <input type="range" id="length" min="1" max="64" step="1" value="16">
+                            <span class="value" id="lengthVal">16</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Stride</label>
+                            <input type="range" id="stride" min="1" max="16" step="1" value="10">
+                            <span class="value" id="strideVal">10</span>
+                        </div>
+                    </div>
+                    <div class="param-row" style="margin-top: 0.5rem;">
+                        <div class="param-group">
+                            <label>Drift</label>
+                            <input type="range" id="drift" min="0" max="0.5" step="0.01" value="0.15">
+                            <span class="value" id="driftVal">0.15</span>
+                        </div>
+                        <div class="param-group">
+                            <label>R Mod</label>
+                            <input type="range" id="rmod" min="0" max="1" step="0.01" value="0.4">
+                            <span class="value" id="rmodVal">0.40</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="two-col">
+                <div class="synth-section">
+                    <h3>Filter</h3>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Q</label>
+                            <input type="range" id="q" min="0" max="0.5" step="0.01" value="0.4">
+                            <span class="value" id="qVal">0.40</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Res</label>
+                            <input type="range" id="res" min="0" max="0.5" step="0.01" value="0.2">
+                            <span class="value" id="resVal">0.20</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="synth-section">
+                    <h3>Effects</h3>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Delay</label>
+                            <input type="range" id="delay" min="0" max="0.1" step="0.001" value="0.01">
+                            <span class="value" id="delayVal">10ms</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Spread</label>
+                            <input type="range" id="spread" min="0" max="1" step="0.01" value="0.6">
+                            <span class="value" id="spreadVal">0.60</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Reverb</label>
+                            <input type="range" id="reverb" min="0" max="1" step="0.01" value="0.42">
+                            <span class="value" id="reverbVal">0.42</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="synth-section">
+                <h3>Output</h3>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="vol" min="0" max="1" step="0.01" value="0.5">
+                        <span class="value" id="volVal">0.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        const processorCode = `
+class DelayLine {
+    constructor(maxDelay) {
+        this.buffer = new Float32Array(maxDelay);
+        this.maxDelay = maxDelay;
+        this.writeIndex = 0;
+    }
+    write(sample) {
+        this.buffer[this.writeIndex] = sample;
+        this.writeIndex = (this.writeIndex + 1) % this.maxDelay;
+    }
+    read(delaySamples) {
+        const d = Math.min(delaySamples, this.maxDelay - 1);
+        const idx = (this.writeIndex - Math.floor(d) - 1 + this.maxDelay) % this.maxDelay;
+        return this.buffer[idx];
+    }
+}
+
+class Freeverb {
+    constructor(sr) {
+        this.sr = sr;
+        const scale = sr / 44100;
+        this.combDelays = [1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617].map(d => Math.round(d * scale));
+        this.allpassDelays = [556, 441, 341, 225].map(d => Math.round(d * scale));
+        this.combL = this.combDelays.map(d => ({ buf: new Float32Array(d), idx: 0, filter: 0 }));
+        this.combR = this.combDelays.map(d => ({ buf: new Float32Array(d + 23), idx: 0, filter: 0 }));
+        this.apL = this.allpassDelays.map(d => ({ buf: new Float32Array(d), idx: 0 }));
+        this.apR = this.allpassDelays.map(d => ({ buf: new Float32Array(d + 23), idx: 0 }));
+        this.feedback = 0.84;
+        this.damp = 0.3;
+        this.wet = 0.42;
+    }
+    setParams(size, damp, wet) {
+        this.feedback = 0.7 + size * 0.28;
+        this.damp = damp;
+        this.wet = wet;
+    }
+    processComb(comb, input, feedback, damp) {
+        const out = comb.buf[comb.idx];
+        comb.filter = out * (1 - damp) + comb.filter * damp;
+        comb.buf[comb.idx] = input + comb.filter * feedback;
+        comb.idx = (comb.idx + 1) % comb.buf.length;
+        return out;
+    }
+    processAllpass(ap, input) {
+        const delayed = ap.buf[ap.idx];
+        const out = delayed - input;
+        ap.buf[ap.idx] = input + delayed * 0.5;
+        ap.idx = (ap.idx + 1) % ap.buf.length;
+        return out;
+    }
+    process(inL, inR) {
+        let sumL = 0, sumR = 0;
+        for (let i = 0; i < this.combL.length; i++) {
+            sumL += this.processComb(this.combL[i], inL, this.feedback, this.damp);
+            sumR += this.processComb(this.combR[i], inR, this.feedback, this.damp);
+        }
+        for (let i = 0; i < this.apL.length; i++) {
+            sumL = this.processAllpass(this.apL[i], sumL);
+            sumR = this.processAllpass(this.apR[i], sumR);
+        }
+        return [
+            inL * (1 - this.wet) + sumL * this.wet * 0.15,
+            inR * (1 - this.wet) + sumR * this.wet * 0.15
+        ];
+    }
+}
+
+class RR25Processor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+
+        // Oscillators
+        this.osc1Phase = 0;
+        this.osc2Phase = 0;
+        this.osc1Out = 0;
+        this.osc2Out = 0;
+
+        // Rungler (shift register)
+        this.register = new Float32Array(64);
+        for (let i = 0; i < 64; i++) {
+            this.register[i] = Math.random() * 2 - 1;
+        }
+        this.regStep = 0;
+        this.regClock = false;
+        this.lastOsc1Sign = false;
+        this.runglerOut = 0;
+
+        // Sample & Hold
+        this.shValue = 0;
+        this.lastRegSign = false;
+
+        // Filter state
+        this.filterState = { x1: 0, x2: 0, y1: 0, y2: 0 };
+
+        // Delays
+        this.delayL = new DelayLine(Math.floor(this.sr * 0.5));
+        this.delayR = new DelayLine(Math.floor(this.sr * 0.5));
+        this.spreadDelayL = new DelayLine(Math.floor(this.sr * 1.1));
+        this.spreadDelayR = new DelayLine(Math.floor(this.sr * 1.1));
+
+        // Reverb
+        this.reverb = new Freeverb(this.sr);
+
+        // Parameters
+        this.params = {
+            richard: 50,
+            rob: 55,
+            xmod1: 0.4,
+            xmod2: 0.6,
+            length: 16,
+            stride: 10,
+            drift: 0.15,
+            rmod: 0.4,
+            q: 0.4,
+            res: 0.2,
+            delay: 0.01,
+            spread: 0.6,
+            reverb: 0.42,
+            vol: 0.5
+        };
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'setParam') {
+                this.params[e.data.param] = e.data.value;
+            }
+        };
+    }
+
+    computeBandpassCoefs(freq, q) {
+        const omega = 2 * Math.PI * Math.max(20, Math.min(freq, this.sr * 0.45)) / this.sr;
+        const sinOmega = Math.sin(omega);
+        const cosOmega = Math.cos(omega);
+        const alpha = sinOmega / (2 * Math.max(q, 0.1));
+        const b0 = alpha;
+        const b1 = 0;
+        const b2 = -alpha;
+        const a0 = 1 + alpha;
+        const a1 = -2 * cosOmega;
+        const a2 = 1 - alpha;
+        return { b0: b0/a0, b1: b1/a0, b2: b2/a0, a1: a1/a0, a2: a2/a0 };
+    }
+
+    processBandpass(sample, coef) {
+        const out = coef.b0 * sample + coef.b1 * this.filterState.x1 + coef.b2 * this.filterState.x2
+                  - coef.a1 * this.filterState.y1 - coef.a2 * this.filterState.y2;
+        this.filterState.x2 = this.filterState.x1;
+        this.filterState.x1 = sample;
+        this.filterState.y2 = this.filterState.y1;
+        this.filterState.y1 = out;
+        return out;
+    }
+
+    process(inputs, outputs) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1];
+
+        const p = this.params;
+
+        for (let i = 0; i < outL.length; i++) {
+            // Cross-modulated oscillator frequencies
+            const osc1Freq = p.richard + this.osc2Out * p.richard * p.xmod1 + this.runglerOut * p.richard * p.rmod;
+            const osc2Freq = p.rob + this.osc1Out * p.rob * p.xmod2 + this.shValue * p.rob * 0.5;
+
+            // Osc 1: Square wave
+            this.osc1Phase += Math.max(1, osc1Freq) / this.sr;
+            if (this.osc1Phase >= 1) this.osc1Phase -= 1;
+            const pw = 0.76;
+            this.osc1Out = this.osc1Phase < pw ? 1 : -1;
+
+            // Osc 2: Saw wave
+            this.osc2Phase += Math.max(1, osc2Freq) / this.sr;
+            if (this.osc2Phase >= 1) this.osc2Phase -= 1;
+            this.osc2Out = this.osc2Phase * 2 - 1;
+
+            // Rungler: shift register clocked by osc1 zero crossings
+            const osc1Sign = this.osc1Out > 0;
+            if (osc1Sign && !this.lastOsc1Sign) {
+                // Clock tick - capture osc2 value and shift
+                const captureValue = this.osc2Out;
+
+                // Apply drift
+                const driftedValue = captureValue + (Math.random() * 2 - 1) * p.drift;
+
+                // Shift register
+                for (let j = 63; j > 0; j--) {
+                    this.register[j] = this.register[j - 1];
+                }
+                this.register[0] = Math.max(-1, Math.min(1, driftedValue));
+
+                // Read from register with stride
+                this.regStep = (this.regStep + Math.floor(p.stride)) % Math.floor(p.length);
+                this.runglerOut = this.register[this.regStep];
+            }
+            this.lastOsc1Sign = osc1Sign;
+
+            // Sample & Hold: triggered by register output crossing
+            const regSign = this.runglerOut > 0;
+            if (regSign && !this.lastRegSign) {
+                this.shValue = this.osc2Out;
+            }
+            this.lastRegSign = regSign;
+
+            // Mix oscillators for filter input
+            let signal = (this.osc1Out + this.osc2Out) * 0.5;
+
+            // Bandpass filter with modulated frequency and Q
+            const filterFreq = 200 + (this.runglerOut * 0.5 + 0.5) * 2000;
+            const filterQ = 1 + p.q * 10 + this.shValue * p.res * 5;
+            const coef = this.computeBandpassCoefs(filterFreq, filterQ);
+            signal = this.processBandpass(signal, coef);
+
+            // Apply gain from filter
+            signal *= 5;
+
+            // SFDN-style feedback delay
+            const delaySamples = p.delay * this.sr;
+            const compareGate = (this.osc1Out + this.osc2Out) > -0.35 ? 1 : 0;
+            const delayedL = this.delayL.read(delaySamples);
+            const delayedR = this.delayR.read(delaySamples + 5);
+            const feedback = 0.45 + compareGate * 0.1;
+            this.delayL.write(signal + delayedL * feedback);
+            this.delayR.write(signal + delayedR * feedback);
+            let wetL = signal * 0.8 + delayedL * 0.42;
+            let wetR = signal * 0.8 + delayedR * 0.42;
+
+            // Spread delay with random modulation
+            const spreadTime = 0.02 + this.runglerOut * 0.01;
+            const spreadSamplesL = Math.max(1, (spreadTime - p.spread * 0.01) * this.sr);
+            const spreadSamplesR = Math.max(1, (spreadTime + p.spread * 0.01) * this.sr);
+            const spreadDelL = this.spreadDelayL.read(spreadSamplesL);
+            const spreadDelR = this.spreadDelayR.read(spreadSamplesR);
+            this.spreadDelayL.write(wetL + spreadDelL * 0.2);
+            this.spreadDelayR.write(wetR + spreadDelR * 0.2);
+            wetL = wetL + spreadDelL * 0.18;
+            wetR = wetR + spreadDelR * 0.18;
+
+            // Freeverb with chaos modulation
+            const reverbSize = 0.5 + this.runglerOut * 0.2;
+            const reverbDamp = 0.68 + this.shValue * 0.2;
+            this.reverb.setParams(reverbSize, reverbDamp, p.reverb);
+            [wetL, wetR] = this.reverb.process(wetL, wetR);
+
+            // Output with soft limiting
+            wetL *= p.vol;
+            wetR *= p.vol;
+            outL[i] = Math.tanh(wetL);
+            outR[i] = Math.tanh(wetR);
+        }
+
+        // Send chaos state for visualization
+        if (Math.random() < 0.05) {
+            this.port.postMessage({
+                type: 'chaos',
+                osc1: Math.abs(this.osc1Out),
+                osc2: Math.abs(this.osc2Out) * 0.5 + 0.5,
+                rungle: this.runglerOut * 0.5 + 0.5,
+                filter: Math.abs(this.shValue)
+            });
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('rr25-processor', RR25Processor);
+`;
+
+        let audioContext, workletNode, analyser;
+        let isPlaying = false;
+        let pedalboardUI = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const waveformCanvas = document.getElementById('waveform');
+        const waveformCtx = waveformCanvas.getContext('2d');
+
+        const paramDefs = {
+            richard: { min: 0, max: 500, step: 1, display: v => `${v} Hz` },
+            rob: { min: 10, max: 500, step: 1, display: v => `${v} Hz` },
+            xmod1: { min: 0, max: 2, step: 0.01, display: v => v.toFixed(2) },
+            xmod2: { min: 0, max: 2, step: 0.01, display: v => v.toFixed(2) },
+            length: { min: 1, max: 64, step: 1, display: v => v.toString() },
+            stride: { min: 1, max: 16, step: 1, display: v => v.toString() },
+            drift: { min: 0, max: 0.5, step: 0.01, display: v => v.toFixed(2) },
+            rmod: { min: 0, max: 1, step: 0.01, display: v => v.toFixed(2) },
+            q: { min: 0, max: 0.5, step: 0.01, display: v => v.toFixed(2) },
+            res: { min: 0, max: 0.5, step: 0.01, display: v => v.toFixed(2) },
+            delay: { min: 0, max: 0.1, step: 0.001, display: v => `${Math.round(v * 1000)}ms` },
+            spread: { min: 0, max: 1, step: 0.01, display: v => v.toFixed(2) },
+            reverb: { min: 0, max: 1, step: 0.01, display: v => v.toFixed(2) },
+            vol: { min: 0, max: 1, step: 0.01, display: v => v.toFixed(2) }
+        };
+
+        Object.keys(paramDefs).forEach(key => {
+            const input = document.getElementById(key);
+            const valSpan = document.getElementById(key + 'Val');
+            if (input && valSpan) {
+                valSpan.textContent = paramDefs[key].display(parseFloat(input.value));
+                input.addEventListener('input', () => {
+                    const v = parseFloat(input.value);
+                    valSpan.textContent = paramDefs[key].display(v);
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'setParam', param: key, value: v });
+                    }
+                });
+            }
+        });
+
+        function drawWaveform() {
+            if (!analyser) {
+                requestAnimationFrame(drawWaveform);
+                return;
+            }
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteTimeDomainData(dataArray);
+
+            waveformCtx.fillStyle = '#1a1a2e';
+            waveformCtx.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+
+            waveformCtx.lineWidth = 2;
+            waveformCtx.strokeStyle = '#e74c3c';
+            waveformCtx.beginPath();
+
+            const sliceWidth = waveformCanvas.width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = v * waveformCanvas.height / 2;
+                if (i === 0) waveformCtx.moveTo(x, y);
+                else waveformCtx.lineTo(x, y);
+                x += sliceWidth;
+            }
+
+            waveformCtx.stroke();
+            requestAnimationFrame(drawWaveform);
+        }
+
+        function updateChaosIndicator(data) {
+            const dots = document.querySelectorAll('.chaos-dot');
+            dots[0].classList.toggle('active', data.osc1 > 0.5);
+            dots[1].classList.toggle('active', data.osc2 > 0.5);
+            dots[2].classList.toggle('active', data.rungle > 0.5);
+            dots[3].classList.toggle('active', data.filter > 0.5);
+        }
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'rr25-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'chaos') {
+                    updateChaosIndicator(e.data);
+                }
+            };
+
+            // Initialize pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboardUI = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboardUI.init();
+            pedalboardUI.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'r-r25-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-rr25'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-rr25');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-rr25',
+                    prefix: 'rr25',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+            fxNode.connect(analyser);
+
+            // Send initial parameters
+            Object.keys(paramDefs).forEach(key => {
+                const el = document.getElementById(key);
+                if (el) {
+                    workletNode.port.postMessage({ type: 'setParam', param: key, value: parseFloat(el.value) });
+                }
+            });
+
+            drawWaveform();
+        }
+
+        const playBtn = document.getElementById('playBtn');
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) await initAudio();
+            if (isPlaying) {
+                await audioContext.suspend();
+                playBtn.textContent = '\u25B6';
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.textContent = '\u25A0';
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+            }
+        });
+
+        // Info panel
+        document.getElementById('infoToggle').addEventListener('click', () => {
+            document.getElementById('infoPanel').classList.add('visible');
+        });
+        document.getElementById('closeInfo').addEventListener('click', () => {
+            document.getElementById('infoPanel').classList.remove('visible');
+        });
+
+        // Initial waveform
+        waveformCtx.fillStyle = '#1a1a2e';
+        waveformCtx.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+        waveformCtx.strokeStyle = '#333';
+        waveformCtx.beginPath();
+        waveformCtx.moveTo(0, waveformCanvas.height / 2);
+        waveformCtx.lineTo(waveformCanvas.width, waveformCanvas.height / 2);
+        waveformCtx.stroke();
+    </script>
+</body>
+</html>

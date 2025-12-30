@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>endless bongo - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 70px;
+        }
+        .voice-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+            margin-bottom: 1em;
+        }
+        .voice-card {
+            background: #0a0a14;
+            border-radius: 6px;
+            padding: 10px;
+            text-align: center;
+            transition: all 0.15s;
+        }
+        .voice-card.active {
+            background: #1a1a2e;
+            box-shadow: 0 0 12px rgba(139, 92, 246, 0.3);
+        }
+        .voice-card .label {
+            font-size: 0.65em;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .voice-indicator {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #1a1a2e;
+            margin: 0 auto 6px;
+            transition: all 0.1s;
+        }
+        .voice-indicator.on {
+            background: #8b5cf6;
+            box-shadow: 0 0 10px #8b5cf6;
+        }
+        .voice-sample {
+            font-size: 0.6em;
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .sample-visualizer {
+            max-width: 800px;
+            width: 100%;
+            margin: 1rem auto;
+        }
+        .sample-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        .sample-slot {
+            width: 26px;
+            height: 26px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+            transition: all 0.15s;
+        }
+        .sample-slot.playing {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--glow);
+            transform: scale(1.1);
+        }
+        .now-playing {
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+        .sample-import {
+            margin-top: 1em;
+            text-align: center;
+        }
+        .sample-import input {
+            display: none;
+        }
+        .sample-import label {
+            cursor: pointer;
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+        }
+        .sample-import label:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .toggle-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75em;
+        }
+        .toggle-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+        @media (max-width: 600px) {
+            .voice-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>endless bongo</h1>
+                <p>6-voice generative conga machine with independent clocks and Freeverb</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Voice Display -->
+            <div class="voice-grid" id="voiceGrid">
+                <div class="voice-card" id="voice1">
+                    <div class="label">Voice 1</div>
+                    <div class="voice-indicator" id="indicator1"></div>
+                    <div class="voice-sample" id="sample1">-</div>
+                </div>
+                <div class="voice-card" id="voice2">
+                    <div class="label">Voice 2</div>
+                    <div class="voice-indicator" id="indicator2"></div>
+                    <div class="voice-sample" id="sample2">-</div>
+                </div>
+                <div class="voice-card" id="voice3">
+                    <div class="label">Voice 3</div>
+                    <div class="voice-indicator" id="indicator3"></div>
+                    <div class="voice-sample" id="sample3">-</div>
+                </div>
+                <div class="voice-card" id="voice4">
+                    <div class="label">Voice 4</div>
+                    <div class="voice-indicator" id="indicator4"></div>
+                    <div class="voice-sample" id="sample4">-</div>
+                </div>
+                <div class="voice-card" id="voice5">
+                    <div class="label">Voice 5</div>
+                    <div class="voice-indicator" id="indicator5"></div>
+                    <div class="voice-sample" id="sample5">-</div>
+                </div>
+                <div class="voice-card" id="voice6">
+                    <div class="label">Voice 6</div>
+                    <div class="voice-indicator" id="indicator6"></div>
+                    <div class="voice-sample" id="sample6">-</div>
+                </div>
+            </div>
+
+            <!-- Clock Section -->
+            <span class="section-label">Independent Clocks (ms)</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Clock 1</label>
+                        <input type="range" id="clk1" min="50" max="1000" value="250" step="1">
+                        <span class="param-value" id="clk1Val">250</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Clock 2</label>
+                        <input type="range" id="clk2" min="50" max="1000" value="300" step="1">
+                        <span class="param-value" id="clk2Val">300</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Clock 3</label>
+                        <input type="range" id="clk3" min="50" max="1000" value="180" step="1">
+                        <span class="param-value" id="clk3Val">180</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Clock 4</label>
+                        <input type="range" id="clk4" min="50" max="1000" value="420" step="1">
+                        <span class="param-value" id="clk4Val">420</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Clock 5</label>
+                        <input type="range" id="clk5" min="50" max="1000" value="350" step="1">
+                        <span class="param-value" id="clk5Val">350</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Clock 6</label>
+                        <input type="range" id="clk6" min="50" max="1000" value="500" step="1">
+                        <span class="param-value" id="clk6Val">500</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Probability Section -->
+            <span class="section-label">Probability Gates</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Prob 1</label>
+                        <input type="range" id="prob1" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="prob1Val">0.70</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Prob 2</label>
+                        <input type="range" id="prob2" min="0" max="1" value="0.6" step="0.01">
+                        <span class="param-value" id="prob2Val">0.60</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Prob 3</label>
+                        <input type="range" id="prob3" min="0" max="1" value="0.8" step="0.01">
+                        <span class="param-value" id="prob3Val">0.80</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Prob 4</label>
+                        <input type="range" id="prob4" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="prob4Val">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Prob 5</label>
+                        <input type="range" id="prob5" min="0" max="1" value="0.65" step="0.01">
+                        <span class="param-value" id="prob5Val">0.65</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Prob 6</label>
+                        <input type="range" id="prob6" min="0" max="1" value="0.45" step="0.01">
+                        <span class="param-value" id="prob6Val">0.45</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pitch Section -->
+            <span class="section-label">Tuning (semitones)</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Tune 1</label>
+                        <input type="range" id="tune1" min="-12" max="12" value="0" step="1">
+                        <span class="param-value" id="tune1Val">0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Tune 2</label>
+                        <input type="range" id="tune2" min="-12" max="12" value="0" step="1">
+                        <span class="param-value" id="tune2Val">0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Tune 3</label>
+                        <input type="range" id="tune3" min="-12" max="12" value="0" step="1">
+                        <span class="param-value" id="tune3Val">0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Tune 4</label>
+                        <input type="range" id="tune4" min="-12" max="12" value="0" step="1">
+                        <span class="param-value" id="tune4Val">0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Tune 5</label>
+                        <input type="range" id="tune5" min="-12" max="12" value="0" step="1">
+                        <span class="param-value" id="tune5Val">0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Tune 6</label>
+                        <input type="range" id="tune6" min="-12" max="12" value="0" step="1">
+                        <span class="param-value" id="tune6Val">0</span>
+                    </div>
+                </div>
+                <div class="param-row" style="margin-top: 0.75em;">
+                    <div class="param-group">
+                        <label>Master Speed</label>
+                        <input type="range" id="speed" min="0.5" max="2" value="1" step="0.01">
+                        <span class="param-value" id="speedVal">1.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Random Pitch</label>
+                        <button class="toggle-btn active" id="rndPitch">ON</button>
+                    </div>
+                    <div class="param-group">
+                        <label>Pitch Range</label>
+                        <input type="range" id="pitchRange" min="0" max="12" value="5" step="1">
+                        <span class="param-value" id="pitchRangeVal">5</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reverb Section -->
+            <span class="section-label">Freeverb</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Room Size</label>
+                        <input type="range" id="roomSize" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="roomSizeVal">0.70</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Damping</label>
+                        <input type="range" id="damping" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="dampingVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Width</label>
+                        <input type="range" id="width" min="0" max="1" value="0.8" step="0.01">
+                        <span class="param-value" id="widthVal">0.80</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Wet</label>
+                        <input type="range" id="wet" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="wetVal">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Master Volume</label>
+                        <input type="range" id="vol" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="volVal">0.70</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Reset</label>
+                        <button class="toggle-btn" id="resetBtn">RESET</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sample Grid -->
+            <div class="sample-visualizer">
+                <div class="sample-grid" id="sampleGrid"></div>
+                <div class="now-playing" id="nowPlaying">Ready - Load samples to begin</div>
+            </div>
+
+            <div class="sample-import">
+                <input type="file" id="sampleInput" multiple accept="audio/*">
+                <label for="sampleInput">Import Samples</label>
+                <button class="toggle-btn" id="clearSamples" style="margin-left: 1em;">Clear Samples</button>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        const processorCode = `
+// endless bongo - 6-voice generative conga with independent clocks and Freeverb
+class EndlessBongoProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+        this.playing = false;
+        this.samples = [];
+        this.sampleNames = [];
+
+        // 6 independent voice clocks
+        this.voices = [];
+        for (let i = 0; i < 6; i++) {
+            this.voices.push({
+                clockPhase: Math.random(), // Start at random phase for variety
+                sampleIdx: 0,
+                position: 0,
+                speed: 1,
+                active: false,
+                randomPitch: 0,
+                targetPitch: 0,
+                samplePool: []
+            });
+        }
+
+        // Freeverb implementation
+        // Comb filter delays (in samples at 44.1kHz, scaled)
+        const combTuning = [1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617];
+        const allpassTuning = [556, 441, 341, 225];
+        const scaleFactor = this.sr / 44100;
+
+        this.combsL = combTuning.map(t => ({
+            buffer: new Float32Array(Math.floor(t * scaleFactor)),
+            idx: 0,
+            filterStore: 0
+        }));
+        this.combsR = combTuning.map((t, i) => ({
+            buffer: new Float32Array(Math.floor((t + 23) * scaleFactor)), // Stereo spread
+            idx: 0,
+            filterStore: 0
+        }));
+        this.allpassL = allpassTuning.map(t => ({
+            buffer: new Float32Array(Math.floor(t * scaleFactor)),
+            idx: 0
+        }));
+        this.allpassR = allpassTuning.map((t, i) => ({
+            buffer: new Float32Array(Math.floor((t + 23) * scaleFactor)),
+            idx: 0
+        }));
+
+        // DC blockers
+        this.dcL = { x1: 0, y1: 0 };
+        this.dcR = { x1: 0, y1: 0 };
+
+        // Parameters
+        this.params = {
+            clk1: 250, clk2: 300, clk3: 180, clk4: 420, clk5: 350, clk6: 500,
+            prob1: 0.7, prob2: 0.6, prob3: 0.8, prob4: 0.5, prob5: 0.65, prob6: 0.45,
+            tune1: 0, tune2: 0, tune3: 0, tune4: 0, tune5: 0, tune6: 0,
+            speed: 1,
+            rndPitch: true,
+            pitchRange: 5,
+            roomSize: 0.7,
+            damping: 0.5,
+            width: 0.8,
+            wet: 0.3,
+            vol: 0.7
+        };
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'start') this.playing = true;
+            if (e.data.type === 'stop') this.playing = false;
+            if (e.data.type === 'reset') {
+                // Reset all clock phases
+                for (let v = 0; v < 6; v++) {
+                    this.voices[v].clockPhase = 0;
+                    this.voices[v].active = false;
+                }
+            }
+            if (e.data.type === 'loadSamples') {
+                this.samples = e.data.samples;
+                this.sampleNames = e.data.names || [];
+                // Assign samples to voice pools (divide among 6 voices)
+                const perVoice = Math.ceil(this.samples.length / 6);
+                for (let v = 0; v < 6; v++) {
+                    this.voices[v].samplePool = [];
+                    for (let i = v * perVoice; i < Math.min((v + 1) * perVoice, this.samples.length); i++) {
+                        this.voices[v].samplePool.push(i);
+                    }
+                    if (this.voices[v].samplePool.length === 0 && this.samples.length > 0) {
+                        // Fallback - give each voice access to all samples
+                        this.voices[v].samplePool = this.samples.map((_, i) => i);
+                    }
+                }
+            }
+            if (e.data.type === 'param') {
+                this.params[e.data.name] = e.data.value;
+            }
+        };
+    }
+
+    dcBlock(sample, state) {
+        const R = 0.995;
+        const y = sample - state.x1 + R * state.y1;
+        state.x1 = sample;
+        state.y1 = y;
+        return y;
+    }
+
+    processComb(input, comb, feedback, damp) {
+        const output = comb.buffer[comb.idx];
+        comb.filterStore = output * (1 - damp) + comb.filterStore * damp;
+        comb.buffer[comb.idx] = input + comb.filterStore * feedback;
+        comb.idx = (comb.idx + 1) % comb.buffer.length;
+        return output;
+    }
+
+    processAllpass(input, ap) {
+        const bufOut = ap.buffer[ap.idx];
+        const output = -input + bufOut;
+        ap.buffer[ap.idx] = input + bufOut * 0.5;
+        ap.idx = (ap.idx + 1) % ap.buffer.length;
+        return output;
+    }
+
+    freeverb(inputL, inputR) {
+        const roomSize = this.params.roomSize * 0.28 + 0.7; // Scale to 0.7-0.98
+        const damp = this.params.damping;
+        const width = this.params.width;
+        const wet = this.params.wet;
+        const dry = 1 - wet;
+
+        const input = (inputL + inputR) * 0.015; // Fixed gain
+
+        let outL = 0, outR = 0;
+
+        // Process comb filters in parallel
+        for (let i = 0; i < 8; i++) {
+            outL += this.processComb(input, this.combsL[i], roomSize, damp);
+            outR += this.processComb(input, this.combsR[i], roomSize, damp);
+        }
+
+        // Process allpass filters in series
+        for (let i = 0; i < 4; i++) {
+            outL = this.processAllpass(outL, this.allpassL[i]);
+            outR = this.processAllpass(outR, this.allpassR[i]);
+        }
+
+        // Stereo width
+        const wet1 = wet * (width / 2 + 0.5);
+        const wet2 = wet * ((1 - width) / 2);
+
+        return {
+            L: outL * wet1 + outR * wet2 + inputL * dry,
+            R: outR * wet1 + outL * wet2 + inputR * dry
+        };
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1];
+
+        if (!this.playing || this.samples.length === 0) {
+            outL.fill(0);
+            outR.fill(0);
+            return true;
+        }
+
+        for (let i = 0; i < outL.length; i++) {
+            let mixL = 0, mixR = 0;
+
+            // Process each voice with independent clock
+            for (let v = 0; v < 6; v++) {
+                const voice = this.voices[v];
+                const clkMs = this.params['clk' + (v + 1)];
+                const prob = this.params['prob' + (v + 1)];
+                const tune = this.params['tune' + (v + 1)];
+
+                // Clock increment based on ms timing
+                const clockInc = 1000 / clkMs / this.sr;
+                voice.clockPhase += clockInc;
+
+                // Check for clock edge
+                if (voice.clockPhase >= 1) {
+                    voice.clockPhase -= 1;
+
+                    // Probability gate
+                    if (Math.random() < prob && voice.samplePool.length > 0) {
+                        // Trigger sample
+                        voice.sampleIdx = voice.samplePool[Math.floor(Math.random() * voice.samplePool.length)];
+                        voice.position = 0;
+                        voice.active = true;
+
+                        // Random pitch if enabled
+                        if (this.params.rndPitch) {
+                            const range = this.params.pitchRange;
+                            voice.targetPitch = (Math.random() - 0.5) * 2 * (range / 12);
+                        }
+
+                        // Report trigger
+                        this.port.postMessage({
+                            type: 'trigger',
+                            voice: v,
+                            sampleIdx: voice.sampleIdx
+                        });
+                    }
+                }
+
+                // Slew random pitch
+                voice.randomPitch += (voice.targetPitch - voice.randomPitch) * 0.002;
+
+                // Calculate playback speed
+                const pitchOffset = tune / 12 + (this.params.rndPitch ? voice.randomPitch : 0);
+                voice.speed = Math.pow(2, pitchOffset) * this.params.speed;
+
+                // Play sample
+                if (voice.active && this.samples[voice.sampleIdx]) {
+                    const sample = this.samples[voice.sampleIdx];
+                    const idx = Math.floor(voice.position);
+                    const frac = voice.position - idx;
+
+                    if (idx < sample.length - 1) {
+                        // Linear interpolation
+                        const s0 = sample[idx];
+                        const s1 = sample[idx + 1];
+                        const sampleOut = s0 + frac * (s1 - s0);
+
+                        // Stereo spread based on voice (spread across stereo field)
+                        const pan = (v - 2.5) / 2.5 * 0.6; // -0.6 to 0.6
+                        mixL += sampleOut * (0.5 - pan * 0.5);
+                        mixR += sampleOut * (0.5 + pan * 0.5);
+
+                        voice.position += voice.speed;
+                    } else {
+                        voice.active = false;
+                    }
+                }
+            }
+
+            // Apply Freeverb
+            const verb = this.freeverb(mixL, mixR);
+
+            // DC block
+            const finalL = this.dcBlock(verb.L, this.dcL);
+            const finalR = this.dcBlock(verb.R, this.dcR);
+
+            // Output with volume and soft clip
+            outL[i] = Math.tanh(finalL * this.params.vol * 2);
+            outR[i] = Math.tanh(finalR * this.params.vol * 2);
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('endless-bongo-processor', EndlessBongoProcessor);
+`;
+
+        let audioContext, workletNode, pedalboard;
+        let isPlaying = false;
+        let sampleNames = [];
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const sampleGrid = document.getElementById('sampleGrid');
+        const nowPlaying = document.getElementById('nowPlaying');
+
+        // Voice indicator timeouts
+        const voiceTimeouts = [null, null, null, null, null, null];
+
+        function buildSampleGrid(names) {
+            sampleGrid.innerHTML = names.map((name, i) =>
+                `<div class="sample-slot" data-index="${i}" title="${name}">${i + 1}</div>`
+            ).join('');
+        }
+
+        function updateVoiceTrigger(voice, sampleIdx, name) {
+            // Update indicator
+            const indicator = document.getElementById('indicator' + (voice + 1));
+            const card = document.getElementById('voice' + (voice + 1));
+            const sampleDisplay = document.getElementById('sample' + (voice + 1));
+
+            indicator.classList.add('on');
+            card.classList.add('active');
+            sampleDisplay.textContent = name.slice(0, 12);
+
+            // Update sample grid
+            document.querySelectorAll('.sample-slot').forEach((slot, i) => {
+                if (i === sampleIdx) {
+                    slot.classList.add('playing');
+                }
+            });
+
+            // Clear after delay
+            if (voiceTimeouts[voice]) clearTimeout(voiceTimeouts[voice]);
+            voiceTimeouts[voice] = setTimeout(() => {
+                indicator.classList.remove('on');
+                card.classList.remove('active');
+                document.querySelectorAll('.sample-slot').forEach(slot => {
+                    slot.classList.remove('playing');
+                });
+            }, 150);
+
+            nowPlaying.textContent = `V${voice + 1}: ${name}`;
+            nowPlaying.style.color = 'var(--accent)';
+        }
+
+        async function loadDefaultSamples() {
+            const basePath = '../samples/hyperscale/endless-bongo/';
+
+            // Conga Battery sample names
+            const defaultSamples = [
+                'Conga Bass Tone.wav', 'Conga Heel.wav', 'Conga Mute.wav', 'Conga Open Slap.wav',
+                'Conga Rim.wav', 'Conga Side Stick.wav', 'Conga Stick.wav', 'Conga Tip.wav',
+                'Conga Tone.wav', 'CongaAttackSlide.wav', 'CongaClosedSlap.wav', 'CongaFngMuteSlap.wav',
+                'CongaFngrSlapTip.wav', 'Hi Tumba Heel.wav', 'Hi Tumba Mute.wav', 'Hi Tumba RimShot.wav',
+                'Hi Tumba Slide.wav', 'Hi Tumba Tip.wav', 'Hi Tumba Tone.wav', 'HiTumba AtkSlide.wav',
+                'HiTumba BassTone.wav', 'HiTumba ClsdSlap.wav', 'HiTumba OpenSlap.wav', 'HiTumbaSideStick.wav',
+                'HiTumbaStickTone.wav', 'Low Tumba Bass.wav', 'Low Tumba Heel.wav', 'Low Tumba Mute.wav',
+                'Low Tumba Rim.wav', 'Low Tumba Slide.wav', 'Low Tumba Stick.wav', 'Low Tumba Tip.wav',
+                'Low Tumba Tone.wav', 'LowTumbaAtkSlide.wav', 'LowTumbaClsdSlap.wav', 'LowTumbaOpenSlap.wav',
+                'Quinto Heel.wav', 'Quinto Mute.wav', 'Quinto Open Slap.wav', 'Quinto Rim.wav',
+                'Quinto Tip.wav', 'Quinto Tone.wav', 'QuintoBassTone.wav', 'QuintoClosedSlap.wav',
+                'QuintoFingerTip.wav', 'QuintoSideStick.wav', 'QuintoStickTone.wav'
+            ];
+
+            const loadedSamples = [];
+            const loadedNames = [];
+
+            for (const name of defaultSamples) {
+                try {
+                    const resp = await fetch(basePath + encodeURIComponent(name));
+                    if (resp.ok) {
+                        const buffer = await resp.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(buffer);
+                        loadedSamples.push(audioBuffer.getChannelData(0));
+                        loadedNames.push(name);
+                    }
+                } catch (e) {
+                    console.log('Could not load:', name);
+                }
+            }
+
+            if (loadedSamples.length > 0) {
+                sampleNames = loadedNames;
+                workletNode.port.postMessage({
+                    type: 'loadSamples',
+                    samples: loadedSamples,
+                    names: loadedNames
+                });
+                buildSampleGrid(loadedNames);
+                nowPlaying.textContent = `Loaded ${loadedSamples.length} Conga Battery samples`;
+            }
+        }
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext({ sampleRate: 48000 });
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            workletNode = new AudioWorkletNode(audioContext, 'endless-bongo-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboard = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'endless-bongo-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-endless-bongo'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-endless-bongo');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-endless-bongo',
+                    prefix: 'bongo',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Handle messages from processor
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'trigger') {
+                    updateVoiceTrigger(e.data.voice, e.data.sampleIdx, sampleNames[e.data.sampleIdx] || 'Sample');
+                }
+            };
+
+            // Try to load default samples
+            loadDefaultSamples();
+
+            // Visualizer
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            fxNode.connect(analyser);
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            function draw() {
+                requestAnimationFrame(draw);
+                analyser.getByteTimeDomainData(dataArray);
+                ctx.fillStyle = '#0a0a14';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#8b5cf6';
+                ctx.beginPath();
+                const sliceWidth = canvas.width / dataArray.length;
+                let x = 0;
+                for (let i = 0; i < dataArray.length; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * canvas.height / 2;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                    x += sliceWidth;
+                }
+                ctx.stroke();
+            }
+            draw();
+        }
+
+        playBtn.onclick = async () => {
+            if (!audioContext) await initAudio();
+            if (audioContext.state === 'suspended') await audioContext.resume();
+
+            isPlaying = !isPlaying;
+            playBtn.textContent = isPlaying ? '⏹' : '▶';
+            workletNode.port.postMessage({ type: isPlaying ? 'start' : 'stop' });
+        };
+
+        // Sample import
+        document.getElementById('sampleInput').onchange = async (e) => {
+            if (!audioContext) await initAudio();
+            const files = Array.from(e.target.files);
+            const loadedSamples = [];
+            const loadedNames = [];
+
+            for (const file of files) {
+                const buffer = await file.arrayBuffer();
+                const audioBuffer = await audioContext.decodeAudioData(buffer);
+                loadedSamples.push(audioBuffer.getChannelData(0));
+                loadedNames.push(file.name);
+            }
+
+            sampleNames = loadedNames;
+            workletNode.port.postMessage({
+                type: 'loadSamples',
+                samples: loadedSamples,
+                names: loadedNames
+            });
+            buildSampleGrid(loadedNames);
+            nowPlaying.textContent = `Loaded ${loadedSamples.length} samples`;
+        };
+
+        // Clear samples
+        document.getElementById('clearSamples').onclick = () => {
+            sampleNames = [];
+            if (workletNode) {
+                workletNode.port.postMessage({
+                    type: 'loadSamples',
+                    samples: [],
+                    names: []
+                });
+            }
+            sampleGrid.innerHTML = '';
+            nowPlaying.textContent = 'Samples cleared - Import new samples';
+            nowPlaying.style.color = 'var(--text-secondary)';
+        };
+
+        // Reset button
+        document.getElementById('resetBtn').onclick = () => {
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'reset' });
+            }
+        };
+
+        // Parameter controls
+        const params = [
+            'clk1', 'clk2', 'clk3', 'clk4', 'clk5', 'clk6',
+            'prob1', 'prob2', 'prob3', 'prob4', 'prob5', 'prob6',
+            'tune1', 'tune2', 'tune3', 'tune4', 'tune5', 'tune6',
+            'speed', 'pitchRange',
+            'roomSize', 'damping', 'width', 'wet', 'vol'
+        ];
+
+        params.forEach(name => {
+            const input = document.getElementById(name);
+            const display = document.getElementById(name + 'Val');
+            if (input && display) {
+                input.oninput = () => {
+                    const val = parseFloat(input.value);
+                    display.textContent = Number.isInteger(val) ? val : val.toFixed(2);
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'param', name, value: val });
+                    }
+                };
+            }
+        });
+
+        // Toggle buttons
+        const rndPitchBtn = document.getElementById('rndPitch');
+        rndPitchBtn.onclick = () => {
+            const isActive = rndPitchBtn.classList.toggle('active');
+            rndPitchBtn.textContent = isActive ? 'ON' : 'OFF';
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'param', name: 'rndPitch', value: isActive });
+            }
+        };
+
+        // Info panel
+        if (typeof ER301InfoPanel !== 'undefined') {
+            new ER301InfoPanel(document.body, {
+                title: 'endless bongo',
+                author: 'mudlogger',
+                origin: 'ER-301 Hyperscale Units',
+                description: '6-voice generative conga machine using Conga Battery samples. Each voice has an independent clock, probability gate, and tuning control. Features Freeverb reverb for spacious ambience.',
+                controls: [
+                    { name: 'Clock 1-6', range: '50-1000ms', description: 'Independent trigger rate per voice' },
+                    { name: 'Prob 1-6', range: '0-1', description: 'Probability of trigger firing' },
+                    { name: 'Tune 1-6', range: '-12 to +12', description: 'Semitone offset per voice' },
+                    { name: 'Master Speed', range: '0.5-2', description: 'Global playback speed multiplier' },
+                    { name: 'Random Pitch', range: 'on/off', description: 'Enable random pitch variation' },
+                    { name: 'Pitch Range', range: '0-12', description: 'Semitone range for random pitch' },
+                    { name: 'Room Size', range: '0-1', description: 'Freeverb room size (decay)' },
+                    { name: 'Damping', range: '0-1', description: 'High frequency damping in reverb' },
+                    { name: 'Width', range: '0-1', description: 'Stereo width of reverb' },
+                    { name: 'Reset', range: 'button', description: 'Sync all clocks to start' }
+                ],
+                tips: [
+                    'Set different clock rates for polyrhythmic patterns',
+                    'Lower probabilities create sparser, more organic rhythms',
+                    'Use Reset to sync clocks after adjusting rates',
+                    'The 47 Conga Battery samples provide rich tonal variety',
+                    'Tune voices apart for melodic percussion textures'
+                ]
+            });
+        }
+    </script>
+</body>
+</html>

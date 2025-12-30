@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>217 Levels - ER-301 Autogen301</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 100px;
+        }
+        .sequencer-section {
+            background: #0d1810;
+            border: 1px solid #2a4a2a;
+            border-radius: 8px;
+            padding: 1em;
+            margin-bottom: 1em;
+        }
+        .sequencer-section h3 {
+            margin: 0 0 0.75em 0;
+            font-size: 0.9em;
+            color: #6aff6a;
+        }
+        .sample-section {
+            background: #18100d;
+            border: 1px solid #4a2a2a;
+            border-radius: 8px;
+            padding: 1em;
+            margin-bottom: 1em;
+        }
+        .sample-section h3 {
+            margin: 0 0 0.75em 0;
+            font-size: 0.9em;
+            color: #ff9966;
+        }
+        .sample-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5em;
+            margin-top: 0.5em;
+        }
+        .sample-item {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 0.25em 0.5em;
+            font-size: 0.7em;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .sample-item:hover {
+            border-color: #6aff6a;
+            color: #6aff6a;
+        }
+        .sample-item.active {
+            background: #2a4a2a;
+            border-color: #6aff6a;
+            color: #fff;
+        }
+        .sample-controls {
+            display: flex;
+            gap: 0.5em;
+            margin-bottom: 0.75em;
+        }
+        .sample-controls button {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #888;
+            padding: 0.5em 1em;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        .sample-controls button:hover {
+            border-color: #6aff6a;
+            color: #6aff6a;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>217 Levels</h1>
+                <p>Euclidean drum machine with 217-level random quantization and One Inch Punch kit</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Sequencer Section -->
+            <div class="sequencer-section">
+                <h3>Euclidean Sequencer</h3>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Tempo</label>
+                        <input type="range" id="tempo" min="60" max="240" value="180" step="1">
+                        <span class="param-value" id="tempoVal">180 BPM</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Multiplier</label>
+                        <input type="range" id="multiplier" min="1" max="16" value="7" step="1">
+                        <span class="param-value" id="multiplierVal">7</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Chance</label>
+                        <input type="range" id="chance" min="0" max="1" value="0.02" step="0.01">
+                        <span class="param-value" id="chanceVal">2%</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Beats</label>
+                        <input type="range" id="beats" min="1" max="16" value="8" step="1">
+                        <span class="param-value" id="beatsVal">8</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Length</label>
+                        <input type="range" id="length" min="4" max="16" value="10" step="1">
+                        <span class="param-value" id="lengthVal">10</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Shift</label>
+                        <input type="range" id="shift" min="0" max="15" value="8" step="1">
+                        <span class="param-value" id="shiftVal">8</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sample Section -->
+            <div class="sample-section">
+                <h3>One Inch Punch Kit (29 samples)</h3>
+                <div class="sample-controls">
+                    <button id="importSamplesBtn">Import Samples</button>
+                    <button id="clearSamplesBtn">Clear Samples</button>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Tune (pots)</label>
+                        <input type="range" id="tune" min="-24" max="24" value="0" step="0.1">
+                        <span class="param-value" id="tuneVal">0 st</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Slice Select</label>
+                        <input type="range" id="sliceSelect" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="sliceSelectVal">50%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Speed</label>
+                        <input type="range" id="speed" min="0.25" max="4" value="1" step="0.01">
+                        <span class="param-value" id="speedVal">1.00x</span>
+                    </div>
+                </div>
+                <div id="sampleList" class="sample-list">
+                    <!-- Samples will be populated here -->
+                </div>
+            </div>
+
+            <!-- Filter Section -->
+            <span class="section-label">Bique Filter</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Frequency (edge)</label>
+                        <input type="range" id="filterFreq" min="20" max="8000" value="220" step="1">
+                        <span class="param-value" id="filterFreqVal">220 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Edge Mod</label>
+                        <input type="range" id="edgeMod" min="-1" max="1" value="1.3" step="0.01">
+                        <span class="param-value" id="edgeModVal">1.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Q</label>
+                        <input type="range" id="filterQ" min="0.01" max="1" value="0.05" step="0.01">
+                        <span class="param-value" id="filterQVal">0.05</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delay Section -->
+            <span class="section-label">Delay</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Time (pans mod)</label>
+                        <input type="range" id="delayTime" min="0.001" max="0.2" value="0.008" step="0.001">
+                        <span class="param-value" id="delayTimeVal">8 ms</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="delayFeedback" min="0" max="0.95" value="0.56" step="0.01">
+                        <span class="param-value" id="delayFeedbackVal">56%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mix</label>
+                        <input type="range" id="delayMix" min="0" max="1" value="0.14" step="0.01">
+                        <span class="param-value" id="delayMixVal">14%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reverb Section -->
+            <span class="section-label">Freeverb</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Size</label>
+                        <input type="range" id="reverbSize" min="0" max="1" value="0.34" step="0.01">
+                        <span class="param-value" id="reverbSizeVal">0.34</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Damping</label>
+                        <input type="range" id="reverbDamp" min="0" max="1" value="0.42" step="0.01">
+                        <span class="param-value" id="reverbDampVal">0.42</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Width</label>
+                        <input type="range" id="reverbWidth" min="0" max="1" value="0.45" step="0.01">
+                        <span class="param-value" id="reverbWidthVal">0.45</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mix</label>
+                        <input type="range" id="reverbMix" min="0" max="1" value="0.24" step="0.01">
+                        <span class="param-value" id="reverbMixVal">0.24</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CPR Compression -->
+            <span class="section-label">CPR Compression</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Threshold</label>
+                        <input type="range" id="compThreshold" min="0" max="1" value="0.39" step="0.01">
+                        <span class="param-value" id="compThresholdVal">0.39</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Ratio</label>
+                        <input type="range" id="compRatio" min="1" max="20" value="5" step="0.1">
+                        <span class="param-value" id="compRatioVal">5:1</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="volume" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="volumeVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <pre class="code-block">
+// 217 Levels - ER-301 Autogen301
+// Original by mudlogger
+//
+// Euclidean drum sampler with:
+// - Variable Speed Player with 29 One Inch Punch Kit samples
+// - Euclidean sequencer (lojik) with Chance probability
+// - Carousel Clock Divider for complex timing
+// - Pingable Scaled Random with 217 quantization levels
+// - Clock at 180 BPM with multiplier control
+// - Bique (BCF) filter with edge modulation
+// - Delay with modulated time
+// - Freeverb with random modulation
+// - CPR compression with sidechain
+//
+// Control Parameters:
+// - pots: Sample tuning (V/Oct)
+// - pans: Clock multiplier and delay modulation
+// - edge: Filter frequency modulation</pre>
+        </main>
+    </div>
+
+    <script>
+        // Sample file names
+        const SAMPLE_NAMES = [
+            'High Meals', 'a_tension', 'a_tension_too', 'electric_whale',
+            'fast_snare', 'goink1', 'goink2', 'goink3', 'goink4', 'goink5', 'goink6',
+            'hihheels', 'kaoowm', 'military_monk', 'one_inch_kickpunch',
+            'one_inch_snarepunch', 'one_inch_subpunch', 'peeeesh', 'poooow too',
+            'poooow', 'punch_2 ', 'punch_3', 'punch_4', 'shock_long',
+            'snatch_room', 'xotix', 'xotix_hi', 'xotix_low', 'xotix_lower'
+        ];
+
+        // Phonebook features
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        // Audio context and nodes
+        let audioContext;
+        let workletNode;
+        let analyser;
+        let pedalboardNode = null;
+        let pedalboardUI = null;
+        let isPlaying = false;
+
+        // Sample buffers
+        let sampleBuffers = [];
+        let customSamples = [];
+        let currentSliceIndex = 0;
+
+        // Euclidean sequencer state
+        let euclidStep = 0;
+        let euclidPattern = [];
+        let clockPhase = 0;
+        let nextTrigTime = 0;
+        let lastRandomValue = 0.5;
+
+        // Initialize sample list display
+        function initSampleList() {
+            const sampleList = document.getElementById('sampleList');
+            sampleList.innerHTML = '';
+            SAMPLE_NAMES.forEach((name, idx) => {
+                const item = document.createElement('div');
+                item.className = 'sample-item' + (idx === 0 ? ' active' : '');
+                item.textContent = name;
+                item.dataset.index = idx;
+                item.addEventListener('click', () => {
+                    document.querySelectorAll('.sample-item').forEach(el => el.classList.remove('active'));
+                    item.classList.add('active');
+                    currentSliceIndex = idx;
+                });
+                sampleList.appendChild(item);
+            });
+        }
+
+        // Generate euclidean rhythm pattern
+        function generateEuclidPattern(beats, length) {
+            if (beats >= length) return Array(length).fill(true);
+            if (beats === 0) return Array(length).fill(false);
+
+            const pattern = [];
+            let bucket = 0;
+            for (let i = 0; i < length; i++) {
+                bucket += beats;
+                if (bucket >= length) {
+                    bucket -= length;
+                    pattern.push(true);
+                } else {
+                    pattern.push(false);
+                }
+            }
+            return pattern;
+        }
+
+        // Load default samples
+        async function loadDefaultSamples() {
+            const basePath = '../samples/autogen301/217-levels/';
+            const fileNames = [
+                'High Meals.wav', 'a_tension.wav', 'a_tension_too.wav', 'electric_whale.wav',
+                'fast_snare.wav', 'goink1.wav', 'goink2.wav', 'goink3.wav', 'goink4.wav',
+                'goink5.wav', 'goink6.wav', 'hihheels.wav', 'kaoowm.wav', 'military_monk.wav',
+                'one_inch_kickpunch.wav', 'one_inch_snarepunch.wav', 'one_inch_subpunch.wav',
+                'peeeesh.wav', 'poooow too.wav', 'poooow.wav', 'punch_2 .wav', 'punch_3.wav',
+                'punch_4.wav', 'shock_long.wav', 'snatch_room.wav', 'xotix.wav',
+                'xotix_hi.wav', 'xotix_low.wav', 'xotix_lower.wav'
+            ];
+
+            sampleBuffers = [];
+            for (const fileName of fileNames) {
+                try {
+                    const response = await fetch(basePath + fileName);
+                    if (response.ok) {
+                        const arrayBuffer = await response.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        sampleBuffers.push(audioBuffer);
+                    }
+                } catch (err) {
+                    console.warn('Could not load sample:', fileName, err);
+                }
+            }
+            console.log('Loaded', sampleBuffers.length, 'samples');
+        }
+
+        // Import custom samples
+        async function importSamples() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = true;
+            input.accept = 'audio/*';
+
+            input.onchange = async (e) => {
+                const files = Array.from(e.target.files);
+                customSamples = [];
+
+                for (const file of files) {
+                    try {
+                        const arrayBuffer = await file.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        customSamples.push(audioBuffer);
+                    } catch (err) {
+                        console.warn('Could not load:', file.name, err);
+                    }
+                }
+
+                if (customSamples.length > 0) {
+                    sampleBuffers = customSamples;
+                    // Update sample list display
+                    const sampleList = document.getElementById('sampleList');
+                    sampleList.innerHTML = '';
+                    files.forEach((file, idx) => {
+                        const item = document.createElement('div');
+                        item.className = 'sample-item' + (idx === 0 ? ' active' : '');
+                        item.textContent = file.name.replace(/\.[^/.]+$/, '');
+                        item.dataset.index = idx;
+                        item.addEventListener('click', () => {
+                            document.querySelectorAll('.sample-item').forEach(el => el.classList.remove('active'));
+                            item.classList.add('active');
+                            currentSliceIndex = idx;
+                        });
+                        sampleList.appendChild(item);
+                    });
+                    console.log('Imported', customSamples.length, 'custom samples');
+                }
+            };
+
+            input.click();
+        }
+
+        // Clear custom samples and reload defaults
+        async function clearSamples() {
+            customSamples = [];
+            await loadDefaultSamples();
+            initSampleList();
+        }
+
+        // Freeverb implementation
+        function createFreeverb(ctx) {
+            const combFilters = [];
+            const allpassFilters = [];
+            const combTunings = [1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617];
+            const allpassTunings = [556, 441, 341, 225];
+
+            const input = ctx.createGain();
+            const output = ctx.createGain();
+            const wet = ctx.createGain();
+            const dry = ctx.createGain();
+            const merger = ctx.createChannelMerger(2);
+
+            wet.gain.value = 0.24;
+            dry.gain.value = 0.76;
+
+            // Create comb filters
+            combTunings.forEach(tuning => {
+                const delay = ctx.createDelay(1);
+                delay.delayTime.value = tuning / ctx.sampleRate;
+                const feedback = ctx.createGain();
+                feedback.gain.value = 0.84;
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 4000;
+
+                delay.connect(filter);
+                filter.connect(feedback);
+                feedback.connect(delay);
+
+                combFilters.push({ delay, feedback, filter });
+            });
+
+            // Create allpass filters
+            allpassTunings.forEach(tuning => {
+                const delay = ctx.createDelay(1);
+                delay.delayTime.value = tuning / ctx.sampleRate;
+                const feedback = ctx.createGain();
+                feedback.gain.value = 0.5;
+                const feedforward = ctx.createGain();
+                feedforward.gain.value = -0.5;
+
+                allpassFilters.push({ delay, feedback, feedforward });
+            });
+
+            return {
+                input,
+                output,
+                wet,
+                dry,
+                connect: (dest) => output.connect(dest),
+                setSize: (size) => {
+                    const roomScale = 0.28 + size * 0.7;
+                    combFilters.forEach(cf => {
+                        cf.feedback.gain.value = roomScale;
+                    });
+                },
+                setDamp: (damp) => {
+                    const freq = 20000 * (1 - damp);
+                    combFilters.forEach(cf => {
+                        cf.filter.frequency.value = freq;
+                    });
+                },
+                setMix: (mix) => {
+                    wet.gain.value = mix;
+                    dry.gain.value = 1 - mix;
+                },
+                process: (inputNode) => {
+                    inputNode.connect(input);
+                    inputNode.connect(dry);
+                    dry.connect(output);
+
+                    // Connect to comb filters
+                    const combMixer = ctx.createGain();
+                    combMixer.gain.value = 0.125;
+                    combFilters.forEach(cf => {
+                        input.connect(cf.delay);
+                        cf.filter.connect(combMixer);
+                    });
+
+                    // Chain allpass filters
+                    let lastNode = combMixer;
+                    allpassFilters.forEach(ap => {
+                        const sum = ctx.createGain();
+                        lastNode.connect(ap.delay);
+                        lastNode.connect(ap.feedforward);
+                        ap.delay.connect(ap.feedback);
+                        ap.feedback.connect(sum);
+                        ap.feedforward.connect(sum);
+                        ap.delay.connect(sum);
+                        lastNode = sum;
+                    });
+
+                    lastNode.connect(wet);
+                    wet.connect(output);
+                }
+            };
+        }
+
+        // Initialize audio
+        async function initAudio() {
+            try {
+                await featuresLoaded;
+
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+                // Load samples
+                await loadDefaultSamples();
+                initSampleList();
+
+                // Create analyser
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+
+                // Create master gain
+                const masterGain = audioContext.createGain();
+                masterGain.gain.value = parseFloat(document.getElementById('volume').value);
+
+                // Create delay
+                const delay = audioContext.createDelay(1);
+                delay.delayTime.value = parseFloat(document.getElementById('delayTime').value);
+
+                const delayFeedback = audioContext.createGain();
+                delayFeedback.gain.value = parseFloat(document.getElementById('delayFeedback').value);
+
+                const delayMix = audioContext.createGain();
+                delayMix.gain.value = parseFloat(document.getElementById('delayMix').value);
+
+                const delayDry = audioContext.createGain();
+                delayDry.gain.value = 1 - parseFloat(document.getElementById('delayMix').value);
+
+                delay.connect(delayFeedback);
+                delayFeedback.connect(delay);
+                delay.connect(delayMix);
+
+                // Create filter (Bique)
+                const filter = audioContext.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = parseFloat(document.getElementById('filterFreq').value);
+                filter.Q.value = parseFloat(document.getElementById('filterQ').value) * 30;
+
+                // Create freeverb
+                const freeverb = createFreeverb(audioContext);
+                freeverb.setSize(parseFloat(document.getElementById('reverbSize').value));
+                freeverb.setDamp(parseFloat(document.getElementById('reverbDamp').value));
+                freeverb.setMix(parseFloat(document.getElementById('reverbMix').value));
+
+                // Create compressor (CPR-style)
+                const compressor = audioContext.createDynamicsCompressor();
+                compressor.threshold.value = -24 + (parseFloat(document.getElementById('compThreshold').value) * 24);
+                compressor.ratio.value = parseFloat(document.getElementById('compRatio').value);
+                compressor.attack.value = 0.009;
+                compressor.release.value = 0.047;
+
+                // Create sample trigger node
+                const sampleGain = audioContext.createGain();
+                sampleGain.gain.value = 0.89;
+
+                // Store nodes for parameter updates
+                workletNode = {
+                    sampleGain,
+                    filter,
+                    delay,
+                    delayFeedback,
+                    delayMix,
+                    delayDry,
+                    freeverb,
+                    compressor,
+                    masterGain,
+                    connect: (dest) => masterGain.connect(dest),
+                    disconnect: () => masterGain.disconnect()
+                };
+
+                // Connect signal chain
+                sampleGain.connect(filter);
+                filter.connect(delayDry);
+                filter.connect(delay);
+                delayDry.connect(freeverb.input);
+                delayMix.connect(freeverb.input);
+                freeverb.process(audioContext.createGain()); // Initialize freeverb
+                freeverb.output.connect(compressor);
+                compressor.connect(masterGain);
+
+                // Initialize pedalboard
+                const pedalboardContainer = document.getElementById('pedalboard-container');
+                if (typeof PedalboardUI !== 'undefined' && pedalboardContainer) {
+                    pedalboardUI = new PedalboardUI(pedalboardContainer, audioContext, {
+                        patchId: 'er-301-patches-autogen301-217-levels'
+                    });
+                    pedalboardNode = await pedalboardUI.init();
+                    pedalboardUI.connect(masterGain);
+                    pedalboardNode.connect(audioContext.destination);
+                    pedalboardNode.connect(analyser);
+                } else {
+                    masterGain.connect(analyser);
+                    analyser.connect(audioContext.destination);
+                }
+
+                // Initialize phonebook features
+                const outputNode = pedalboardNode || masterGain;
+                if (typeof StickyHeader !== 'undefined') {
+                    stickyHeader = new StickyHeader({
+                        patchName: '217-levels-er-301-autogen301',
+                        patchId: 'er-301-patches-autogen301-217-levels'
+                    });
+                    await stickyHeader.init();
+                    await stickyHeader.initRecorder(audioContext, outputNode, audioContext.destination);
+                }
+
+                if (typeof getMidiLearn !== 'undefined') {
+                    midiLearn = await getMidiLearn('er-301-patches-autogen301-217-levels');
+                }
+
+                if (typeof getModulationMatrix !== 'undefined') {
+                    modMatrix = getModulationMatrix();
+                    modMatrixUI = new ModMatrixUI(
+                        document.querySelector('.patch-content') || document.body,
+                        { modMatrix: modMatrix }
+                    );
+                    modMatrixUI.init();
+                }
+
+                // Auto-register all sliders for MIDI Learn and Mod Matrix
+                if (typeof autoRegisterControls !== 'undefined') {
+                    await autoRegisterControls({
+                        patchId: 'er-301-patches-autogen301-217-levels',
+                        prefix: 'levels',
+                        modMatrixUI: modMatrixUI
+                    });
+                }
+
+                // Generate initial euclidean pattern
+                euclidPattern = generateEuclidPattern(
+                    parseInt(document.getElementById('beats').value),
+                    parseInt(document.getElementById('length').value)
+                );
+
+                document.getElementById('playBtn').disabled = false;
+
+            } catch (err) {
+                console.error('Audio init error:', err);
+            }
+        }
+
+        // Trigger a sample
+        function triggerSample() {
+            if (!audioContext || sampleBuffers.length === 0) return;
+
+            // Calculate sample index using 217-level quantization
+            const sliceControl = parseFloat(document.getElementById('sliceSelect').value);
+            const randomOffset = (Math.random() - 0.5) * 0.1; // Small random variation
+            let normalizedValue = Math.max(0, Math.min(1, sliceControl + randomOffset + lastRandomValue * 0.2));
+
+            // Quantize to 217 levels
+            const quantizedValue = Math.round(normalizedValue * 216) / 216;
+            const sampleIndex = Math.floor(quantizedValue * (sampleBuffers.length - 1));
+
+            const buffer = sampleBuffers[sampleIndex];
+            if (!buffer) return;
+
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+
+            // Apply tuning
+            const tune = parseFloat(document.getElementById('tune').value);
+            const speed = parseFloat(document.getElementById('speed').value);
+            source.playbackRate.value = speed * Math.pow(2, tune / 12);
+
+            source.connect(workletNode.sampleGain);
+            source.start();
+
+            // Update visual feedback
+            const items = document.querySelectorAll('.sample-item');
+            items.forEach((item, idx) => {
+                item.classList.toggle('active', idx === sampleIndex);
+            });
+            currentSliceIndex = sampleIndex;
+
+            // Update random value for next trigger
+            lastRandomValue = Math.random();
+        }
+
+        // Sequencer tick
+        function sequencerTick() {
+            if (!isPlaying || !audioContext) return;
+
+            const now = audioContext.currentTime;
+            const tempo = parseFloat(document.getElementById('tempo').value);
+            const multiplier = parseFloat(document.getElementById('multiplier').value);
+            const chance = parseFloat(document.getElementById('chance').value);
+            const shift = parseInt(document.getElementById('shift').value);
+
+            const beatInterval = 60 / (tempo * multiplier);
+
+            if (now >= nextTrigTime) {
+                // Apply shift (rotation) to pattern
+                const shiftedIndex = (euclidStep + shift) % euclidPattern.length;
+
+                // Check euclidean pattern and chance
+                if (euclidPattern[shiftedIndex] && Math.random() > chance) {
+                    triggerSample();
+                }
+
+                euclidStep = (euclidStep + 1) % euclidPattern.length;
+                nextTrigTime = now + beatInterval;
+            }
+
+            requestAnimationFrame(sequencerTick);
+        }
+
+        // Visualization
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width = canvas.offsetWidth * 2;
+            const height = canvas.height = canvas.offsetHeight * 2;
+
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            function draw() {
+                if (!isPlaying) {
+                    ctx.fillStyle = '#0a0a0a';
+                    ctx.fillRect(0, 0, width, height);
+                    return;
+                }
+
+                requestAnimationFrame(draw);
+                analyser.getByteFrequencyData(dataArray);
+
+                ctx.fillStyle = 'rgba(10, 10, 10, 0.2)';
+                ctx.fillRect(0, 0, width, height);
+
+                const barWidth = width / 64;
+                let x = 0;
+
+                for (let i = 0; i < 64; i++) {
+                    const barHeight = (dataArray[i * 4] / 255) * height * 0.8;
+
+                    // Green to yellow gradient for drum machine
+                    const hue = 100 - (dataArray[i * 4] / 255) * 60;
+                    ctx.fillStyle = `hsl(${hue}, 80%, 50%)`;
+                    ctx.fillRect(x, height - barHeight, barWidth - 2, barHeight);
+
+                    x += barWidth;
+                }
+
+                // Draw euclidean pattern
+                const patternY = 30;
+                const stepWidth = width / euclidPattern.length;
+                euclidPattern.forEach((hit, i) => {
+                    ctx.beginPath();
+                    ctx.arc(stepWidth * i + stepWidth / 2, patternY, 8, 0, Math.PI * 2);
+                    if (i === euclidStep) {
+                        ctx.fillStyle = '#6aff6a';
+                    } else if (hit) {
+                        ctx.fillStyle = '#3a8a3a';
+                    } else {
+                        ctx.fillStyle = '#1a2a1a';
+                    }
+                    ctx.fill();
+                });
+            }
+
+            draw();
+        }
+
+        // Toggle playback
+        async function togglePlay() {
+            if (!audioContext) {
+                await initAudio();
+            }
+
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            isPlaying = !isPlaying;
+            const btn = document.getElementById('playBtn');
+            btn.innerHTML = isPlaying ? '&#9632;' : '&#9654;';
+            btn.classList.toggle('playing', isPlaying);
+
+            if (isPlaying) {
+                if (modMatrix) modMatrix.start();
+                euclidStep = 0;
+                nextTrigTime = audioContext.currentTime;
+                sequencerTick();
+                drawVisualizer();
+            } else {
+                if (modMatrix) modMatrix.stop();
+            }
+        }
+
+        // Parameter update handlers
+        function setupParameterHandlers() {
+            // Sequencer parameters
+            document.getElementById('tempo').addEventListener('input', (e) => {
+                document.getElementById('tempoVal').textContent = e.target.value + ' BPM';
+            });
+
+            document.getElementById('multiplier').addEventListener('input', (e) => {
+                document.getElementById('multiplierVal').textContent = e.target.value;
+            });
+
+            document.getElementById('chance').addEventListener('input', (e) => {
+                document.getElementById('chanceVal').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            document.getElementById('beats').addEventListener('input', (e) => {
+                document.getElementById('beatsVal').textContent = e.target.value;
+                euclidPattern = generateEuclidPattern(
+                    parseInt(e.target.value),
+                    parseInt(document.getElementById('length').value)
+                );
+            });
+
+            document.getElementById('length').addEventListener('input', (e) => {
+                document.getElementById('lengthVal').textContent = e.target.value;
+                euclidPattern = generateEuclidPattern(
+                    parseInt(document.getElementById('beats').value),
+                    parseInt(e.target.value)
+                );
+            });
+
+            document.getElementById('shift').addEventListener('input', (e) => {
+                document.getElementById('shiftVal').textContent = e.target.value;
+            });
+
+            // Sample parameters
+            document.getElementById('tune').addEventListener('input', (e) => {
+                document.getElementById('tuneVal').textContent = parseFloat(e.target.value).toFixed(1) + ' st';
+            });
+
+            document.getElementById('sliceSelect').addEventListener('input', (e) => {
+                document.getElementById('sliceSelectVal').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            document.getElementById('speed').addEventListener('input', (e) => {
+                document.getElementById('speedVal').textContent = parseFloat(e.target.value).toFixed(2) + 'x';
+            });
+
+            // Filter parameters
+            document.getElementById('filterFreq').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('filterFreqVal').textContent = val + ' Hz';
+                if (workletNode) workletNode.filter.frequency.value = val;
+            });
+
+            document.getElementById('edgeMod').addEventListener('input', (e) => {
+                document.getElementById('edgeModVal').textContent = parseFloat(e.target.value).toFixed(2);
+            });
+
+            document.getElementById('filterQ').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('filterQVal').textContent = val.toFixed(2);
+                if (workletNode) workletNode.filter.Q.value = val * 30;
+            });
+
+            // Delay parameters
+            document.getElementById('delayTime').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('delayTimeVal').textContent = Math.round(val * 1000) + ' ms';
+                if (workletNode) workletNode.delay.delayTime.value = val;
+            });
+
+            document.getElementById('delayFeedback').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('delayFeedbackVal').textContent = Math.round(val * 100) + '%';
+                if (workletNode) workletNode.delayFeedback.gain.value = val;
+            });
+
+            document.getElementById('delayMix').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('delayMixVal').textContent = Math.round(val * 100) + '%';
+                if (workletNode) {
+                    workletNode.delayMix.gain.value = val;
+                    workletNode.delayDry.gain.value = 1 - val;
+                }
+            });
+
+            // Reverb parameters
+            document.getElementById('reverbSize').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('reverbSizeVal').textContent = val.toFixed(2);
+                if (workletNode) workletNode.freeverb.setSize(val);
+            });
+
+            document.getElementById('reverbDamp').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('reverbDampVal').textContent = val.toFixed(2);
+                if (workletNode) workletNode.freeverb.setDamp(val);
+            });
+
+            document.getElementById('reverbWidth').addEventListener('input', (e) => {
+                document.getElementById('reverbWidthVal').textContent = parseFloat(e.target.value).toFixed(2);
+            });
+
+            document.getElementById('reverbMix').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('reverbMixVal').textContent = val.toFixed(2);
+                if (workletNode) workletNode.freeverb.setMix(val);
+            });
+
+            // Compression parameters
+            document.getElementById('compThreshold').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('compThresholdVal').textContent = val.toFixed(2);
+                if (workletNode) workletNode.compressor.threshold.value = -24 + (val * 24);
+            });
+
+            document.getElementById('compRatio').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('compRatioVal').textContent = val.toFixed(1) + ':1';
+                if (workletNode) workletNode.compressor.ratio.value = val;
+            });
+
+            document.getElementById('volume').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('volumeVal').textContent = val.toFixed(2);
+                if (workletNode) workletNode.masterGain.gain.value = val;
+            });
+
+            // Sample controls
+            document.getElementById('importSamplesBtn').addEventListener('click', importSamples);
+            document.getElementById('clearSamplesBtn').addEventListener('click', clearSamples);
+        }
+
+        // Initialize info panel
+        function initInfoPanel() {
+            if (typeof ER301InfoPanel !== 'undefined') {
+                ER301InfoPanel.create({
+                    title: '217 Levels',
+                    sections: [
+                        {
+                            title: 'Overview',
+                            content: 'Euclidean drum machine with 217-level random quantization. Features Variable Speed Player with 29 One Inch Punch Kit samples, euclidean sequencer with chance probability, carousel clock divider, and processing chain including Bique filter, delay, Freeverb, and CPR compression.'
+                        },
+                        {
+                            title: 'Controls',
+                            content: 'pots: Sample tuning (V/Oct pitch control)<br>pans: Clock multiplier and delay time modulation<br>edge: Bique filter frequency modulation'
+                        },
+                        {
+                            title: 'Signal Flow',
+                            content: 'Clock → Euclid → Chance → Carousel Clock Div → VSP (29 samples, 217-level random) → Bique → Delay → Freeverb → CPR → Out'
+                        },
+                        {
+                            title: 'Notes',
+                            content: 'The 217 levels refers to the quantization setting on the Pingable Scaled Random module that selects samples. Import your own samples for custom kits.'
+                        }
+                    ]
+                });
+            }
+        }
+
+        // Main initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            setupParameterHandlers();
+            initInfoPanel();
+            document.getElementById('playBtn').addEventListener('click', togglePlay);
+        });
+    </script>
+</body>
+</html>

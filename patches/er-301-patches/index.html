@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ER-301 Patches - Phonebook</title>
+    <link rel="stylesheet" href="../../styles.css">
+    <style>
+        .er301-header {
+            text-align: center;
+            padding: 2em 1em;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 2em;
+        }
+
+        .er301-header h1 {
+            font-size: 2.5em;
+            margin-bottom: 0.5em;
+            color: var(--accent);
+        }
+
+        .er301-header p {
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .collection-section {
+            margin-bottom: 3em;
+        }
+
+        .collection-header {
+            display: flex;
+            align-items: center;
+            gap: 1em;
+            margin-bottom: 1.5em;
+            padding-bottom: 0.5em;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .collection-header h2 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+
+        .collection-count {
+            background: var(--accent);
+            color: white;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+        }
+
+        .collection-description {
+            color: var(--text-secondary);
+            margin-bottom: 1.5em;
+            font-size: 0.95em;
+        }
+
+        .patch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1em;
+        }
+
+        .patch-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1em;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+
+        .patch-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .patch-card.coming-soon {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .patch-card.coming-soon::after {
+            content: 'Coming Soon';
+            display: block;
+            font-size: 0.75em;
+            color: var(--text-secondary);
+            margin-top: 0.5em;
+        }
+
+        .patch-card h3 {
+            margin: 0 0 0.5em 0;
+            font-size: 1.1em;
+        }
+
+        .patch-card p {
+            margin: 0;
+            font-size: 0.85em;
+            color: var(--text-secondary);
+        }
+
+        .patch-card .sample-count {
+            font-size: 0.75em;
+            color: var(--accent);
+            margin-top: 0.5em;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1em;
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            color: var(--accent);
+        }
+
+        .search-box {
+            width: 100%;
+            max-width: 400px;
+            padding: 10px 15px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1em;
+            margin: 1.5em auto;
+            display: block;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .search-box::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .filter-tags {
+            display: flex;
+            gap: 0.5em;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 2em;
+        }
+
+        .filter-tag {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 4px 12px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+
+        .filter-tag:hover,
+        .filter-tag.active {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../index.html" class="back-link">&larr; Back to Patches</a>
+        </header>
+
+        <div class="er301-header">
+            <h1>ER-301 Patches</h1>
+            <p>Web-based AudioWorklet implementations of patches created for the Orthogonal Devices ER-301 Sound Computer. Original patches by mudlogger.</p>
+        </div>
+
+        <input type="text" class="search-box" id="searchBox" placeholder="Search patches...">
+
+        <div class="filter-tags">
+            <span class="filter-tag active" data-filter="all">All</span>
+            <span class="filter-tag" data-filter="hyperscale">Hyperscale</span>
+            <span class="filter-tag" data-filter="autogen">Autogen301</span>
+            <span class="filter-tag" data-filter="percussion">Percussion</span>
+            <span class="filter-tag" data-filter="ambient">Ambient</span>
+        </div>
+
+        <main class="patch-content">
+            <!-- Hyperscale Section -->
+            <section class="collection-section" id="hyperscale-section">
+                <div class="collection-header">
+                    <h2>Hyperscale Units</h2>
+                    <span class="collection-count">67 patches</span>
+                </div>
+                <p class="collection-description">
+                    Stereo units featuring percussion, melodic instruments, and generative textures.
+                    Originally designed for 48kHz/128smps with stereo-linked channels.
+                </p>
+
+                <div class="patch-grid" id="hyperscale-grid">
+                    <a href="hyperscale/bend.html" class="patch-card" data-tags="percussion samples">
+                        <h3>bend</h3>
+                        <p>Sample-based percussion with doppler delay and Dattorro reverb</p>
+                        <span class="sample-count">72 samples</span>
+                    </a>
+
+                    <div class="patch-card coming-soon" data-tags="percussion samples">
+                        <h3>bento box</h3>
+                        <p>Multi-sample percussion unit</p>
+                        <span class="sample-count">64 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>big</h3>
+                        <p>Large ambient textures</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="percussion samples">
+                        <h3>bongo phase</h3>
+                        <p>Phasing bongo percussion</p>
+                        <span class="sample-count">47 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="percussion samples">
+                        <h3>bongo rom</h3>
+                        <p>ROM-based bongo percussion</p>
+                        <span class="sample-count">47 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="percussion samples">
+                        <h3>bottles</h3>
+                        <p>Bottle-like percussion sounds</p>
+                        <span class="sample-count">54 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="generative">
+                        <h3>chance</h3>
+                        <p>Probability-based generative unit</p>
+                        <span class="sample-count">57 samples</span>
+                    </div>
+
+                    <a href="hyperscale/coastal.html" class="patch-card" data-tags="ambient samples granular">
+                        <h3>coastal</h3>
+                        <p>Granular ambient with looper, reverb, and LPG</p>
+                        <span class="sample-count">119 samples</span>
+                    </a>
+
+                    <a href="hyperscale/dialled-in.html" class="patch-card" data-tags="generative synth fm">
+                        <h3>dialled in</h3>
+                        <p>Generative FM synth with wave folding and dual delays</p>
+                    </a>
+
+                    <a href="hyperscale/dorian.html" class="patch-card" data-tags="melodic generative fm">
+                        <h3>dorian</h3>
+                        <p>Dual-voice generative FM synth in Dorian mode with Freeverb</p>
+                    </a>
+
+                    <a href="hyperscale/edev.html" class="patch-card" data-tags="samples euclidean percussion">
+                        <h3>edev</h3>
+                        <p>4-voice Euclidean sampler with Richard Devine Kit</p>
+                        <span class="sample-count">71 samples</span>
+                    </a>
+
+                    <div class="patch-card coming-soon" data-tags="samples">
+                        <h3>edigi</h3>
+                        <p>Digital textures</p>
+                        <span class="sample-count">23 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="samples">
+                        <h3>emono</h3>
+                        <p>Mono electronic sounds</p>
+                        <span class="sample-count">37 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="percussion generative samples">
+                        <h3>endless bongo</h3>
+                        <p>Generative bongo percussion</p>
+                        <span class="sample-count">47 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="melodic generative samples">
+                        <h3>endless marimba</h3>
+                        <p>Generative marimba patterns</p>
+                        <span class="sample-count">3 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>ezil</h3>
+                        <p>Ambient soundscape</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>ezil rev 2</h3>
+                        <p>Updated ambient soundscape</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="granular samples">
+                        <h3>fragments</h3>
+                        <p>Granular sample fragments</p>
+                        <span class="sample-count">98 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>gaston</h3>
+                        <p>Named ambient texture</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="granular samples">
+                        <h3>gran</h3>
+                        <p>Granular synthesis</p>
+                        <span class="sample-count">1 sample</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="glitch samples">
+                        <h3>gritch25</h3>
+                        <p>Glitchy textures (2025 version)</p>
+                        <span class="sample-count">29 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>grove</h3>
+                        <p>Grove-like ambient</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>grove rev 2</h3>
+                        <p>Updated grove ambient</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="samples">
+                        <h3>hamming</h3>
+                        <p>Hamming window-based processing</p>
+                        <span class="sample-count">54 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="percussion samples">
+                        <h3>hyper scale</h3>
+                        <p>Main hyperscale percussion unit</p>
+                        <span class="sample-count">243 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="samples">
+                        <h3>hyper301</h3>
+                        <p>Hyper processing unit</p>
+                        <span class="sample-count">54 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="modulation samples">
+                        <h3>jitter</h3>
+                        <p>Jittery modulation textures</p>
+                        <span class="sample-count">24 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="melodic samples">
+                        <h3>kalimba hell</h3>
+                        <p>Kalimba-based textures</p>
+                        <span class="sample-count">12 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="samples">
+                        <h3>krystal kastles</h3>
+                        <p>Crystal-like sounds</p>
+                        <span class="sample-count">1 sample</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="melodic samples">
+                        <h3>luthier</h3>
+                        <p>String instrument textures</p>
+                        <span class="sample-count">61 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="samples">
+                        <h3>lutq</h3>
+                        <p>Lute-like textures</p>
+                        <span class="sample-count">61 samples</span>
+                    </div>
+
+                    <a href="hyperscale/manq.html" class="patch-card" data-tags="samples generative percussion">
+                        <h3>manq</h3>
+                        <p>FM modulation, bit crush, freeze looper, grain delay, Dattorro reverb</p>
+                        <span class="sample-count">91 samples</span>
+                    </a>
+
+                    <a href="hyperscale/mantis.html" class="patch-card" data-tags="samples generative percussion modulation">
+                        <h3>mantis</h3>
+                        <p>LFO modulation, Clocked Random Gate, Doppler delay, Dattorro reverb</p>
+                        <span class="sample-count">72 samples</span>
+                    </a>
+
+                    <a href="hyperscale/marimba-rom.html" class="patch-card" data-tags="melodic samples midi">
+                        <h3>marimba rom</h3>
+                        <p>6-voice ROM sampler with MIDI, individual voice tuning, Freeverb</p>
+                        <span class="sample-count">3 samples</span>
+                    </a>
+
+                    <a href="hyperscale/mesh.html" class="patch-card" data-tags="samples generative percussion noise">
+                        <h3>mesh</h3>
+                        <p>Velvet noise, complex clock div/mul, clocked delay, Dattorro reverb</p>
+                        <span class="sample-count">54 samples</span>
+                    </a>
+
+                    <a href="hyperscale/metab.html" class="patch-card" data-tags="samples generative percussion fm">
+                        <h3>metab</h3>
+                        <p>FM modulation, bit crush, freeze looper, grain delay, Dattorro reverb</p>
+                        <span class="sample-count">118 samples</span>
+                    </a>
+
+                    <a href="hyperscale/monolith.html" class="patch-card" data-tags="ambient samples euclidean generative">
+                        <h3>monolith</h3>
+                        <p>4-voice Euclidean rhythm generator, Doppler delay, CPR</p>
+                        <span class="sample-count">51 samples</span>
+                    </a>
+
+                    <a href="hyperscale/ninja.html" class="patch-card" data-tags="samples percussion midi">
+                        <h3>ninja</h3>
+                        <p>MIDI drum machine with clocked stretch, random gate, delay, CPR</p>
+                        <span class="sample-count">54 samples</span>
+                    </a>
+
+                    <a href="hyperscale/noise-merchant.html" class="patch-card" data-tags="noise synth generative">
+                        <h3>noise merchant</h3>
+                        <p>Dual formant oscillators with SVF filter and feedback modulation</p>
+                    </a>
+
+                    <a href="hyperscale/ota.html" class="patch-card" data-tags="synth ambient generative">
+                        <h3>ota</h3>
+                        <p>Dual osc synth with ring mod, filter, spread delay, reverb</p>
+                    </a>
+
+                    <a href="hyperscale/ota-rev-2.html" class="patch-card" data-tags="synth generative ambient">
+                        <h3>ota rev 2</h3>
+                        <p>Autogen synth with LPG, scale quantizer, clocked triggers</p>
+                    </a>
+
+                    <a href="hyperscale/ota-rev-3.html" class="patch-card" data-tags="synth generative ambient">
+                        <h3>ota rev 3</h3>
+                        <p>Aliasing Saw + Pulse synth with Sieve SVF filter, LPG, autogen</p>
+                    </a>
+
+                    <a href="hyperscale/ota-rev-4.html" class="patch-card" data-tags="synth generative ambient">
+                        <h3>ota rev 4</h3>
+                        <p>Full synth with clocked delay, cycling mod env, expanded noise</p>
+                    </a>
+
+                    <a href="hyperscale/piano-esque.html" class="patch-card" data-tags="melodic samples piano">
+                        <h3>piano esque</h3>
+                        <p>Multi-sample piano with grain stretch, feedback looper, autogen</p>
+                        <span class="sample-count">42 samples</span>
+                    </a>
+
+                    <a href="hyperscale/plaidium.html" class="patch-card" data-tags="samples drums granular">
+                        <h3>plaidium</h3>
+                        <p>Plaid-inspired drum granulator with random gate sequencing</p>
+                        <span class="sample-count">46 samples</span>
+                    </a>
+
+                    <a href="hyperscale/pole.html" class="patch-card" data-tags="percussion samples minimal techno">
+                        <h3>pole</h3>
+                        <p>Minimal techno drum machine with bitcrusher, FM & freeze</p>
+                        <span class="sample-count">131 samples</span>
+                    </a>
+
+                    <a href="hyperscale/puls.html" class="patch-card" data-tags="synth generative pulse">
+                        <h3>puls</h3>
+                        <p>Generative pulse synth with random gate, HP filter & Dattorro reverb</p>
+                    </a>
+
+                    <a href="hyperscale/rr25.html" class="patch-card" data-tags="synth generative chaos">
+                        <h3>r+r25</h3>
+                        <p>Blippoo Box-inspired chaotic generative synthesizer</p>
+                    </a>
+
+                    <a href="hyperscale/rescale.html" class="patch-card" data-tags="samples granular percussion">
+                        <h3>rescale</h3>
+                        <p>Granular sample explorer with probability clocks & clocked delay</p>
+                        <span class="sample-count">61 samples</span>
+                    </a>
+
+                    <a href="hyperscale/ria.html" class="patch-card" data-tags="samples drums percussion">
+                        <h3>ria</h3>
+                        <p>RIAA drum machine with FM, freeze looper, EQ & Dattorro reverb</p>
+                        <span class="sample-count">61 samples</span>
+                    </a>
+
+                    <div class="patch-card coming-soon" data-tags="resonant samples">
+                        <h3>ringing rocks</h3>
+                        <p>Resonant rock-like sounds</p>
+                        <span class="sample-count">1 sample</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="samples">
+                        <h3>slaughter house</h3>
+                        <p>Industrial textures</p>
+                        <span class="sample-count">1 sample</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="samples">
+                        <h3>speak and hell</h3>
+                        <p>Speak & Spell-based sounds</p>
+                        <span class="sample-count">238 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="samples">
+                        <h3>spook</h3>
+                        <p>Spooky textures</p>
+                        <span class="sample-count">54 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="sweet">
+                        <h3>sweet spot</h3>
+                        <p>Sweet spot finder</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient samples">
+                        <h3>temple + rain</h3>
+                        <p>Temple and rain ambient</p>
+                        <span class="sample-count">64 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="samples">
+                        <h3>temple tantrum</h3>
+                        <p>Percussive temple sounds</p>
+                        <span class="sample-count">31 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="samples">
+                        <h3>tight rope</h3>
+                        <p>Tight rope textures</p>
+                        <span class="sample-count">1 sample</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="interval">
+                        <h3>tritone</h3>
+                        <p>Tritone interval-based</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="interval">
+                        <h3>tritone rev 2</h3>
+                        <p>Updated tritone</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="saturation samples">
+                        <h3>tube</h3>
+                        <p>Tube saturation</p>
+                        <span class="sample-count">60 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="samples">
+                        <h3>tunnel vision</h3>
+                        <p>Tunnel-like reverb</p>
+                        <span class="sample-count">60 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="samples">
+                        <h3>twisted</h3>
+                        <p>Twisted textures</p>
+                        <span class="sample-count">104 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="samples">
+                        <h3>ultra violet</h3>
+                        <p>Ultra violet sounds</p>
+                        <span class="sample-count">11 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="samples">
+                        <h3>unskool</h3>
+                        <p>Unschooled textures</p>
+                        <span class="sample-count">68 samples</span>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>velouria</h3>
+                        <p>Velouria ambient</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>vink</h3>
+                        <p>Vink textures</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Autogen301 Section -->
+            <section class="collection-section" id="autogen-section">
+                <div class="collection-header">
+                    <h2>Autogen301</h2>
+                    <span class="collection-count">41 patches</span>
+                </div>
+                <p class="collection-description">
+                    General-purpose patches featuring synthesis, drums, sequences, and generative systems.
+                    MIT licensed by mudlogger.
+                </p>
+
+                <div class="patch-grid" id="autogen-grid">
+                    <div class="patch-card coming-soon" data-tags="era">
+                        <h3>1975</h3>
+                        <p>Era-themed synthesis</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="level">
+                        <h3>217 levels</h3>
+                        <p>Multi-level processing</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="random">
+                        <h3>YOLO</h3>
+                        <p>Random generative patch</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient arp">
+                        <h3>ambikarp</h3>
+                        <p>Ambient arpeggiation</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="tape">
+                        <h3>auto Reels</h3>
+                        <p>Tape-like effects</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>barbieri</h3>
+                        <p>Barbieri-inspired ambient</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>barton</h3>
+                        <p>Barton-style textures</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>belle reid</h3>
+                        <p>Belle Reid inspired</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="drums">
+                        <h3>bent 808</h3>
+                        <p>Circuit bent 808 drums</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="sample memory">
+                        <h3>broken memory</h3>
+                        <p>Broken memory playback</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="reverb ambient">
+                        <h3>cave</h3>
+                        <p>Cave-like reverb space</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="metallic">
+                        <h3>clangers</h3>
+                        <p>Metallic clanging sounds</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>don</h3>
+                        <p>Don-style ambient</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="drone ambient">
+                        <h3>drone</h3>
+                        <p>Complex drone oscillator</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="delay">
+                        <h3>fdn</h3>
+                        <p>Feedback delay network</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="physical">
+                        <h3>feedback physics</h3>
+                        <p>Physical modeling with feedback</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>fields of mud</h3>
+                        <p>Muddy ambient fields</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="sine ambient">
+                        <h3>fields sine</h3>
+                        <p>Sine-based ambient fields</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>fields</h3>
+                        <p>Open field ambient</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>finding jan</h3>
+                        <p>Finding Jan ambient</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="drums">
+                        <h3>flam drum</h3>
+                        <p>Flam pattern drums</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="generative">
+                        <h3>for days</h3>
+                        <p>Long-form generative</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>gas</h3>
+                        <p>Gas-inspired ambient</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="glitch">
+                        <h3>gritch</h3>
+                        <p>Glitchy textures</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="synth harmonic">
+                        <h3>harm osc</h3>
+                        <p>Harmonic oscillator</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="minimal">
+                        <h3>ikeda</h3>
+                        <p>Ryoji Ikeda-style minimal</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="theory">
+                        <h3>in theory</h3>
+                        <p>Theory-based synthesis</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="eastern">
+                        <h3>indo chine</h3>
+                        <p>Eastern-influenced sounds</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>newdon</h3>
+                        <p>New Don ambient</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="generative">
+                        <h3>noodles</h3>
+                        <p>Noodling generative</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="utility">
+                        <h3>pause</h3>
+                        <p>Pause utility</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="percussion">
+                        <h3>pop</h3>
+                        <p>Pop sounds</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>r+r</h3>
+                        <p>R+R ambient</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>reaper</h3>
+                        <p>Reaper textures</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="recursive generative">
+                        <h3>recur</h3>
+                        <p>Recursive patterns</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="granular">
+                        <h3>sand grains</h3>
+                        <p>Sand-like granular</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="percussion">
+                        <h3>splat</h3>
+                        <p>Splat percussion</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="modulation">
+                        <h3>sway</h3>
+                        <p>Swaying modulation</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="techno">
+                        <h3>tek</h3>
+                        <p>Techno-inspired</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="percussion">
+                        <h3>tippy tap</h3>
+                        <p>Tippy tap percussion</p>
+                    </div>
+
+                    <div class="patch-card coming-soon" data-tags="ambient">
+                        <h3>zola budd</h3>
+                        <p>Zola Budd ambient</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Search functionality
+        const searchBox = document.getElementById('searchBox');
+        const patchCards = document.querySelectorAll('.patch-card');
+
+        searchBox.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+
+            patchCards.forEach(card => {
+                const title = card.querySelector('h3').textContent.toLowerCase();
+                const desc = card.querySelector('p').textContent.toLowerCase();
+                const tags = card.dataset.tags || '';
+
+                const matches = title.includes(query) ||
+                               desc.includes(query) ||
+                               tags.includes(query);
+
+                card.style.display = matches ? 'block' : 'none';
+            });
+        });
+
+        // Filter tags
+        const filterTags = document.querySelectorAll('.filter-tag');
+
+        filterTags.forEach(tag => {
+            tag.addEventListener('click', () => {
+                filterTags.forEach(t => t.classList.remove('active'));
+                tag.classList.add('active');
+
+                const filter = tag.dataset.filter;
+
+                if (filter === 'all') {
+                    patchCards.forEach(card => card.style.display = 'block');
+                } else if (filter === 'hyperscale') {
+                    document.getElementById('hyperscale-section').style.display = 'block';
+                    document.getElementById('autogen-section').style.display = 'none';
+                    patchCards.forEach(card => card.style.display = 'block');
+                } else if (filter === 'autogen') {
+                    document.getElementById('hyperscale-section').style.display = 'none';
+                    document.getElementById('autogen-section').style.display = 'block';
+                    patchCards.forEach(card => card.style.display = 'block');
+                } else {
+                    document.getElementById('hyperscale-section').style.display = 'block';
+                    document.getElementById('autogen-section').style.display = 'block';
+
+                    patchCards.forEach(card => {
+                        const tags = card.dataset.tags || '';
+                        card.style.display = tags.includes(filter) ? 'block' : 'none';
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

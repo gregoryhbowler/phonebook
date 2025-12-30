@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Reels - ER-301 Autogen301</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 100px;
+        }
+        .tape-section {
+            background: #18140d;
+            border: 1px solid #4a3a2a;
+            border-radius: 8px;
+            padding: 1em;
+            margin-bottom: 1em;
+        }
+        .tape-section h3 {
+            margin: 0 0 0.75em 0;
+            font-size: 0.9em;
+            color: #cc9966;
+        }
+        .reel-display {
+            display: flex;
+            justify-content: center;
+            gap: 2em;
+            margin: 1em 0;
+        }
+        .reel {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+            border: 3px solid #444;
+            position: relative;
+            animation: spin 2s linear infinite paused;
+        }
+        .reel.spinning {
+            animation-play-state: running;
+        }
+        .reel::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 15px;
+            height: 15px;
+            background: #333;
+            border-radius: 50%;
+            border: 2px solid #555;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .head-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 1em;
+            margin: 0.5em 0;
+        }
+        .head {
+            padding: 0.3em 0.8em;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            font-size: 0.7em;
+            color: #666;
+        }
+        .head.active {
+            background: #2a3a2a;
+            border-color: #6a9a6a;
+            color: #9fc;
+        }
+        .sample-controls {
+            display: flex;
+            gap: 0.5em;
+            margin-bottom: 0.75em;
+        }
+        .sample-controls button {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #888;
+            padding: 0.5em 1em;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        .sample-controls button:hover {
+            border-color: #cc9966;
+            color: #cc9966;
+        }
+        .sample-controls button.rec {
+            border-color: #c66;
+        }
+        .sample-controls button.rec.active {
+            background: #633;
+            border-color: #f66;
+            color: #f99;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Auto Reels</h1>
+                <p>Tape-style looper with 3 playback heads and wow/flutter modulation</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Tape Display -->
+            <div class="tape-section">
+                <h3>Tape Transport</h3>
+                <div class="reel-display">
+                    <div class="reel" id="reel1"></div>
+                    <div class="reel" id="reel2"></div>
+                </div>
+                <div class="head-indicator">
+                    <span class="head" id="head1">R1</span>
+                    <span class="head" id="head2">R2</span>
+                    <span class="head" id="head3">R3</span>
+                </div>
+                <div class="sample-controls">
+                    <button id="importSampleBtn">Import Sample</button>
+                    <button id="clearSampleBtn">Clear Sample</button>
+                    <button id="recBtn" class="rec">REC</button>
+                </div>
+            </div>
+
+            <!-- Main Controls -->
+            <span class="section-label">Transport</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Speed</label>
+                        <input type="range" id="speed" min="0.25" max="2" value="1" step="0.01">
+                        <span class="param-value" id="speedVal">1.00x</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Rec Level</label>
+                        <input type="range" id="recLevel" min="0" max="1" value="0.8" step="0.01">
+                        <span class="param-value" id="recLevelVal">80%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="feedback" min="0" max="0.99" value="0.7" step="0.01">
+                        <span class="param-value" id="feedbackVal">70%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loop Controls -->
+            <span class="section-label">Loop Window</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Start</label>
+                        <input type="range" id="loopStart" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="loopStartVal">0%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Length</label>
+                        <input type="range" id="loopLength" min="0.1" max="1" value="1" step="0.01">
+                        <span class="param-value" id="loopLengthVal">100%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Hold</label>
+                        <input type="range" id="hold" min="0" max="1" value="0" step="1">
+                        <span class="param-value" id="holdVal">Off</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Move</label>
+                        <input type="range" id="move" min="-1" max="1" value="0" step="0.01">
+                        <span class="param-value" id="moveVal">0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wow/Flutter Section -->
+            <span class="section-label">Wow & Flutter</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Wow Freq</label>
+                        <input type="range" id="wowFreq" min="0.1" max="5" value="0.5" step="0.01">
+                        <span class="param-value" id="wowFreqVal">0.50 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Flutter Freq</label>
+                        <input type="range" id="flutterFreq" min="1" max="20" value="6" step="0.1">
+                        <span class="param-value" id="flutterFreqVal">6.0 Hz</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Head Speeds -->
+            <span class="section-label">Head Speeds (Sp1-4)</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Sp1</label>
+                        <input type="range" id="sp1" min="0.25" max="2" value="1" step="0.01">
+                        <span class="param-value" id="sp1Val">1.00x</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Sp2</label>
+                        <input type="range" id="sp2" min="0.25" max="2" value="0.5" step="0.01">
+                        <span class="param-value" id="sp2Val">0.50x</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Sp3</label>
+                        <input type="range" id="sp3" min="0.25" max="2" value="0.75" step="0.01">
+                        <span class="param-value" id="sp3Val">0.75x</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Sp4</label>
+                        <input type="range" id="sp4" min="0.25" max="2" value="1.5" step="0.01">
+                        <span class="param-value" id="sp4Val">1.50x</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Head Volumes -->
+            <span class="section-label">Head Volumes (V1-4)</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>V1</label>
+                        <input type="range" id="v1" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="v1Val">70%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>V2</label>
+                        <input type="range" id="v2" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="v2Val">50%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>V3</label>
+                        <input type="range" id="v3" min="0" max="1" value="0.4" step="0.01">
+                        <span class="param-value" id="v3Val">40%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>V4</label>
+                        <input type="range" id="v4" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="v4Val">30%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Head Pans -->
+            <span class="section-label">Head Pans (P1-4)</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>P1</label>
+                        <input type="range" id="p1" min="-1" max="1" value="0" step="0.01">
+                        <span class="param-value" id="p1Val">C</span>
+                    </div>
+                    <div class="param-group">
+                        <label>P2</label>
+                        <input type="range" id="p2" min="-1" max="1" value="-0.5" step="0.01">
+                        <span class="param-value" id="p2Val">L50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>P3</label>
+                        <input type="range" id="p3" min="-1" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="p3Val">R50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>P4</label>
+                        <input type="range" id="p4" min="-1" max="1" value="0" step="0.01">
+                        <span class="param-value" id="p4Val">C</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Master -->
+            <span class="section-label">Master</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Dry/Wet</label>
+                        <input type="range" id="dryWet" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="dryWetVal">50%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="volume" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="volumeVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <pre class="code-block">
+// Auto Reels - ER-301 Autogen301
+// Original by mudlogger
+//
+// Tape-style feedback looper featuring:
+// - Feedback Looper with variable speed
+// - 3 Manual Loop playback heads (R1, R2, R3)
+// - Variable Speed Player for initial sample
+// - Sine oscillators for wow/flutter modulation
+// - Track & Hold for capturing positions
+// - Clocked Random Gates for variation
+// - Slew Limiters for smoothing
+//
+// Control Parameters:
+// - Speed: Main tape speed
+// - Rec/Fb: Record level and feedback amount
+// - Start/Length: Loop window controls
+// - Hold/Move: Freeze and shift position
+// - Vfreq/Pfreq: Wow and flutter frequencies
+// - Sp1-4: Head playback speeds
+// - V1-4: Head volumes
+// - P1-4: Head pan positions</pre>
+
+            <div id="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        // Phonebook features
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        // Audio context and nodes
+        let audioContext;
+        let workletNode;
+        let analyser;
+        let pedalboardNode = null;
+        let pedalboardUI = null;
+        let isPlaying = false;
+        let isRecording = false;
+
+        // Sample and loop buffers
+        let sampleBuffer = null;
+        let loopBuffer = null;
+        let loopBufferL = null;
+        let loopBufferR = null;
+        const LOOP_DURATION = 8; // 8 second loop buffer
+
+        // Playback heads state
+        let heads = [
+            { position: 0, speed: 1, volume: 0.7, pan: 0, active: false },
+            { position: 0.33, speed: 0.5, volume: 0.5, pan: -0.5, active: false },
+            { position: 0.66, speed: 0.75, volume: 0.4, pan: 0.5, active: false }
+        ];
+
+        // Modulation
+        let wowPhase = 0;
+        let flutterPhase = 0;
+
+        // Load default sample
+        async function loadDefaultSample() {
+            try {
+                const response = await fetch('../samples/autogen301/auto-reels/schiller.wav');
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    sampleBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    // Initialize loop buffer with sample
+                    initLoopBuffer();
+                }
+            } catch (err) {
+                console.warn('Could not load sample:', err);
+                // Create empty loop buffer
+                initLoopBuffer();
+            }
+        }
+
+        // Initialize loop buffer
+        function initLoopBuffer() {
+            const sampleRate = audioContext.sampleRate;
+            const bufferLength = Math.floor(sampleRate * LOOP_DURATION);
+
+            loopBuffer = audioContext.createBuffer(2, bufferLength, sampleRate);
+            loopBufferL = loopBuffer.getChannelData(0);
+            loopBufferR = loopBuffer.getChannelData(1);
+
+            // If we have a sample, copy it to loop buffer
+            if (sampleBuffer) {
+                const sourceL = sampleBuffer.getChannelData(0);
+                const sourceR = sampleBuffer.numberOfChannels > 1 ? sampleBuffer.getChannelData(1) : sourceL;
+                const copyLength = Math.min(sourceL.length, bufferLength);
+
+                for (let i = 0; i < copyLength; i++) {
+                    loopBufferL[i] = sourceL[i];
+                    loopBufferR[i] = sourceR[i];
+                }
+            }
+        }
+
+        // Import custom sample
+        async function importSample() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'audio/*';
+
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    sampleBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    initLoopBuffer();
+                    console.log('Imported sample:', file.name);
+                } catch (err) {
+                    console.warn('Could not load sample:', err);
+                }
+            };
+
+            input.click();
+        }
+
+        // Clear sample
+        function clearSample() {
+            sampleBuffer = null;
+            if (loopBufferL && loopBufferR) {
+                loopBufferL.fill(0);
+                loopBufferR.fill(0);
+            }
+        }
+
+        // Initialize audio
+        async function initAudio() {
+            try {
+                await featuresLoaded;
+
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+                await loadDefaultSample();
+
+                // Create analyser
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+
+                // Create master gain
+                const masterGain = audioContext.createGain();
+                masterGain.gain.value = parseFloat(document.getElementById('volume').value);
+
+                // Create dry/wet mixer
+                const dryGain = audioContext.createGain();
+                const wetGain = audioContext.createGain();
+                const dryWet = parseFloat(document.getElementById('dryWet').value);
+                dryGain.gain.value = 1 - dryWet;
+                wetGain.gain.value = dryWet;
+
+                // Create stereo panner for each head
+                const panners = heads.map(() => {
+                    const panner = audioContext.createStereoPanner();
+                    return panner;
+                });
+
+                // Create gain for each head
+                const headGains = heads.map((head, i) => {
+                    const gain = audioContext.createGain();
+                    gain.gain.value = head.volume;
+                    return gain;
+                });
+
+                // Create feedback path
+                const feedbackGain = audioContext.createGain();
+                feedbackGain.gain.value = parseFloat(document.getElementById('feedback').value);
+
+                // Store nodes
+                workletNode = {
+                    masterGain,
+                    dryGain,
+                    wetGain,
+                    panners,
+                    headGains,
+                    feedbackGain,
+                    connect: (dest) => masterGain.connect(dest),
+                    disconnect: () => masterGain.disconnect()
+                };
+
+                // Connect heads to wet output
+                headGains.forEach((gain, i) => {
+                    gain.connect(panners[i]);
+                    panners[i].connect(wetGain);
+                });
+
+                // Mix dry and wet
+                wetGain.connect(masterGain);
+
+                // Initialize pedalboard
+                const pedalboardContainer = document.getElementById('pedalboard-container');
+                if (typeof PedalboardUI !== 'undefined' && pedalboardContainer) {
+                    pedalboardUI = new PedalboardUI(pedalboardContainer, audioContext, {
+                        patchId: 'er-301-patches-autogen301-auto-reels'
+                    });
+                    pedalboardNode = await pedalboardUI.init();
+                    pedalboardUI.connect(masterGain);
+                    pedalboardNode.connect(audioContext.destination);
+                    pedalboardNode.connect(analyser);
+                } else {
+                    masterGain.connect(analyser);
+                    analyser.connect(audioContext.destination);
+                }
+
+                // Initialize phonebook features
+                const outputNode = pedalboardNode || analyser;
+                if (typeof StickyHeader !== 'undefined') {
+                    stickyHeader = new StickyHeader({
+                        patchName: 'auto-reels-er-301-autogen301',
+                        patchId: 'er-301-patches-autogen301-auto-reels'
+                    });
+                    await stickyHeader.init();
+                    await stickyHeader.initRecorder(audioContext, outputNode, audioContext.destination);
+                }
+
+                if (typeof getMidiLearn !== 'undefined') {
+                    midiLearn = await getMidiLearn('er-301-patches-autogen301-auto-reels');
+                }
+
+                if (typeof getModulationMatrix !== 'undefined') {
+                    modMatrix = getModulationMatrix();
+                    modMatrixUI = new ModMatrixUI(
+                        document.querySelector('.patch-content') || document.body,
+                        { modMatrix: modMatrix }
+                    );
+                    modMatrixUI.init();
+                }
+
+                // Auto-register all sliders for MIDI Learn and Mod Matrix
+                if (typeof autoRegisterControls !== 'undefined') {
+                    await autoRegisterControls({
+                        patchId: 'er-301-patches-autogen301-auto-reels',
+                        prefix: 'reels',
+                        modMatrixUI: modMatrixUI
+                    });
+                }
+
+                document.getElementById('playBtn').disabled = false;
+
+            } catch (err) {
+                console.error('Audio init error:', err);
+            }
+        }
+
+        // Audio processing loop
+        function processAudio() {
+            if (!isPlaying || !audioContext || !loopBuffer) return;
+
+            const sampleRate = audioContext.sampleRate;
+            const bufferLength = loopBufferL.length;
+
+            // Get parameters
+            const speed = parseFloat(document.getElementById('speed').value);
+            const loopStart = parseFloat(document.getElementById('loopStart').value);
+            const loopLength = parseFloat(document.getElementById('loopLength').value);
+            const hold = parseInt(document.getElementById('hold').value);
+            const move = parseFloat(document.getElementById('move').value);
+            const wowFreq = parseFloat(document.getElementById('wowFreq').value);
+            const flutterFreq = parseFloat(document.getElementById('flutterFreq').value);
+
+            // Calculate wow/flutter modulation
+            wowPhase += wowFreq / 60;
+            flutterPhase += flutterFreq / 60;
+            const wowMod = Math.sin(wowPhase * Math.PI * 2) * 0.02;
+            const flutterMod = Math.sin(flutterPhase * Math.PI * 2) * 0.005;
+            const speedMod = 1 + wowMod + flutterMod;
+
+            // Update head positions
+            const startSample = Math.floor(loopStart * bufferLength);
+            const lengthSamples = Math.floor(loopLength * bufferLength);
+
+            heads.forEach((head, i) => {
+                if (hold === 0) {
+                    const headSpeed = parseFloat(document.getElementById(`sp${i + 1}`).value);
+                    head.position += (speed * speedMod * headSpeed) / sampleRate;
+
+                    // Apply move offset
+                    head.position += move * 0.001;
+
+                    // Wrap within loop region
+                    while (head.position >= 1) head.position -= 1;
+                    while (head.position < 0) head.position += 1;
+                }
+
+                // Scale position to loop window
+                const scaledPos = loopStart + (head.position * loopLength);
+                const sampleIndex = Math.floor(scaledPos * bufferLength) % bufferLength;
+
+                // Get sample value (simple linear interpolation)
+                const t = (scaledPos * bufferLength) % 1;
+                const nextIndex = (sampleIndex + 1) % bufferLength;
+
+                const sampleL = loopBufferL[sampleIndex] * (1 - t) + loopBufferL[nextIndex] * t;
+                const sampleR = loopBufferR[sampleIndex] * (1 - t) + loopBufferR[nextIndex] * t;
+
+                // Update head volume and pan
+                head.volume = parseFloat(document.getElementById(`v${i + 1}`).value);
+                head.pan = parseFloat(document.getElementById(`p${i + 1}`).value);
+
+                if (workletNode) {
+                    workletNode.headGains[i].gain.value = head.volume;
+                    workletNode.panners[i].pan.value = head.pan;
+                }
+
+                // Update head indicators
+                const headEl = document.getElementById(`head${i + 1}`);
+                headEl.classList.toggle('active', head.volume > 0.1);
+            });
+
+            // Update reel animation speed
+            document.getElementById('reel1').style.animationDuration = (2 / speed) + 's';
+            document.getElementById('reel2').style.animationDuration = (2 / speed) + 's';
+
+            requestAnimationFrame(processAudio);
+        }
+
+        // Create audio source from loop buffer
+        function createLoopSource() {
+            if (!loopBuffer) return null;
+
+            const source = audioContext.createBufferSource();
+            source.buffer = loopBuffer;
+            source.loop = true;
+
+            const loopStart = parseFloat(document.getElementById('loopStart').value) * LOOP_DURATION;
+            const loopLength = parseFloat(document.getElementById('loopLength').value) * LOOP_DURATION;
+            source.loopStart = loopStart;
+            source.loopEnd = loopStart + loopLength;
+
+            return source;
+        }
+
+        // Visualization
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width = canvas.offsetWidth * 2;
+            const height = canvas.height = canvas.offsetHeight * 2;
+
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            function draw() {
+                if (!isPlaying) {
+                    ctx.fillStyle = '#0a0a0a';
+                    ctx.fillRect(0, 0, width, height);
+                    return;
+                }
+
+                requestAnimationFrame(draw);
+                analyser.getByteTimeDomainData(dataArray);
+
+                ctx.fillStyle = 'rgba(15, 12, 10, 0.15)';
+                ctx.fillRect(0, 0, width, height);
+
+                // Draw waveform (tape-style)
+                ctx.beginPath();
+                ctx.strokeStyle = '#cc9966';
+                ctx.lineWidth = 2;
+
+                const sliceWidth = width / dataArray.length;
+                let x = 0;
+
+                for (let i = 0; i < dataArray.length; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = (v * height) / 2;
+
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+
+                    x += sliceWidth;
+                }
+
+                ctx.stroke();
+
+                // Draw head position indicators
+                heads.forEach((head, i) => {
+                    const x = head.position * width;
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, height);
+                    ctx.strokeStyle = `rgba(${100 + i * 50}, ${150 - i * 30}, ${100 + i * 40}, 0.5)`;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                });
+            }
+
+            draw();
+        }
+
+        // Toggle playback
+        async function togglePlay() {
+            if (!audioContext) {
+                await initAudio();
+            }
+
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            isPlaying = !isPlaying;
+            const btn = document.getElementById('playBtn');
+            btn.innerHTML = isPlaying ? '&#9632;' : '&#9654;';
+            btn.classList.toggle('playing', isPlaying);
+
+            // Toggle reel animation
+            document.getElementById('reel1').classList.toggle('spinning', isPlaying);
+            document.getElementById('reel2').classList.toggle('spinning', isPlaying);
+
+            if (isPlaying) {
+                if (modMatrix) modMatrix.start();
+
+                // Start loop sources for each head
+                heads.forEach((head, i) => {
+                    const source = createLoopSource();
+                    if (source) {
+                        const headSpeed = parseFloat(document.getElementById(`sp${i + 1}`).value);
+                        source.playbackRate.value = headSpeed;
+                        source.connect(workletNode.headGains[i]);
+                        source.start(0, head.position * LOOP_DURATION);
+                        head.source = source;
+                    }
+                });
+
+                processAudio();
+                drawVisualizer();
+            } else {
+                if (modMatrix) modMatrix.stop();
+
+                // Stop all sources
+                heads.forEach(head => {
+                    if (head.source) {
+                        head.source.stop();
+                        head.source = null;
+                    }
+                });
+            }
+        }
+
+        // Toggle recording
+        function toggleRecording() {
+            isRecording = !isRecording;
+            document.getElementById('recBtn').classList.toggle('active', isRecording);
+        }
+
+        // Format pan value
+        function formatPan(val) {
+            if (Math.abs(val) < 0.05) return 'C';
+            if (val < 0) return 'L' + Math.abs(Math.round(val * 100));
+            return 'R' + Math.round(val * 100);
+        }
+
+        // Parameter handlers
+        function setupParameterHandlers() {
+            // Transport
+            document.getElementById('speed').addEventListener('input', (e) => {
+                document.getElementById('speedVal').textContent = parseFloat(e.target.value).toFixed(2) + 'x';
+            });
+
+            document.getElementById('recLevel').addEventListener('input', (e) => {
+                document.getElementById('recLevelVal').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            document.getElementById('feedback').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('feedbackVal').textContent = Math.round(val * 100) + '%';
+                if (workletNode) workletNode.feedbackGain.gain.value = val;
+            });
+
+            // Loop
+            document.getElementById('loopStart').addEventListener('input', (e) => {
+                document.getElementById('loopStartVal').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            document.getElementById('loopLength').addEventListener('input', (e) => {
+                document.getElementById('loopLengthVal').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            document.getElementById('hold').addEventListener('input', (e) => {
+                document.getElementById('holdVal').textContent = e.target.value === '1' ? 'On' : 'Off';
+            });
+
+            document.getElementById('move').addEventListener('input', (e) => {
+                document.getElementById('moveVal').textContent = parseFloat(e.target.value).toFixed(2);
+            });
+
+            // Wow/Flutter
+            document.getElementById('wowFreq').addEventListener('input', (e) => {
+                document.getElementById('wowFreqVal').textContent = parseFloat(e.target.value).toFixed(2) + ' Hz';
+            });
+
+            document.getElementById('flutterFreq').addEventListener('input', (e) => {
+                document.getElementById('flutterFreqVal').textContent = parseFloat(e.target.value).toFixed(1) + ' Hz';
+            });
+
+            // Head speeds
+            for (let i = 1; i <= 4; i++) {
+                document.getElementById(`sp${i}`).addEventListener('input', (e) => {
+                    document.getElementById(`sp${i}Val`).textContent = parseFloat(e.target.value).toFixed(2) + 'x';
+                    if (heads[i - 1] && heads[i - 1].source) {
+                        heads[i - 1].source.playbackRate.value = parseFloat(e.target.value);
+                    }
+                });
+            }
+
+            // Head volumes
+            for (let i = 1; i <= 4; i++) {
+                document.getElementById(`v${i}`).addEventListener('input', (e) => {
+                    document.getElementById(`v${i}Val`).textContent = Math.round(e.target.value * 100) + '%';
+                });
+            }
+
+            // Head pans
+            for (let i = 1; i <= 4; i++) {
+                document.getElementById(`p${i}`).addEventListener('input', (e) => {
+                    document.getElementById(`p${i}Val`).textContent = formatPan(parseFloat(e.target.value));
+                });
+            }
+
+            // Dry/Wet
+            document.getElementById('dryWet').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('dryWetVal').textContent = Math.round(val * 100) + '%';
+                if (workletNode) {
+                    workletNode.dryGain.gain.value = 1 - val;
+                    workletNode.wetGain.gain.value = val;
+                }
+            });
+
+            document.getElementById('volume').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('volumeVal').textContent = val.toFixed(2);
+                if (workletNode) workletNode.masterGain.gain.value = val;
+            });
+
+            // Sample controls
+            document.getElementById('importSampleBtn').addEventListener('click', importSample);
+            document.getElementById('clearSampleBtn').addEventListener('click', clearSample);
+            document.getElementById('recBtn').addEventListener('click', toggleRecording);
+        }
+
+        // Initialize info panel
+        function initInfoPanel() {
+            if (typeof ER301InfoPanel !== 'undefined') {
+                ER301InfoPanel.create({
+                    title: 'Auto Reels',
+                    sections: [
+                        {
+                            title: 'Overview',
+                            content: 'Tape-style feedback looper with 3 independent playback heads. Features variable speed playback, wow and flutter modulation, loop window controls, and per-head speed/volume/pan settings. Inspired by vintage reel-to-reel tape machines.'
+                        },
+                        {
+                            title: 'Controls',
+                            content: 'Speed: Master tape speed (affects all heads)<br>Rec/Fb: Record level and feedback amount<br>Start/Length: Loop window start point and length<br>Hold/Move: Freeze playback and shift position<br>Vfreq/Pfreq: Wow (slow) and flutter (fast) modulation rates<br>Sp1-4: Individual head playback speeds<br>V1-4: Individual head volumes<br>P1-4: Individual head pan positions'
+                        },
+                        {
+                            title: 'Signal Flow',
+                            content: 'Input → Variable Speed Player → Feedback Looper → 3x Manual Loop Heads → Mixer → Output'
+                        },
+                        {
+                            title: 'Notes',
+                            content: 'Each head plays back from a different position in the loop buffer at its own speed. Use Hold to freeze while adjusting, Move to shift playback position. Wow/flutter add tape-like pitch instability.'
+                        }
+                    ]
+                });
+            }
+        }
+
+        // Main initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            setupParameterHandlers();
+            initInfoPanel();
+            document.getElementById('playBtn').addEventListener('click', togglePlay);
+        });
+    </script>
+</body>
+</html>

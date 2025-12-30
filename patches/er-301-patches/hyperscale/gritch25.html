@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gritch25 - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 80px;
+        }
+        .status-display {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .status-card {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 10px 16px;
+            text-align: center;
+            min-width: 70px;
+        }
+        .status-card .label {
+            font-size: 0.6em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .status-card .value {
+            font-size: 1em;
+            color: #2ecc71;
+            font-family: 'SF Mono', monospace;
+        }
+        .sample-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+            gap: 4px;
+            margin: 1em 0;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        .sample-cell {
+            aspect-ratio: 1;
+            background: #1a1a2e;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6em;
+            color: #666;
+            transition: all 0.1s;
+        }
+        .sample-cell.active {
+            background: #2ecc71;
+            color: #000;
+        }
+        .sample-info {
+            text-align: center;
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+        .sample-info.loading { color: #f39c12; }
+        .sample-info.ready { color: #2ecc71; }
+        .sample-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 1em 0;
+        }
+        .sample-actions button {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+        .sample-actions button:hover {
+            border-color: #2ecc71;
+            color: #2ecc71;
+        }
+        .euclid-display {
+            display: flex;
+            gap: 3px;
+            justify-content: center;
+            margin: 1em 0;
+            flex-wrap: wrap;
+        }
+        .euclid-step {
+            width: 16px;
+            height: 16px;
+            background: #1a1a2e;
+            border-radius: 2px;
+            transition: all 0.1s;
+        }
+        .euclid-step.active { background: #2ecc71; }
+        .euclid-step.current { box-shadow: 0 0 8px #2ecc71; }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>gritch25</h1>
+                <p>Euclidean glitch sampler with FDN reverb, Doppler delay and filter</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer" width="600" height="100"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="sample-info" id="sampleInfo">Loading samples...</div>
+
+            <div class="euclid-display" id="euclidDisplay"></div>
+
+            <!-- Status Display -->
+            <div class="status-display">
+                <div class="status-card">
+                    <div class="label">Slice</div>
+                    <div class="value" id="sliceDisplay">1</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Speed</div>
+                    <div class="value" id="speedDisplay">1.0x</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Wiggle</div>
+                    <div class="value" id="wiggleDisplay">0.0</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Filter</div>
+                    <div class="value" id="filterDisplay">6k Hz</div>
+                </div>
+            </div>
+
+            <div class="sample-grid" id="sampleGrid"></div>
+
+            <div class="sample-actions">
+                <input type="file" id="sampleInput" accept="audio/*" multiple style="display: none;">
+                <button onclick="document.getElementById('sampleInput').click()">Import Samples</button>
+                <button id="clearSamples">Clear Samples</button>
+            </div>
+
+            <!-- Wiggle Section -->
+            <span class="section-label">Wiggle Control</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Wiggle</label>
+                        <input type="range" id="wiggle" min="-1" max="2" value="-1" step="0.01">
+                        <span class="param-value" id="wiggleVal">-1.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Euclidean Section -->
+            <span class="section-label">Euclidean Rhythm</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Beats</label>
+                        <input type="range" id="beats" min="1" max="32" value="11" step="1">
+                        <span class="param-value" id="beatsVal">11</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Length</label>
+                        <input type="range" id="length" min="2" max="32" value="32" step="1">
+                        <span class="param-value" id="lengthVal">32</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Rate</label>
+                        <input type="range" id="clockSpeed" min="1" max="20" value="8" step="0.1">
+                        <span class="param-value" id="clockSpeedVal">8.0 Hz</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sample Section -->
+            <span class="section-label">Variable Speed Player</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Slice Rnd</label>
+                        <input type="range" id="sliceRnd" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="sliceRndVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Speed Rnd</label>
+                        <input type="range" id="speedRnd" min="0" max="2" value="1.5" step="0.01">
+                        <span class="param-value" id="speedRndVal">1.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FDN Section -->
+            <span class="section-label">Feedback Delay Network</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Delay</label>
+                        <input type="range" id="fdnDelay" min="0.01" max="1" value="0.55" step="0.01">
+                        <span class="param-value" id="fdnDelayVal">0.55</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="fdnFb" min="0" max="0.95" value="0.56" step="0.01">
+                        <span class="param-value" id="fdnFbVal">0.56</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Wet</label>
+                        <input type="range" id="fdnWet" min="0" max="1" value="0.58" step="0.01">
+                        <span class="param-value" id="fdnWetVal">0.58</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Section -->
+            <span class="section-label">Bique Filter</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Freq</label>
+                        <input type="range" id="filterFreq" min="100" max="12000" value="6272" step="10">
+                        <span class="param-value" id="filterFreqVal">6272</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Q</label>
+                        <input type="range" id="filterQ" min="0.01" max="0.5" value="0.05" step="0.01">
+                        <span class="param-value" id="filterQVal">0.05</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="vol" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="volVal">0.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        const processorCode = `
+// ============================================================================
+// DELAY LINE
+// ============================================================================
+class DelayLine {
+    constructor(maxDelay) {
+        this.buffer = new Float32Array(maxDelay);
+        this.maxDelay = maxDelay;
+        this.writeIndex = 0;
+    }
+
+    write(sample) {
+        this.buffer[this.writeIndex] = sample;
+        this.writeIndex = (this.writeIndex + 1) % this.maxDelay;
+    }
+
+    readLinear(delaySamples) {
+        const delay = Math.max(0, Math.min(delaySamples, this.maxDelay - 1));
+        const intDelay = Math.floor(delay);
+        const frac = delay - intDelay;
+        let idx0 = this.writeIndex - intDelay - 1;
+        let idx1 = this.writeIndex - intDelay;
+        if (idx0 < 0) idx0 += this.maxDelay;
+        if (idx1 < 0) idx1 += this.maxDelay;
+        return this.buffer[idx1] + frac * (this.buffer[idx0] - this.buffer[idx1]);
+    }
+}
+
+// ============================================================================
+// SLEW LIMITER
+// ============================================================================
+class SlewLimiter {
+    constructor(time, sr) {
+        this.sr = sr;
+        this.setTime(time);
+        this.value = 0;
+    }
+
+    setTime(time) {
+        this.rate = 1 / (time * this.sr + 1);
+    }
+
+    process(target) {
+        const diff = target - this.value;
+        this.value += diff * this.rate;
+        return this.value;
+    }
+}
+
+// ============================================================================
+// BIQUAD LP FILTER
+// ============================================================================
+class BiquadLP {
+    constructor(sr) {
+        this.sr = sr;
+        this.b0 = 1; this.b1 = 0; this.b2 = 0;
+        this.a1 = 0; this.a2 = 0;
+        this.x1 = 0; this.x2 = 0;
+        this.y1 = 0; this.y2 = 0;
+    }
+
+    setParams(freq, q) {
+        const w0 = 2 * Math.PI * Math.min(freq, this.sr * 0.45) / this.sr;
+        const sinW0 = Math.sin(w0);
+        const cosW0 = Math.cos(w0);
+        const alpha = sinW0 / (2 * Math.max(q, 0.01));
+
+        const a0 = 1 + alpha;
+        this.b0 = (1 - cosW0) / 2 / a0;
+        this.b1 = (1 - cosW0) / a0;
+        this.b2 = (1 - cosW0) / 2 / a0;
+        this.a1 = -2 * cosW0 / a0;
+        this.a2 = (1 - alpha) / a0;
+    }
+
+    process(x) {
+        const y = this.b0 * x + this.b1 * this.x1 + this.b2 * this.x2
+                  - this.a1 * this.y1 - this.a2 * this.y2;
+        this.x2 = this.x1;
+        this.x1 = x;
+        this.y2 = this.y1;
+        this.y1 = y;
+        return y;
+    }
+}
+
+// ============================================================================
+// FDN (4-channel Feedback Delay Network)
+// ============================================================================
+class FDN {
+    constructor(sr) {
+        this.sr = sr;
+        // 4 delay lines with prime-number-based lengths
+        const baseDelay = Math.floor(0.1 * sr);
+        this.delays = [
+            new DelayLine(Math.floor(baseDelay * 1.0)),
+            new DelayLine(Math.floor(baseDelay * 1.33)),
+            new DelayLine(Math.floor(baseDelay * 1.57)),
+            new DelayLine(Math.floor(baseDelay * 1.89))
+        ];
+        this.delayTimes = [
+            baseDelay * 0.5,
+            baseDelay * 0.67,
+            baseDelay * 0.79,
+            baseDelay * 0.95
+        ];
+        this.outputs = [0, 0, 0, 0];
+        this.filters = [0, 0, 0, 0];
+        this.feedback = 0.5;
+        this.tone = 0.5;
+        this.mix = 0.5;
+
+        // Modulation
+        this.modPhases = [0, 0.25, 0.5, 0.75];
+        this.modRate = 0.5;
+    }
+
+    setDelay(d) {
+        const baseDelay = d * this.sr;
+        this.delayTimes = [
+            baseDelay * 0.5,
+            baseDelay * 0.67,
+            baseDelay * 0.79,
+            baseDelay * 0.95
+        ];
+    }
+    setFeedback(fb) { this.feedback = Math.min(0.95, fb); }
+    setTone(t) { this.tone = t; }
+    setMix(m) { this.mix = m; }
+    setModulation(mod) { this.modRate = mod * 2; }
+
+    process(inL, inR) {
+        const input = (inL + inR) * 0.5;
+
+        // Hadamard-like mixing matrix
+        const mixed = [
+            this.outputs[0] + this.outputs[1] + this.outputs[2] + this.outputs[3],
+            this.outputs[0] - this.outputs[1] + this.outputs[2] - this.outputs[3],
+            this.outputs[0] + this.outputs[1] - this.outputs[2] - this.outputs[3],
+            this.outputs[0] - this.outputs[1] - this.outputs[2] + this.outputs[3]
+        ];
+
+        const dampCoef = 0.3 + this.tone * 0.6;
+
+        for (let i = 0; i < 4; i++) {
+            // Modulate delay time
+            this.modPhases[i] += this.modRate / this.sr;
+            if (this.modPhases[i] > 1) this.modPhases[i] -= 1;
+            const mod = Math.sin(this.modPhases[i] * 2 * Math.PI) * 0.02;
+            const delayTime = this.delayTimes[i] * (1 + mod);
+
+            // Read with damping
+            const delayed = this.delays[i].readLinear(Math.max(1, delayTime));
+            this.filters[i] = delayed * dampCoef + this.filters[i] * (1 - dampCoef);
+
+            // Write with feedback
+            const toWrite = input + mixed[i] * 0.25 * this.feedback;
+            this.delays[i].write(Math.tanh(toWrite));
+            this.outputs[i] = this.filters[i];
+        }
+
+        const wetL = this.outputs[0] + this.outputs[2];
+        const wetR = this.outputs[1] + this.outputs[3];
+
+        return [
+            inL * (1 - this.mix) + wetL * this.mix * 0.5,
+            inR * (1 - this.mix) + wetR * this.mix * 0.5
+        ];
+    }
+}
+
+// ============================================================================
+// EUCLIDEAN RHYTHM GENERATOR
+// ============================================================================
+class Euclid {
+    constructor() {
+        this.beats = 11;
+        this.length = 32;
+        this.pattern = [];
+        this.position = 0;
+        this.generate();
+    }
+
+    setBeats(b) {
+        this.beats = Math.max(1, Math.min(b, this.length));
+        this.generate();
+    }
+
+    setLength(l) {
+        this.length = Math.max(2, l);
+        this.beats = Math.min(this.beats, this.length);
+        this.generate();
+    }
+
+    generate() {
+        // Simple Euclidean rhythm using Bresenham-style distribution
+        this.pattern = new Array(this.length).fill(0);
+        const pulses = Math.max(0, Math.min(this.beats, this.length));
+
+        if (pulses === 0) return;
+
+        // Distribute pulses evenly across the pattern
+        for (let i = 0; i < pulses; i++) {
+            const pos = Math.floor((i * this.length) / pulses);
+            this.pattern[pos] = 1;
+        }
+    }
+
+    step() {
+        const hit = this.pattern[this.position];
+        this.position = (this.position + 1) % this.length;
+        return hit;
+    }
+
+    getPosition() { return this.position; }
+    getPattern() { return this.pattern; }
+}
+
+// ============================================================================
+// GRITCH25 PROCESSOR
+// ============================================================================
+class Gritch25Processor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+        this.playing = false;
+        this.samples = [];
+        this.sampleNames = [];
+
+        // Euclidean rhythm
+        this.euclid = new Euclid();
+        this.clockPhase = 0;
+        this.currentSample = 0;
+        this.samplePos = 0;
+        this.sampleSpeed = 1;
+
+        // Random values
+        this.targetSlice = 0;
+        this.targetSpeed = 1;
+        this.sliceSlew = new SlewLimiter(0.384, this.sr);
+        this.speedSlew = new SlewLimiter(0.048, this.sr);
+
+        // Pingable random for modulation
+        this.randomValue = 0;
+        this.targetRandom = 0;
+        this.randomSlew = new SlewLimiter(0.1, this.sr);
+
+        // FDN
+        this.fdn = new FDN(this.sr);
+
+        // Clocked Doppler Delay
+        const maxDelay = Math.ceil(this.sr * 0.5);
+        this.delayL = new DelayLine(maxDelay);
+        this.delayR = new DelayLine(maxDelay);
+        this.delayTimeL = 0.05 * this.sr;
+        this.delayTimeR = 0.06 * this.sr;
+        this.smoothDelayL = this.delayTimeL;
+        this.smoothDelayR = this.delayTimeR;
+
+        // Filter
+        this.filterL = new BiquadLP(this.sr);
+        this.filterR = new BiquadLP(this.sr);
+
+        // Parameters
+        this.params = {
+            wiggle: -1,
+            beats: 11,
+            length: 32,
+            clockSpeed: 8,
+            sliceRnd: 0.5,
+            speedRnd: 1.5,
+            fdnDelay: 0.55,
+            fdnFb: 0.56,
+            fdnWet: 0.58,
+            filterFreq: 6272,
+            filterQ: 0.05,
+            vol: 0.5
+        };
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'start') this.playing = true;
+            if (e.data.type === 'stop') this.playing = false;
+            if (e.data.type === 'param') {
+                this.params[e.data.name] = e.data.value;
+                if (e.data.name === 'beats') {
+                    this.euclid.setBeats(Math.round(e.data.value + this.params.wiggle));
+                }
+                if (e.data.name === 'length') {
+                    this.euclid.setLength(Math.round(e.data.value));
+                }
+            }
+            if (e.data.type === 'loadSamples') {
+                this.samples = e.data.samples;
+                this.sampleNames = e.data.names;
+            }
+            if (e.data.type === 'clearSamples') {
+                this.samples = [];
+                this.sampleNames = [];
+            }
+        };
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1];
+
+        if (!this.playing || this.samples.length === 0) {
+            outL.fill(0);
+            outR.fill(0);
+            return true;
+        }
+
+        // Update FDN and filter params
+        this.fdn.setDelay(this.params.fdnDelay);
+        this.fdn.setFeedback(this.params.fdnFb);
+        this.fdn.setMix(this.params.fdnWet);
+        this.fdn.setModulation(this.randomValue);
+        this.filterL.setParams(this.params.filterFreq, this.params.filterQ * 10 + 0.5);
+        this.filterR.setParams(this.params.filterFreq, this.params.filterQ * 10 + 0.5);
+
+        for (let i = 0; i < outL.length; i++) {
+            // Clock - clockSpeed is rate in Hz
+            this.clockPhase += this.params.clockSpeed / this.sr;
+
+            if (this.clockPhase >= 1) {
+                this.clockPhase -= 1;
+
+                // Update Euclidean beats with wiggle
+                const effectiveBeats = Math.max(1, Math.min(32, Math.round(this.params.beats + this.params.wiggle * 5)));
+                this.euclid.setBeats(effectiveBeats);
+
+                // Step Euclidean
+                if (this.euclid.step()) {
+                    // Trigger new sample
+                    this.targetSlice = Math.random() * this.params.sliceRnd;
+                    this.targetSpeed = 1 + (Math.random() - 0.5) * this.params.speedRnd;
+                    this.targetRandom = Math.random();
+
+                    // Select sample based on slice
+                    const sampleIdx = Math.floor(this.targetSlice * this.samples.length);
+                    this.currentSample = Math.max(0, Math.min(this.samples.length - 1, sampleIdx));
+                    this.samplePos = 0;
+                }
+            }
+
+            // Smooth modulation
+            const smoothSlice = this.sliceSlew.process(this.targetSlice);
+            const smoothSpeed = this.speedSlew.process(this.targetSpeed);
+            this.randomValue = this.randomSlew.process(this.targetRandom);
+
+            // Play sample
+            let sampleOut = 0;
+            if (this.samples[this.currentSample]) {
+                const sample = this.samples[this.currentSample];
+                const idx = Math.floor(this.samplePos);
+                if (idx < sample.length - 1) {
+                    const frac = this.samplePos - idx;
+                    sampleOut = sample[idx] + frac * (sample[idx + 1] - sample[idx]);
+                }
+                this.samplePos += smoothSpeed;
+            }
+
+            // VCA
+            let sigL = sampleOut * 0.5;
+            let sigR = sampleOut * 0.5;
+
+            // FDN
+            [sigL, sigR] = this.fdn.process(sigL, sigR);
+
+            // Clocked Doppler Delay
+            const delayMod = 0.05 + this.randomValue * 0.05;
+            this.delayTimeL = delayMod * this.sr;
+            this.delayTimeR = (delayMod + 0.16 * 0.02) * this.sr;
+
+            this.smoothDelayL += (this.delayTimeL - this.smoothDelayL) * 0.001;
+            this.smoothDelayR += (this.delayTimeR - this.smoothDelayR) * 0.001;
+
+            const delayedL = this.delayL.readLinear(this.smoothDelayL);
+            const delayedR = this.delayR.readLinear(this.smoothDelayR);
+
+            this.delayL.write(sigL + delayedR * 0.016);
+            this.delayR.write(sigR + delayedL * 0.016);
+
+            sigL = sigL * 0.84 + delayedL * 0.16;
+            sigR = sigR * 0.84 + delayedR * 0.16;
+
+            // Filter
+            sigL = this.filterL.process(sigL);
+            sigR = this.filterR.process(sigR);
+
+            // Output
+            sigL *= this.params.vol * 2;
+            sigR *= this.params.vol * 2;
+
+            outL[i] = Math.tanh(sigL);
+            outR[i] = Math.tanh(sigR);
+        }
+
+        // Send state periodically (not every block)
+        if (Math.random() < 0.1) {
+            this.port.postMessage({
+                type: 'state',
+                slice: this.currentSample + 1,
+                speed: this.speedSlew.value,
+                wiggle: this.params.wiggle,
+                filter: this.params.filterFreq,
+                pattern: this.euclid.getPattern(),
+                position: this.euclid.getPosition()
+            });
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('gritch25-processor', Gritch25Processor);
+`;
+
+        let audioContext, workletNode, pedalboard;
+        let isPlaying = false;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const sampleInfo = document.getElementById('sampleInfo');
+        const sampleGrid = document.getElementById('sampleGrid');
+        const euclidDisplay = document.getElementById('euclidDisplay');
+
+        const sampleBasePath = '../samples/hyperscale/gritch25/';
+        const defaultSamples = [
+            'dt01_kits_synthxs_arcade.wav',
+            'dt01_kits_synthxs_arcade02.wav',
+            'dt01_kits_synthxs_blip.wav',
+            'dt01_kits_synthxs_clap.wav',
+            'dt01_kits_synthxs_clave.wav',
+            'dt01_kits_synthxs_clickmetal.wav',
+            'dt01_kits_synthxs_closedhat01.wav',
+            'dt01_kits_synthxs_closedhat02.wav',
+            'dt01_kits_synthxs_dirtybass.wav',
+            'dt01_kits_synthxs_filthsweep.wav',
+            'dt01_kits_synthxs_infarct.wav',
+            'dt01_kits_synthxs_kick01.wav',
+            'dt01_kits_synthxs_kick02.wav',
+            'dt01_kits_synthxs_kick03.wav',
+            'dt01_kits_synthxs_kick04.wav',
+            'dt01_kits_synthxs_lazerzap.wav',
+            'dt01_kits_synthxs_lowbass.wav',
+            'dt01_kits_synthxs_metallic.wav',
+            'dt01_kits_synthxs_modnoise.wav',
+            'dt01_kits_synthxs_noisesnare01.wav',
+            'dt01_kits_synthxs_noisesnare02.wav',
+            'dt01_kits_synthxs_noisesnare03.wav',
+            'dt01_kits_synthxs_popdistort.wav',
+            'dt01_kits_synthxs_sfx01.wav',
+            'dt01_kits_synthxs_sfx02.wav',
+            'dt01_kits_synthxs_sinemod.wav',
+            'dt01_kits_synthxs_sweepbass.wav',
+            'dt01_kits_synthxs_tomclassic.wav',
+            'dt01_kits_synthxs_tomclassic02.wav'
+        ];
+
+        function updateSampleGrid(count, active = -1) {
+            sampleGrid.innerHTML = '';
+            for (let i = 0; i < count; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'sample-cell' + (i === active ? ' active' : '');
+                cell.textContent = i + 1;
+                sampleGrid.appendChild(cell);
+            }
+        }
+
+        function updateEuclidDisplay(pattern, position) {
+            euclidDisplay.innerHTML = '';
+            for (let i = 0; i < pattern.length; i++) {
+                const step = document.createElement('div');
+                step.className = 'euclid-step' + (pattern[i] ? ' active' : '') + (i === position ? ' current' : '');
+                euclidDisplay.appendChild(step);
+            }
+        }
+
+        async function loadDefaultSamples() {
+            sampleInfo.textContent = 'Loading samples...';
+            sampleInfo.className = 'sample-info loading';
+
+            const samples = [];
+            const names = [];
+            let loaded = 0;
+
+            for (const name of defaultSamples) {
+                try {
+                    const response = await fetch(sampleBasePath + encodeURIComponent(name));
+                    if (response.ok) {
+                        const buffer = await response.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(buffer);
+                        samples.push(audioBuffer.getChannelData(0));
+                        names.push(name.replace('.wav', '').replace('dt01_kits_synthxs_', ''));
+                        loaded++;
+                    }
+                } catch (e) {}
+            }
+
+            if (loaded > 0) {
+                workletNode.port.postMessage({ type: 'loadSamples', samples, names });
+                updateSampleGrid(loaded);
+                sampleInfo.textContent = loaded + ' samples loaded';
+                sampleInfo.className = 'sample-info ready';
+            } else {
+                sampleInfo.textContent = 'No samples found - import your own';
+                sampleInfo.className = 'sample-info';
+            }
+        }
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext({ sampleRate: 48000 });
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'gritch25-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboard = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'gritch25-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-gritch25'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-gritch25');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-gritch25',
+                    prefix: 'gritch25',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Handle messages
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'state') {
+                    document.getElementById('sliceDisplay').textContent = e.data.slice;
+                    document.getElementById('speedDisplay').textContent = e.data.speed.toFixed(2) + 'x';
+                    document.getElementById('wiggleDisplay').textContent = e.data.wiggle.toFixed(1);
+                    document.getElementById('filterDisplay').textContent = Math.round(e.data.filter / 1000) + 'k Hz';
+
+                    // Update grid active cell
+                    const cells = sampleGrid.querySelectorAll('.sample-cell');
+                    cells.forEach((cell, i) => {
+                        cell.classList.toggle('active', i === e.data.slice - 1);
+                    });
+
+                    // Update Euclidean display
+                    if (e.data.pattern) {
+                        updateEuclidDisplay(e.data.pattern, e.data.position);
+                    }
+                }
+            };
+
+            // Visualizer
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            fxNode.connect(analyser);
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            function draw() {
+                requestAnimationFrame(draw);
+                analyser.getByteTimeDomainData(dataArray);
+                ctx.fillStyle = '#0a0a14';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#2ecc71';
+                ctx.beginPath();
+                const sliceWidth = canvas.width / dataArray.length;
+                let x = 0;
+                for (let i = 0; i < dataArray.length; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * canvas.height / 2;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                    x += sliceWidth;
+                }
+                ctx.stroke();
+            }
+            draw();
+
+            await loadDefaultSamples();
+        }
+
+        playBtn.onclick = async () => {
+            if (!audioContext) await initAudio();
+            if (audioContext.state === 'suspended') await audioContext.resume();
+
+            isPlaying = !isPlaying;
+            playBtn.textContent = isPlaying ? '\u23F9' : '\u25B6';
+            workletNode.port.postMessage({ type: isPlaying ? 'start' : 'stop' });
+        };
+
+        // Sample import
+        document.getElementById('sampleInput').onchange = async (e) => {
+            if (!audioContext) await initAudio();
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                const samples = [];
+                const names = [];
+
+                for (const file of files) {
+                    try {
+                        const buffer = await file.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(buffer);
+                        samples.push(audioBuffer.getChannelData(0));
+                        names.push(file.name.replace(/\.[^/.]+$/, ''));
+                    } catch (err) {}
+                }
+
+                if (samples.length > 0) {
+                    workletNode.port.postMessage({ type: 'loadSamples', samples, names });
+                    updateSampleGrid(samples.length);
+                    sampleInfo.textContent = samples.length + ' samples loaded';
+                    sampleInfo.className = 'sample-info ready';
+                }
+            }
+        };
+
+        // Clear samples
+        document.getElementById('clearSamples').onclick = () => {
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'clearSamples' });
+                sampleGrid.innerHTML = '';
+                sampleInfo.textContent = 'No samples loaded';
+                sampleInfo.className = 'sample-info';
+            }
+        };
+
+        // Parameter controls
+        const params = ['wiggle', 'beats', 'length', 'clockSpeed', 'sliceRnd', 'speedRnd',
+                        'fdnDelay', 'fdnFb', 'fdnWet', 'filterFreq', 'filterQ', 'vol'];
+
+        params.forEach(name => {
+            const input = document.getElementById(name);
+            const display = document.getElementById(name + 'Val');
+            if (input && display) {
+                input.oninput = () => {
+                    const val = parseFloat(input.value);
+                    if (name === 'clockSpeed') {
+                        display.textContent = val.toFixed(1) + ' Hz';
+                    } else {
+                        display.textContent = Number.isInteger(val) ? val : val.toFixed(2);
+                    }
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'param', name, value: val });
+                    }
+                };
+            }
+        });
+
+        // Initialize euclidean display with default pattern
+        (function initEuclid() {
+            const pattern = new Array(32).fill(0);
+            const beats = 11, length = 32;
+            for (let i = 0; i < beats; i++) {
+                const pos = Math.floor((i * length) / beats);
+                pattern[pos] = 1;
+            }
+            updateEuclidDisplay(pattern, 0);
+        })();
+
+        // Info panel
+        if (typeof ER301InfoPanel !== 'undefined') {
+            new ER301InfoPanel(document.body, {
+                title: 'gritch25',
+                author: 'mudlogger',
+                origin: 'ER-301 Hyperscale Units',
+                description: 'Euclidean rhythm-driven glitch sampler using Variable Speed Player with the Wave Alchemy Synth XS kit. Features Feedback Delay Network, Clocked Doppler Delay, and Bique filter with random modulation. The "wiggle" control offsets the Euclidean beat count for evolving patterns.',
+                controls: [
+                    { name: 'Wiggle', range: '-1 to 2', description: 'Offset added to Euclidean beats count' },
+                    { name: 'Beats', range: '1-32', description: 'Number of hits in Euclidean pattern' },
+                    { name: 'Length', range: '2-32', description: 'Total steps in Euclidean pattern' },
+                    { name: 'Rate', range: '1-20 Hz', description: 'Clock rate for pattern stepping' },
+                    { name: 'Slice Rnd', range: '0-1', description: 'Random sample selection range' },
+                    { name: 'Speed Rnd', range: '0-2', description: 'Random playback speed variation' },
+                    { name: 'FDN Delay', range: '10ms-1s', description: 'Base delay time for FDN reverb' },
+                    { name: 'FDN Feedback', range: '0-0.95', description: 'FDN feedback amount' },
+                    { name: 'FDN Wet', range: '0-1', description: 'FDN mix level' },
+                    { name: 'Filter Freq', range: '100-12kHz', description: 'Lowpass filter cutoff' },
+                    { name: 'Filter Q', range: '0.01-0.5', description: 'Filter resonance' }
+                ],
+                tips: [
+                    'Wiggle modulates the beat count for evolving rhythms',
+                    'The Euclidean pattern is visualized at the top',
+                    'High FDN feedback creates dense reverb textures',
+                    'Speed Rnd adds pitch variation to triggered samples',
+                    'Lower clock speed for slower, more sparse patterns',
+                    'The filter is also modulated by the random signal'
+                ]
+            });
+        }
+    </script>
+</body>
+</html>

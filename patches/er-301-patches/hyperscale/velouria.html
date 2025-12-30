@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>velouria - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 80px;
+        }
+        .status-display {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .status-card {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 10px 16px;
+            text-align: center;
+            min-width: 70px;
+        }
+        .status-card .label {
+            font-size: 0.6em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .status-card .value {
+            font-size: 1em;
+            color: #9b59b6;
+            font-family: 'SF Mono', monospace;
+        }
+        .toggle-btn {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+        .toggle-btn.active {
+            border-color: #9b59b6;
+            color: #9b59b6;
+            background: rgba(155, 89, 182, 0.1);
+        }
+        .toggle-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .midi-status {
+            text-align: center;
+            font-size: 0.75em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+        .midi-status.connected { color: #9b59b6; }
+        .channel-section {
+            background: rgba(155, 89, 182, 0.05);
+            border-radius: 8px;
+            padding: 1em;
+            margin-bottom: 1em;
+        }
+        .channel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5em;
+        }
+        .channel-title {
+            font-size: 0.9em;
+            color: #9b59b6;
+            font-weight: bold;
+        }
+        select {
+            padding: 6px 10px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            border-radius: 6px;
+            font-size: 0.85em;
+        }
+        select:focus {
+            outline: none;
+            border-color: #9b59b6;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>velouria</h1>
+                <p>Dual FM arpeggiator synth with Infinity Arp, Scale Quantizer & Clocked Delay</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="status-display">
+                <div class="status-card">
+                    <div class="label">BPM</div>
+                    <div class="value" id="bpmDisplay">101</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">CH1 Note</div>
+                    <div class="value" id="note1Display">-</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">CH2 Note</div>
+                    <div class="value" id="note2Display">-</div>
+                </div>
+            </div>
+
+            <div class="midi-status" id="midiStatus">MIDI: Not connected</div>
+
+            <!-- Scale Selection -->
+            <span class="section-label">Scale & Root</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Root</label>
+                        <select id="root">
+                            <option value="0">C</option>
+                            <option value="1">C#</option>
+                            <option value="2">D</option>
+                            <option value="3">D#</option>
+                            <option value="4">E</option>
+                            <option value="5">F</option>
+                            <option value="6">F#</option>
+                            <option value="7">G</option>
+                            <option value="8">G#</option>
+                            <option value="9" selected>A</option>
+                            <option value="10">A#</option>
+                            <option value="11">B</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Scale</label>
+                        <select id="scale">
+                            <option value="major">Major</option>
+                            <option value="minor" selected>Minor</option>
+                            <option value="dorian">Dorian</option>
+                            <option value="phrygian">Phrygian</option>
+                            <option value="lydian">Lydian</option>
+                            <option value="mixolydian">Mixolydian</option>
+                            <option value="locrian">Locrian</option>
+                            <option value="pentatonic">Pentatonic</option>
+                            <option value="blues">Blues</option>
+                            <option value="chromatic">Chromatic</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Global BPM -->
+            <span class="section-label">Tempo</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>BPM</label>
+                        <input type="range" id="bpm" min="1" max="501" value="101" step="1">
+                        <span class="param-value" id="bpmVal">101</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Meter</label>
+                        <input type="range" id="meter" min="0" max="1" value="0.99" step="0.01">
+                        <span class="param-value" id="meterVal">0.99</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Channel 1 -->
+            <div class="channel-section">
+                <div class="channel-header">
+                    <span class="channel-title">Channel 1 (Amie FM)</span>
+                    <div class="toggle-row" style="margin: 0;">
+                        <button class="toggle-btn" id="mute1Btn">Mute</button>
+                        <button class="toggle-btn active" id="lpg1Btn">LPG On</button>
+                    </div>
+                </div>
+
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Vol</label>
+                            <input type="range" id="vol1" min="0" max="1" value="0.99" step="0.01">
+                            <span class="param-value" id="vol1Val">0.99</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Oct</label>
+                            <input type="range" id="oct1" min="-2" max="1" value="-1" step="1">
+                            <span class="param-value" id="oct1Val">-1</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Decay</label>
+                            <input type="range" id="decay1" min="-1" max="1" value="-0.27" step="0.01">
+                            <span class="param-value" id="decay1Val">-0.27</span>
+                        </div>
+                    </div>
+                </div>
+
+                <span class="section-label">Arpeggiator 1</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Mult</label>
+                            <input type="range" id="mult1" min="0" max="32" value="5" step="1">
+                            <span class="param-value" id="mult1Val">5</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Div</label>
+                            <input type="range" id="div1" min="0" max="32" value="1" step="1">
+                            <span class="param-value" id="div1Val">1</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Length</label>
+                            <input type="range" id="length1" min="0" max="64" value="7" step="1">
+                            <span class="param-value" id="length1Val">7</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Range</label>
+                            <input type="range" id="range1" min="-3" max="3" value="2.7" step="0.1">
+                            <span class="param-value" id="range1Val">2.7</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Vari</label>
+                            <input type="range" id="vari1" min="0" max="1" value="0.2" step="0.01">
+                            <span class="param-value" id="vari1Val">0.20</span>
+                        </div>
+                    </div>
+                </div>
+
+                <span class="section-label">Delay 1</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Del Div</label>
+                            <input type="range" id="delDiv1" min="0" max="8" value="0" step="1">
+                            <span class="param-value" id="delDiv1Val">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Channel 2 -->
+            <div class="channel-section">
+                <div class="channel-header">
+                    <span class="channel-title">Channel 2 (Amie FM)</span>
+                    <div class="toggle-row" style="margin: 0;">
+                        <button class="toggle-btn" id="mute2Btn">Mute</button>
+                        <button class="toggle-btn" id="lpg2Btn">LPG On</button>
+                    </div>
+                </div>
+
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Vol</label>
+                            <input type="range" id="vol2" min="0" max="1" value="0.64" step="0.01">
+                            <span class="param-value" id="vol2Val">0.64</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Oct</label>
+                            <input type="range" id="oct2" min="-2" max="1" value="-2" step="1">
+                            <span class="param-value" id="oct2Val">-2</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Decay</label>
+                            <input type="range" id="decay2" min="-1" max="1" value="-0.11" step="0.01">
+                            <span class="param-value" id="decay2Val">-0.11</span>
+                        </div>
+                    </div>
+                </div>
+
+                <span class="section-label">Arpeggiator 2</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Mult</label>
+                            <input type="range" id="mult2" min="0" max="32" value="4" step="1">
+                            <span class="param-value" id="mult2Val">4</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Div</label>
+                            <input type="range" id="div2" min="0" max="32" value="3" step="1">
+                            <span class="param-value" id="div2Val">3</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Length</label>
+                            <input type="range" id="length2" min="0" max="64" value="13" step="1">
+                            <span class="param-value" id="length2Val">13</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Range</label>
+                            <input type="range" id="range2" min="-3" max="3" value="1.8" step="0.1">
+                            <span class="param-value" id="range2Val">1.8</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Vari</label>
+                            <input type="range" id="vari2" min="0" max="1" value="1" step="0.01">
+                            <span class="param-value" id="vari2Val">1.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <span class="section-label">FM Feedback 2</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Ratio</label>
+                            <input type="range" id="ratio2" min="0" max="24" value="3" step="0.1">
+                            <span class="param-value" id="ratio2Val">3.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Car FB</label>
+                            <input type="range" id="carfbk2" min="-1" max="1" value="0.8" step="0.01">
+                            <span class="param-value" id="carfbk2Val">0.80</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Mod FB</label>
+                            <input type="range" id="modfbk2" min="-1" max="1" value="-1" step="0.01">
+                            <span class="param-value" id="modfbk2Val">-1.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <span class="section-label">Delay 2</span>
+                <div class="param-controls">
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Del Mul</label>
+                            <input type="range" id="delMul2" min="0" max="8" value="4" step="1">
+                            <span class="param-value" id="delMul2Val">4</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Master Vol</label>
+                        <input type="range" id="vol" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="volVal">0.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+// AudioWorklet Processor - Dual FM Arpeggiator
+const processorCode = `
+// ============================================================================
+// SLEW LIMITER (exponential smoothing)
+// ============================================================================
+class SlewLimiter {
+    constructor(time, sr) {
+        this.sr = sr;
+        this.setTime(time);
+        this.value = 0;
+    }
+
+    setTime(time) {
+        this.coeff = Math.exp(-1 / (Math.max(0.001, time) * this.sr));
+    }
+
+    process(target) {
+        this.value = target + (this.value - target) * this.coeff;
+        return this.value;
+    }
+}
+
+// ============================================================================
+// STRIKE LPG (Low Pass Gate with envelope)
+// ============================================================================
+class StrikeLPG {
+    constructor(sr) {
+        this.sr = sr;
+        this.rise = 0.002;
+        this.fall = 0.3;
+        this.bend = -0.27;
+        this.height = 1;
+        this.phase = 0;
+        this.value = 1;  // Start at full value so we have sound immediately
+        this.stage = 2;  // Start in fall stage
+    }
+
+    trigger() {
+        this.stage = 1;
+        this.phase = 0;
+    }
+
+    process() {
+        if (this.stage === 1) {
+            // Rise
+            const riseTime = Math.max(0.001, this.rise);
+            this.phase += 1 / (riseTime * this.sr);
+            if (this.phase >= 1) {
+                this.phase = 0;
+                this.stage = 2;
+            }
+            const t = this.phase;
+            const curved = this.bend >= 0
+                ? Math.pow(t, 1 + this.bend * 3)
+                : 1 - Math.pow(1 - t, 1 - this.bend * 3);
+            this.value = curved * this.height;
+        } else if (this.stage === 2) {
+            // Fall
+            const fallTime = Math.max(0.01, this.fall);
+            this.phase += 1 / (fallTime * this.sr);
+            if (this.phase >= 1) {
+                this.phase = 0;
+                this.stage = 0;
+                this.value = 0;
+            } else {
+                const t = this.phase;
+                const curved = this.bend >= 0
+                    ? 1 - Math.pow(t, 1 + this.bend * 3)
+                    : Math.pow(1 - t, 1 - this.bend * 3);
+                this.value = curved * this.height;
+            }
+        }
+        return this.value;
+    }
+}
+
+// ============================================================================
+// INFINITY ARP - Generative arpeggiator
+// ============================================================================
+class InfinityArp {
+    constructor(sr) {
+        this.sr = sr;
+        this.length = 8;      // Sequence length (0-64)
+        this.range = 2;       // Octave range (-3 to 3)
+        this.variance = 0.5;  // Random variation (0-1)
+        this.sequence = [];
+        this.position = 0;
+        this.currentNote = 0;
+        this.generateSequence();
+        // Trigger immediately to get a valid starting note
+        this.trigger();
+    }
+
+    generateSequence() {
+        this.sequence = [];
+        const len = Math.max(1, Math.floor(this.length));
+        for (let i = 0; i < len; i++) {
+            // Generate note index (will be quantized to scale later)
+            // Range determines how many octaves up/down
+            const rangeOctaves = Math.abs(this.range) + 1;
+            const noteRange = rangeOctaves * 7; // 7 scale degrees per octave
+            const note = Math.floor(Math.random() * noteRange);
+            this.sequence.push(this.range >= 0 ? note : -note);
+        }
+    }
+
+    trigger() {
+        if (this.sequence.length === 0) return;
+
+        // Get current note with variance
+        const baseNote = this.sequence[this.position % this.sequence.length];
+        const variation = (Math.random() - 0.5) * this.variance * 7;
+        this.currentNote = Math.round(baseNote + variation);
+
+        // Advance position
+        this.position = (this.position + 1) % Math.max(1, this.sequence.length);
+
+        // Occasionally regenerate sequence for variation
+        if (this.position === 0 && Math.random() < 0.2) {
+            this.generateSequence();
+        }
+    }
+
+    getNote() {
+        return this.currentNote;
+    }
+}
+
+// ============================================================================
+// SCALE QUANTIZER
+// ============================================================================
+class ScaleQuantizer {
+    constructor() {
+        this.root = 9; // A
+        this.scales = {
+            major: [0, 2, 4, 5, 7, 9, 11],
+            minor: [0, 2, 3, 5, 7, 8, 10],
+            dorian: [0, 2, 3, 5, 7, 9, 10],
+            phrygian: [0, 1, 3, 5, 7, 8, 10],
+            lydian: [0, 2, 4, 6, 7, 9, 11],
+            mixolydian: [0, 2, 4, 5, 7, 9, 10],
+            locrian: [0, 1, 3, 5, 6, 8, 10],
+            pentatonic: [0, 2, 4, 7, 9],
+            blues: [0, 3, 5, 6, 7, 10],
+            chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        };
+        this.scale = this.scales.minor;
+    }
+
+    setScale(name) {
+        if (this.scales[name]) {
+            this.scale = this.scales[name];
+        }
+    }
+
+    // Convert scale degree to semitones
+    degreeToSemitones(degree) {
+        const scaleLen = this.scale.length;
+        const octave = Math.floor(degree / scaleLen);
+        const idx = ((degree % scaleLen) + scaleLen) % scaleLen;
+        return this.root + octave * 12 + this.scale[idx];
+    }
+}
+
+// ============================================================================
+// AMIE FM Synth - Simple 2-op FM (cleaner implementation)
+// ============================================================================
+class AmieFM {
+    constructor(sr) {
+        this.sr = sr;
+        this.freq = 220;
+        this.ratio = 2;           // Mod/Carrier ratio
+        this.carrierFeedback = 0; // Carrier feedback (-1 to 1)
+        this.modFeedback = 0;     // Modulator feedback (-1 to 1)
+        this.modIndex = 1;        // FM index
+        this.carPhase = 0;
+        this.modPhase = 0;
+        this.lastCarOut = 0;
+        this.lastModOut = 0;
+    }
+
+    process() {
+        // Modulator with feedback
+        const modFreq = this.freq * Math.max(0.5, this.ratio);
+        this.modPhase += modFreq / this.sr;
+        if (this.modPhase >= 1) this.modPhase -= 1;
+
+        // Modulator feedback (scaled to prevent runaway)
+        const modFb = this.lastModOut * this.modFeedback * 0.3;
+        const modOut = Math.sin((this.modPhase + modFb) * 2 * Math.PI);
+        this.lastModOut = modOut;
+
+        // Carrier with FM from modulator
+        this.carPhase += this.freq / this.sr;
+        if (this.carPhase >= 1) this.carPhase -= 1;
+
+        // Carrier feedback
+        const carFb = this.lastCarOut * this.carrierFeedback * 0.15;
+        const fmMod = modOut * this.modIndex;
+        const carOut = Math.sin((this.carPhase + fmMod + carFb) * 2 * Math.PI);
+        this.lastCarOut = carOut;
+
+        return carOut;
+    }
+}
+
+// ============================================================================
+// DELAY LINE
+// ============================================================================
+class DelayLine {
+    constructor(maxSamples) {
+        this.buffer = new Float32Array(maxSamples);
+        this.maxDelay = maxSamples;
+        this.writeIndex = 0;
+    }
+
+    write(sample) {
+        this.buffer[this.writeIndex] = sample;
+        this.writeIndex = (this.writeIndex + 1) % this.maxDelay;
+    }
+
+    readLinear(delaySamples) {
+        const d = Math.min(this.maxDelay - 1, Math.max(0, delaySamples));
+        const intDelay = Math.floor(d);
+        const frac = d - intDelay;
+        let idx0 = this.writeIndex - intDelay - 2;
+        let idx1 = this.writeIndex - intDelay - 1;
+        if (idx0 < 0) idx0 += this.maxDelay;
+        if (idx1 < 0) idx1 += this.maxDelay;
+        return this.buffer[idx1] + frac * (this.buffer[idx0] - this.buffer[idx1]);
+    }
+}
+
+// ============================================================================
+// CLOCKED DELAY
+// ============================================================================
+class ClockedDelay {
+    constructor(sr) {
+        this.sr = sr;
+        this.delay = new DelayLine(Math.ceil(sr * 2));
+        this.delayTime = 0.5;
+        this.feedback = 0.35;
+        this.wet = 0.25;
+        this.lpf = 0;
+    }
+
+    process(input) {
+        const delaySamples = Math.max(1, this.delayTime * this.sr);
+        const delayed = this.delay.readLinear(delaySamples);
+
+        // Low-pass on feedback
+        this.lpf = this.lpf + 0.2 * (delayed - this.lpf);
+
+        this.delay.write(input + this.lpf * this.feedback);
+
+        return input * (1 - this.wet) + delayed * this.wet;
+    }
+}
+
+// ============================================================================
+// VELOURIA PROCESSOR
+// ============================================================================
+class VelouriaProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+        this.playing = true;  // Start playing immediately for debugging
+
+        // Clock
+        this.clockPhase = 0;
+
+        // Channel 1
+        this.arp1 = new InfinityArp(this.sr);
+        this.fm1 = new AmieFM(this.sr);
+        this.lpg1 = new StrikeLPG(this.sr);
+        this.delay1 = new ClockedDelay(this.sr);
+        this.gate1Phase = 0;
+        this.lpg1On = true;
+        this.mute1 = false;
+
+        // Channel 2
+        this.arp2 = new InfinityArp(this.sr);
+        this.fm2 = new AmieFM(this.sr);
+        this.lpg2 = new StrikeLPG(this.sr);
+        this.delay2 = new ClockedDelay(this.sr);
+        this.gate2Phase = 0;
+        this.lpg2On = false;
+        this.mute2 = false;
+
+        // Scale quantizer
+        this.quantizer = new ScaleQuantizer();
+
+        // Slew limiters for smooth pitch transitions
+        this.freq1Slew = new SlewLimiter(0.01, this.sr);
+        this.freq2Slew = new SlewLimiter(0.01, this.sr);
+        // Initialize to reasonable frequencies so we don't start at 0
+        this.freq1Slew.value = 110;
+        this.freq2Slew.value = 55;
+
+        // MIDI
+        this.midiNote = -1;
+        this.midiFreq = 110;
+
+        // Current notes for display
+        this.currentNote1 = 0;
+        this.currentNote2 = 0;
+
+        // Parameters (from original ER-301 patch)
+        this.params = {
+            bpm: 101,
+            meter: 0.99,
+            vol1: 0.99,
+            oct1: -1,
+            decay1: -0.27,
+            mult1: 5,
+            div1: 1,
+            length1: 7,
+            range1: 2.7,
+            vari1: 0.2,
+            delDiv1: 0,
+            vol2: 0.64,
+            oct2: -2,
+            decay2: -0.11,
+            mult2: 4,
+            div2: 3,
+            length2: 13,
+            range2: 1.8,
+            vari2: 1,
+            delMul2: 4,
+            ratio2: 3,
+            carfbk2: 0.8,
+            modfbk2: -1,
+            vol: 0.5
+        };
+
+        // Trigger LPGs immediately so sound plays on start
+        this.lpg1.trigger();
+        this.lpg2.trigger();
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'start') {
+                this.playing = true;
+                // Trigger LPGs on start to ensure immediate sound
+                this.lpg1.trigger();
+                this.lpg2.trigger();
+            }
+            if (e.data.type === 'stop') this.playing = false;
+            if (e.data.type === 'param') {
+                this.params[e.data.name] = e.data.value;
+            }
+            if (e.data.type === 'mute1') this.mute1 = e.data.value;
+            if (e.data.type === 'mute2') this.mute2 = e.data.value;
+            if (e.data.type === 'lpg1On') this.lpg1On = e.data.value;
+            if (e.data.type === 'lpg2On') this.lpg2On = e.data.value;
+            if (e.data.type === 'root') this.quantizer.root = e.data.value;
+            if (e.data.type === 'scale') this.quantizer.setScale(e.data.value);
+            if (e.data.type === 'noteOn') {
+                this.midiNote = e.data.note;
+                this.midiFreq = 440 * Math.pow(2, (e.data.note - 69) / 12);
+                this.lpg1.trigger();
+                this.lpg2.trigger();
+            }
+            if (e.data.type === 'noteOff') {
+                if (e.data.note === this.midiNote) {
+                    this.midiNote = -1;
+                }
+            }
+        };
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        if (!output || !output[0]) {
+            return true;
+        }
+        const outL = output[0];
+        const outR = output[1] || output[0];
+
+        // Update arp parameters
+        this.arp1.length = this.params.length1;
+        this.arp1.range = this.params.range1;
+        this.arp1.variance = this.params.vari1;
+
+        this.arp2.length = this.params.length2;
+        this.arp2.range = this.params.range2;
+        this.arp2.variance = this.params.vari2;
+
+        // Update FM2 parameters (scaled down for cleaner sound)
+        this.fm2.ratio = this.params.ratio2;
+        this.fm2.carrierFeedback = this.params.carfbk2;
+        this.fm2.modFeedback = this.params.modfbk2;
+
+        // Update LPG from decay param
+        // decay param -1 to 1 maps to fall time: negative = shorter, positive = longer
+        this.lpg1.bend = this.params.decay1;
+        this.lpg1.fall = 0.1 + (this.params.decay1 + 1) * 0.5; // 0.1 to 1.1 seconds
+        this.lpg2.bend = this.params.decay2;
+        this.lpg2.fall = 0.1 + (this.params.decay2 + 1) * 0.5;
+
+        // Clock calculations
+        const clockHz = this.params.bpm / 60;
+        const mult1 = Math.max(1, this.params.mult1);
+        const div1 = Math.max(1, this.params.div1);
+        const mult2 = Math.max(1, this.params.mult2);
+        const div2 = Math.max(1, this.params.div2);
+        const gate1Hz = clockHz * mult1 / div1;
+        const gate2Hz = clockHz * mult2 / div2;
+
+        // Delay times
+        const beatTime = 60 / this.params.bpm;
+        this.delay1.delayTime = this.params.delDiv1 > 0 ? beatTime / this.params.delDiv1 : 0;
+        this.delay2.delayTime = this.params.delMul2 > 0 ? beatTime * this.params.delMul2 : 0;
+
+        for (let i = 0; i < outL.length; i++) {
+            // Clock gate 1
+            this.gate1Phase += gate1Hz / this.sr;
+            if (this.gate1Phase >= 1) {
+                this.gate1Phase -= 1;
+                this.arp1.trigger();
+                if (this.lpg1On) this.lpg1.trigger();
+            }
+
+            // Clock gate 2
+            this.gate2Phase += gate2Hz / this.sr;
+            if (this.gate2Phase >= 1) {
+                this.gate2Phase -= 1;
+                this.arp2.trigger();
+                if (this.lpg2On) this.lpg2.trigger();
+            }
+
+            // Calculate frequencies from arpeggiator through quantizer
+            const scaleDegree1 = this.arp1.getNote();
+            const scaleDegree2 = this.arp2.getNote();
+
+            // Convert scale degrees to MIDI notes
+            const midiNote1 = this.quantizer.degreeToSemitones(scaleDegree1) + (this.params.oct1 * 12) + 36;
+            const midiNote2 = this.quantizer.degreeToSemitones(scaleDegree2) + (this.params.oct2 * 12) + 36;
+
+            // Store for display
+            this.currentNote1 = midiNote1;
+            this.currentNote2 = midiNote2;
+
+            // Convert MIDI notes to frequency
+            const freq1 = 440 * Math.pow(2, (midiNote1 - 69) / 12);
+            const freq2 = 440 * Math.pow(2, (midiNote2 - 69) / 12);
+
+            // Apply slew limiting for smooth pitch transitions
+            this.fm1.freq = this.freq1Slew.process(freq1);
+            this.fm2.freq = this.freq2Slew.process(freq2);
+
+            // Generate FM
+            let sig1 = this.fm1.process();
+            let sig2 = this.fm2.process();
+
+            // Apply LPG envelopes for discrete notes
+            const env1 = this.lpg1.process();
+            const env2 = this.lpg2.process();
+
+            // Apply envelope and channel volume
+            sig1 *= env1 * this.params.vol1;
+            sig2 *= env2 * this.params.vol2;
+
+            // Apply mutes
+            if (this.mute1) sig1 = 0;
+            if (this.mute2) sig2 = 0;
+
+            // Mix to stereo (ch1 slightly left, ch2 slightly right)
+            const mixL = sig1 * 0.65 + sig2 * 0.35;
+            const mixR = sig1 * 0.35 + sig2 * 0.65;
+
+            // Output with soft clipping and master volume
+            outL[i] = Math.tanh(mixL * this.params.vol * 2);
+            outR[i] = Math.tanh(mixR * this.params.vol * 2);
+        }
+
+        // Send state
+        if (Math.random() < 0.1) {
+            const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            const n1 = this.currentNote1;
+            const n2 = this.currentNote2;
+
+            this.port.postMessage({
+                type: 'state',
+                bpm: this.params.bpm,
+                note1: noteNames[((n1 % 12) + 12) % 12] + Math.floor(n1 / 12 + 1),
+                note2: noteNames[((n2 % 12) + 12) % 12] + Math.floor(n2 / 12 + 1)
+            });
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('velouria-processor', VelouriaProcessor);
+`;
+
+let audioContext, workletNode;
+let isPlaying = false;
+let pedalboardUI, pedalboardNode;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+// UI elements
+const playBtn = document.getElementById('playBtn');
+
+// Initialize audio
+
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            try {
+                // Wait for features to load first
+                await featuresLoaded;
+
+        audioContext = new AudioContext();
+
+        // Resume context if suspended (required by browsers)
+        if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+        }
+
+        const blob = new Blob([processorCode], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        await audioContext.audioWorklet.addModule(url);
+        URL.revokeObjectURL(url);
+
+        workletNode = new AudioWorkletNode(audioContext, 'velouria-processor', {
+            numberOfInputs: 0,
+            numberOfOutputs: 1,
+            outputChannelCount: [2]
+        });
+
+        // Handle processor errors
+        workletNode.onprocessorerror = (e) => {
+            console.error('Processor error:', e);
+        };
+
+        workletNode.port.onmessage = (e) => {
+            if (e.data.type === 'state') {
+                document.getElementById('bpmDisplay').textContent = e.data.bpm;
+                document.getElementById('note1Display').textContent = e.data.note1;
+                document.getElementById('note2Display').textContent = e.data.note2;
+            }
+        };
+    } catch (err) {
+        console.error('Audio init error:', err);
+        return;
+    }
+
+    // Initialize pedalboard
+    if (typeof PedalboardUI !== 'undefined') {
+        try {
+            const pedalboardContainer = document.getElementById('pedalboard-container');
+            pedalboardUI = new PedalboardUI(pedalboardContainer, audioContext);
+            pedalboardNode = await pedalboardUI.init();
+
+            workletNode.connect(pedalboardNode);
+            pedalboardNode.connect(audioContext.destination);
+
+            pedalboardUI.loadFromLocalStorage('velouria-pedalboard');
+        } catch (err) {
+            console.error('Pedalboard error, connecting directly:', err);
+            workletNode.connect(audioContext.destination);
+        }
+    } else {
+        workletNode.connect(audioContext.destination);
+    }
+
+    // Initialize features if phonebook-features.js is loaded
+    const outputNode = pedalboardNode || workletNode;
+    if (typeof StickyHeader !== 'undefined') {
+        stickyHeader = new StickyHeader({
+            patchName: 'velouria-er-301-hyperscale',
+            patchId: 'er-301-patches-hyperscale-velouria'
+        });
+        await stickyHeader.init();
+        await stickyHeader.initRecorder(audioContext, outputNode, audioContext.destination);
+    }
+
+    if (typeof getMidiLearn !== 'undefined') {
+        midiLearn = await getMidiLearn('er-301-patches-hyperscale-velouria');
+    }
+
+    if (typeof getModulationMatrix !== 'undefined') {
+        modMatrix = getModulationMatrix();
+        modMatrixUI = new ModMatrixUI(
+            document.querySelector('.patch-content') || document.body,
+            { modMatrix: modMatrix }
+        );
+        modMatrixUI.init();
+    }
+
+    // Auto-register all sliders for MIDI Learn and Mod Matrix
+    if (typeof autoRegisterControls !== 'undefined') {
+        await autoRegisterControls({
+            patchId: 'er-301-patches-hyperscale-velouria',
+            prefix: 'velouria',
+            modMatrixUI: modMatrixUI
+        });
+    }
+
+    console.log('Audio initialized, context state:', audioContext.state);
+
+    // Initialize all params
+    document.querySelectorAll('input[type="range"]').forEach(el => {
+        el.dispatchEvent(new Event('input'));
+    });
+
+    // Send initial scale/root
+    const rootVal = parseInt(document.getElementById('root').value);
+    const scaleVal = document.getElementById('scale').value;
+    workletNode.port.postMessage({ type: 'root', value: rootVal });
+    workletNode.port.postMessage({ type: 'scale', value: scaleVal });
+
+    setupMIDI();
+    isPlaying = true;
+                if (modMatrix) modMatrix.start();
+    playBtn.textContent = '\u23F9';
+    playBtn.classList.add('active');
+    workletNode.port.postMessage({ type: 'start' });
+}
+
+function stop() {
+    if (modMatrix) modMatrix.stop();
+    if (pedalboardUI) {
+        pedalboardUI.saveToLocalStorage('velouria-pedalboard');
+    }
+    if (workletNode) {
+        workletNode.port.postMessage({ type: 'stop' });
+        workletNode.disconnect();
+        workletNode = null;
+    }
+    if (pedalboardNode) {
+        pedalboardNode.disconnect();
+        pedalboardNode = null;
+    }
+    if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+    }
+    isPlaying = false;
+    playBtn.textContent = '\u25B6';
+    playBtn.classList.remove('active');
+}
+
+playBtn.onclick = async () => {
+    if (!isPlaying) {
+        await initAudio();
+    } else {
+        stop();
+    }
+};
+
+// MIDI setup
+async function setupMIDI() {
+    try {
+        const midiAccess = await navigator.requestMIDIAccess();
+        const inputs = Array.from(midiAccess.inputs.values());
+
+        if (inputs.length > 0) {
+            document.getElementById('midiStatus').textContent = 'MIDI: ' + inputs[0].name;
+            document.getElementById('midiStatus').classList.add('connected');
+
+            inputs.forEach(input => {
+                input.onmidimessage = (msg) => {
+                    const [status, note, velocity] = msg.data;
+                    const command = status & 0xf0;
+
+                    if (command === 0x90 && velocity > 0) {
+                        workletNode?.port.postMessage({ type: 'noteOn', note, velocity });
+                    } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+                        workletNode?.port.postMessage({ type: 'noteOff', note });
+                    }
+                };
+            });
+        }
+    } catch (e) {
+        console.log('MIDI not available');
+    }
+}
+
+// Scale/Root selection
+document.getElementById('root').onchange = function() {
+    workletNode?.port.postMessage({ type: 'root', value: parseInt(this.value) });
+};
+
+document.getElementById('scale').onchange = function() {
+    workletNode?.port.postMessage({ type: 'scale', value: this.value });
+};
+
+// Toggle buttons
+document.getElementById('mute1Btn').onclick = function() {
+    this.classList.toggle('active');
+    workletNode?.port.postMessage({ type: 'mute1', value: this.classList.contains('active') });
+};
+
+document.getElementById('mute2Btn').onclick = function() {
+    this.classList.toggle('active');
+    workletNode?.port.postMessage({ type: 'mute2', value: this.classList.contains('active') });
+};
+
+document.getElementById('lpg1Btn').onclick = function() {
+    this.classList.toggle('active');
+    workletNode?.port.postMessage({ type: 'lpg1On', value: this.classList.contains('active') });
+};
+
+document.getElementById('lpg2Btn').onclick = function() {
+    this.classList.toggle('active');
+    workletNode?.port.postMessage({ type: 'lpg2On', value: this.classList.contains('active') });
+};
+
+// Parameter controls
+const params = ['bpm', 'meter', 'vol1', 'oct1', 'decay1', 'mult1', 'div1', 'length1', 'range1', 'vari1', 'delDiv1',
+                'vol2', 'oct2', 'decay2', 'mult2', 'div2', 'length2', 'range2', 'vari2', 'delMul2',
+                'ratio2', 'carfbk2', 'modfbk2', 'vol'];
+
+params.forEach(name => {
+    const input = document.getElementById(name);
+    const display = document.getElementById(name + 'Val');
+    if (input && display) {
+        input.oninput = () => {
+            const val = parseFloat(input.value);
+            if (Number.isInteger(val)) {
+                display.textContent = val;
+            } else {
+                display.textContent = val.toFixed(2);
+            }
+            workletNode?.port.postMessage({ type: 'param', name, value: val });
+        };
+    }
+});
+
+// Info panel
+if (typeof ER301InfoPanel !== 'undefined') {
+    new ER301InfoPanel(document.body, {
+        title: 'velouria',
+        author: 'mudlogger',
+        origin: 'ER-301 Hyperscale Units',
+        description: 'Dual-channel generative FM arpeggiator synthesizer. Each channel features an Amie FM synth driven by an Infinity Arp generative arpeggiator. Notes are quantized to a selectable scale and triggered by independent clocks with mult/div ratios. Strike LPG provides organic dynamics, and clocked delays add rhythmic depth.',
+        controls: [
+            { name: 'Root', description: 'Root note of the scale (C through B)' },
+            { name: 'Scale', description: 'Scale/mode: Major, Minor, Dorian, etc.' },
+            { name: 'BPM', range: '1-501', description: 'Master tempo in beats per minute' },
+            { name: 'Meter', range: '0-1', description: 'Clock meter/swing adjustment' },
+            { name: 'Vol 1/2', range: '0-1', description: 'Volume for each channel' },
+            { name: 'Oct 1/2', range: '-2 to 1', description: 'Octave shift for each channel' },
+            { name: 'Decay 1/2', range: '-1 to 1', description: 'LPG envelope decay/bend' },
+            { name: 'Mult/Div', range: '0-32', description: 'Clock multiplier and divider for arp timing' },
+            { name: 'Length', range: '0-64', description: 'Arpeggio sequence length' },
+            { name: 'Range', range: '-3 to 3', description: 'Octave range for generated notes' },
+            { name: 'Vari', range: '0-1', description: 'Note variation/randomness amount' },
+            { name: 'Ratio 2', range: '0-24', description: 'FM modulator/carrier ratio for channel 2' },
+            { name: 'Car FB 2', range: '-1 to 1', description: 'Carrier feedback for channel 2' },
+            { name: 'Mod FB 2', range: '-1 to 1', description: 'Modulator feedback for channel 2' },
+            { name: 'Del Div 1', range: '0-8', description: 'Clocked delay division for channel 1' },
+            { name: 'Del Mul 2', range: '0-8', description: 'Clocked delay multiplier for channel 2' },
+            { name: 'Mute', description: 'Mutes the channel' },
+            { name: 'LPG On', description: 'Enables Strike LPG envelope for plucky dynamics' }
+        ],
+        tips: [
+            'Select a root note and scale to constrain the arpeggiator',
+            'Each channel runs its own generative arpeggiator with independent timing',
+            'Mult/Div controls the clock ratio - try polyrhythmic combinations',
+            'Length determines how many notes before the sequence regenerates',
+            'Range sets how many octaves the arpeggiator spans (negative = down)',
+            'Vari adds random variation to each note - higher = more chaos',
+            'LPG On gives plucky, organic dynamics - off gives sustained tones',
+            'Channel 2 has FM feedback controls - reduce Car FB for cleaner sounds',
+            'Use MIDI to transpose both channels together',
+            'Clocked delays sync to BPM for rhythmic echoes'
+        ]
+    });
+}
+
+// Visualizer
+const canvas = document.getElementById('visualizer');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+    canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+    canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+let analyser;
+function setupAnalyser() {
+    if (!audioContext || analyser) return;
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    workletNode.connect(analyser);
+}
+
+function drawVisualizer() {
+    requestAnimationFrame(drawVisualizer);
+
+    const w = canvas.offsetWidth;
+    const h = canvas.offsetHeight;
+
+    ctx.fillStyle = '#0a0a14';
+    ctx.fillRect(0, 0, w, h);
+
+    if (!analyser || !isPlaying) return;
+
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteFrequencyData(dataArray);
+
+    const barWidth = w / bufferLength * 2;
+    let x = 0;
+
+    for (let i = 0; i < bufferLength; i++) {
+        const barHeight = (dataArray[i] / 255) * h * 0.8;
+
+        const gradient = ctx.createLinearGradient(0, h - barHeight, 0, h);
+        gradient.addColorStop(0, '#9b59b6');
+        gradient.addColorStop(1, '#3498db');
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, h - barHeight, barWidth - 1, barHeight);
+
+        x += barWidth;
+    }
+}
+
+drawVisualizer();
+
+// Setup analyser when audio starts
+const originalInit = initAudio;
+initAudio = async function() {
+    await originalInit();
+    setupAnalyser();
+};
+    </script>
+</body>
+</html>

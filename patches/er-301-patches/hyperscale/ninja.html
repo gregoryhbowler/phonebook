@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ninja - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 70px;
+        }
+        .sample-visualizer {
+            max-width: 800px;
+            width: 100%;
+            margin: 1rem auto;
+        }
+        .sample-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            padding: 0.75rem;
+            background: var(--bg-secondary, #111);
+            border: 1px solid var(--border, #333);
+            border-radius: 8px;
+            max-height: 140px;
+            overflow-y: auto;
+        }
+        .sample-slot {
+            width: 24px;
+            height: 24px;
+            background: var(--bg-card, #1a1a1a);
+            border: 1px solid var(--border, #333);
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem;
+            color: var(--text-secondary, #888);
+            transition: all 0.1s;
+            cursor: default;
+        }
+        .sample-slot.playing {
+            background: #e74c3c;
+            color: white;
+            border-color: #e74c3c;
+            box-shadow: 0 0 8px rgba(231, 76, 60, 0.5);
+            transform: scale(1.15);
+        }
+        .now-playing {
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary, #888);
+            text-align: center;
+        }
+        .sample-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+        .sample-actions button {
+            padding: 0.5em 1em;
+            background: #222;
+            border: 1px solid #444;
+            color: #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        .sample-actions button:hover {
+            background: #333;
+            border-color: #e74c3c;
+        }
+        .status-display {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .status-card {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 10px 16px;
+            text-align: center;
+            min-width: 55px;
+        }
+        .status-card .label {
+            font-size: 0.55em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .status-card .value {
+            font-size: 0.95em;
+            color: #e74c3c;
+            font-family: 'SF Mono', monospace;
+        }
+        .indicator {
+            width: 10px;
+            height: 10px;
+            background: #333;
+            border-radius: 50%;
+            display: inline-block;
+            transition: all 0.05s;
+        }
+        .indicator.active {
+            background: #e74c3c;
+            box-shadow: 0 0 8px rgba(231, 76, 60, 0.7);
+        }
+        .tap-btn {
+            padding: 0.5em 1.5em;
+            background: #1a1a1a;
+            border: 2px solid #e74c3c;
+            color: #e74c3c;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: bold;
+            transition: all 0.1s;
+        }
+        .tap-btn:hover, .tap-btn:active {
+            background: #e74c3c;
+            color: white;
+        }
+        .tap-btn.flash {
+            background: #e74c3c;
+            color: white;
+        }
+        .toggle-btn {
+            padding: 0.4em 1em;
+            background: #1a1a1a;
+            border: 2px solid #e74c3c;
+            color: #e74c3c;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.1s;
+        }
+        .toggle-btn.active {
+            background: #e74c3c;
+            color: white;
+        }
+        .trigger-btn {
+            padding: 0.8em 2em;
+            background: #1a1a1a;
+            border: 2px solid #e74c3c;
+            color: #e74c3c;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: all 0.1s;
+        }
+        .trigger-btn:hover, .trigger-btn:active {
+            background: #e74c3c;
+            color: white;
+        }
+        .midi-hint {
+            font-size: 0.7em;
+            color: #666;
+            text-align: center;
+            margin-top: 0.5em;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>ninja</h1>
+                <p>Ninja Kit with clocked stretch, random modulation, clocked delay - MIDI playable</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Status Display -->
+            <div class="status-display">
+                <div class="status-card">
+                    <div class="label">Samples</div>
+                    <div class="value" id="sampleCount">0</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Gate</div>
+                    <div class="value"><span class="indicator" id="gateIndicator"></span></div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Stretch</div>
+                    <div class="value"><span class="indicator" id="stretchIndicator"></span></div>
+                </div>
+                <div class="status-card">
+                    <div class="label">BPM</div>
+                    <div class="value" id="bpmDisplay">120</div>
+                </div>
+            </div>
+
+            <!-- Sample Grid -->
+            <div class="sample-visualizer">
+                <div class="sample-grid" id="sampleGrid"></div>
+                <div class="now-playing" id="nowPlaying">Ready - Load samples to begin</div>
+            </div>
+
+            <!-- Manual Trigger & Tap Tempo -->
+            <div style="text-align: center; margin-bottom: 1em; display: flex; gap: 1em; justify-content: center; flex-wrap: wrap;">
+                <button class="trigger-btn" id="triggerBtn">TRIGGER</button>
+                <button class="tap-btn" id="tapBtn">TAP TEMPO</button>
+            </div>
+            <div class="midi-hint">MIDI notes trigger samples (velocity affects intensity)</div>
+
+            <!-- Sample Range -->
+            <span class="section-label">Sample Selection</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Range</label>
+                        <input type="range" id="range" min="0" max="1" value="1" step="0.01">
+                        <span class="param-value" id="rangeVal">1.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clock & Probability -->
+            <span class="section-label">Clock &amp; Probability</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Prob</label>
+                        <input type="range" id="prob" min="0" max="1" value="0.8" step="0.01">
+                        <span class="param-value" id="probVal">0.80</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mul</label>
+                        <input type="range" id="mul" min="1" max="8" value="1" step="1">
+                        <span class="param-value" id="mulVal">1</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Div</label>
+                        <input type="range" id="div" min="1" max="32" value="15" step="1">
+                        <span class="param-value" id="divVal">15</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Div Prob</label>
+                        <input type="range" id="divProb" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="divProbVal">0.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Speed & Stretch -->
+            <span class="section-label">Speed &amp; Stretch</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Speed</label>
+                        <input type="range" id="sp" min="0.25" max="4" value="1" step="0.01">
+                        <span class="param-value" id="spVal">1.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Random Modulation -->
+            <span class="section-label">Random Modulation</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>RProb</label>
+                        <input type="range" id="rprob" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="rprobVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>RMul</label>
+                        <input type="range" id="rnul" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="rnulVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>RDiv</label>
+                        <input type="range" id="rdiv" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="rdivVal">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clocked Delay -->
+            <span class="section-label">Clocked Delay</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Time</label>
+                        <input type="range" id="delayTime" min="0.1" max="1" value="0.25" step="0.01">
+                        <span class="param-value" id="delayTimeVal">0.25</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="delayFb" min="0" max="0.9" value="0.4" step="0.01">
+                        <span class="param-value" id="delayFbVal">0.40</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mix</label>
+                        <input type="range" id="delayMix" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="delayMixVal">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="vol" min="0" max="1" value="0.8" step="0.01">
+                        <span class="param-value" id="volVal">0.80</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sample Import -->
+            <div class="sample-actions">
+                <input type="file" id="sampleInput" multiple accept="audio/*" style="display:none;">
+                <button id="importBtn">Import Samples</button>
+                <button id="clearBtn">Clear Samples</button>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        const processorCode = `
+// ============================================================================
+// SLEW LIMITER
+// ============================================================================
+class SlewLimiter {
+    constructor(time, sr) {
+        this.sr = sr;
+        this.setTime(time);
+        this.value = 0;
+    }
+
+    setTime(time) {
+        this.rate = 1 / (time * this.sr + 1);
+    }
+
+    process(target) {
+        const diff = target - this.value;
+        this.value += diff * this.rate;
+        return this.value;
+    }
+}
+
+// ============================================================================
+// PINGABLE SCALED RANDOM
+// ============================================================================
+class PingableScaledRandom {
+    constructor() {
+        this.value = 0.5;
+        this.target = 0.5;
+        this.min = 0;
+        this.max = 1;
+    }
+
+    ping() {
+        this.target = this.min + Math.random() * (this.max - this.min);
+    }
+
+    setRange(min, max) {
+        this.min = min;
+        this.max = max;
+    }
+
+    process(slew) {
+        this.value += (this.target - this.value) * slew;
+        return this.value;
+    }
+}
+
+// ============================================================================
+// CLOCKED RANDOM GATE
+// ============================================================================
+class ClockedRandomGate {
+    constructor(sr) {
+        this.sr = sr;
+        this.phase = 0;
+        this.rate = 2;
+        this.prob = 0.8;
+        this.gateOpen = false;
+    }
+
+    setRate(r) { this.rate = Math.max(0.1, r); }
+    setProb(p) { this.prob = p; }
+
+    process() {
+        this.phase += this.rate / this.sr;
+
+        let triggered = false;
+        if (this.phase >= 1) {
+            this.phase -= 1;
+            if (Math.random() < this.prob) {
+                triggered = true;
+                this.gateOpen = true;
+            }
+        }
+
+        if (this.phase > 0.5) {
+            this.gateOpen = false;
+        }
+
+        return triggered;
+    }
+}
+
+// ============================================================================
+// CLOCKED STRETCH
+// ============================================================================
+class ClockedStretch {
+    constructor(sr) {
+        this.sr = sr;
+        this.grainSize = 0.05;
+        this.grainPhase = 0;
+        this.stretchAmount = 1;
+    }
+
+    setStretch(s) { this.stretchAmount = Math.max(0.25, s); }
+    setGrainSize(g) { this.grainSize = Math.max(0.01, g); }
+
+    process(position, sampleLength) {
+        // Grain window for time stretching
+        this.grainPhase += 1 / (this.grainSize * this.sr);
+        if (this.grainPhase >= 1) this.grainPhase = 0;
+
+        const grainEnv = Math.sin(this.grainPhase * Math.PI);
+        return { envelope: grainEnv, stretch: this.stretchAmount };
+    }
+}
+
+// ============================================================================
+// CLOCKED DELAY
+// ============================================================================
+class ClockedDelay {
+    constructor(sr, maxTime) {
+        this.sr = sr;
+        this.buffer = new Float32Array(Math.ceil(maxTime * sr) + 1);
+        this.writeIdx = 0;
+        this.delayTime = 0.25;
+        this.feedback = 0.4;
+    }
+
+    setTime(t) { this.delayTime = Math.max(0.01, t); }
+    setFeedback(fb) { this.feedback = Math.min(0.95, fb); }
+
+    process(input) {
+        const delaySamples = this.delayTime * this.sr;
+        let readIdx = this.writeIdx - delaySamples;
+        if (readIdx < 0) readIdx += this.buffer.length;
+
+        const idx0 = Math.floor(readIdx);
+        const idx1 = (idx0 + 1) % this.buffer.length;
+        const frac = readIdx - idx0;
+
+        const delayed = this.buffer[idx0] * (1 - frac) + this.buffer[idx1] * frac;
+
+        this.buffer[this.writeIdx] = input + delayed * this.feedback;
+        this.writeIdx = (this.writeIdx + 1) % this.buffer.length;
+
+        return delayed;
+    }
+}
+
+// ============================================================================
+// CPR COMPRESSOR
+// ============================================================================
+class CPR {
+    constructor(sr) {
+        this.sr = sr;
+        this.envelope = 0;
+        this.attackCoef = Math.exp(-1 / (sr * 0.005));
+        this.releaseCoef = Math.exp(-1 / (sr * 0.1));
+        this.threshold = 0.5;
+        this.ratio = 4;
+        this.makeupGain = 1.5;
+    }
+
+    process(input) {
+        const inputLevel = Math.abs(input);
+        if (inputLevel > this.envelope) {
+            this.envelope = this.attackCoef * this.envelope + (1 - this.attackCoef) * inputLevel;
+        } else {
+            this.envelope = this.releaseCoef * this.envelope + (1 - this.releaseCoef) * inputLevel;
+        }
+        let gain = 1;
+        if (this.envelope > this.threshold) {
+            const excess = this.envelope - this.threshold;
+            const compressed = excess / this.ratio;
+            gain = (this.threshold + compressed) / this.envelope;
+        }
+        return input * gain * this.makeupGain;
+    }
+}
+
+// ============================================================================
+// NINJA PROCESSOR
+// ============================================================================
+class NinjaProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+        this.playing = false;
+        this.samples = [];
+        this.sampleNames = [];
+
+        // Current sample
+        this.currentSample = null;
+        this.samplePosition = 0;
+        this.currentSampleIndex = -1;
+        this.velocity = 1;
+
+        // BPM
+        this.bpm = 120;
+        this.clockRate = 2;
+
+        // Gate
+        this.gate = new ClockedRandomGate(this.sr);
+
+        // Random modulators
+        this.pitchRandom = new PingableScaledRandom();
+        this.divRandom = new PingableScaledRandom();
+        this.probRandom = new PingableScaledRandom();
+        this.pitchSlew = new SlewLimiter(0.024, this.sr);
+
+        // Stretch
+        this.stretch = new ClockedStretch(this.sr);
+        this.stretchActive = false;
+
+        // Delay
+        this.delayL = new ClockedDelay(this.sr, 2);
+        this.delayR = new ClockedDelay(this.sr, 2);
+
+        // CPR
+        this.compressor = new CPR(this.sr);
+
+        // Params
+        this.params = {
+            range: 1,
+            prob: 0.8,
+            mul: 1,
+            div: 15,
+            divProb: 0.5,
+            sp: 1,
+            rprob: 0.5,
+            rnul: 0.3,
+            rdiv: 0.3,
+            delayTime: 0.25,
+            delayFb: 0.4,
+            delayMix: 0.3,
+            vol: 0.8
+        };
+
+        this.uiCounter = 0;
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'start') this.playing = true;
+            if (e.data.type === 'stop') this.playing = false;
+            if (e.data.type === 'param') {
+                this.params[e.data.name] = e.data.value;
+            }
+            if (e.data.type === 'bpm') {
+                this.bpm = e.data.bpm;
+                this.clockRate = this.bpm / 60;
+            }
+            if (e.data.type === 'trigger') {
+                this.triggerSample(e.data.velocity || 1);
+            }
+            if (e.data.type === 'midiNote') {
+                this.triggerMidiNote(e.data.note, e.data.velocity);
+            }
+            if (e.data.type === 'loadSamples') {
+                this.samples = e.data.samples;
+                this.sampleNames = e.data.names || [];
+            }
+            if (e.data.type === 'clearSamples') {
+                this.samples = [];
+                this.sampleNames = [];
+                this.currentSample = null;
+            }
+        };
+    }
+
+    triggerMidiNote(note, velocity) {
+        if (this.samples.length === 0) return;
+
+        // Map MIDI note to sample index
+        const baseNote = 36; // C2
+        const noteOffset = note - baseNote;
+        const idx = Math.max(0, Math.min(noteOffset, this.samples.length - 1));
+
+        this.currentSample = this.samples[idx];
+        this.currentSampleIndex = idx;
+        this.samplePosition = 0;
+        this.velocity = velocity / 127;
+
+        // Random modulation
+        this.pitchRandom.ping();
+        this.divRandom.ping();
+
+        // Random stretch activation
+        this.stretchActive = Math.random() < this.params.rprob;
+
+        this.port.postMessage({
+            type: 'sampleTriggered',
+            index: idx
+        });
+    }
+
+    triggerSample(velocity = 1) {
+        if (this.samples.length === 0) return;
+
+        // Use range to select from sample bank
+        const maxIdx = Math.floor(this.samples.length * this.params.range);
+        const idx = Math.floor(Math.random() * Math.max(1, maxIdx));
+
+        this.currentSample = this.samples[idx];
+        this.currentSampleIndex = idx;
+        this.samplePosition = 0;
+        this.velocity = velocity;
+
+        // Random modulation
+        this.pitchRandom.ping();
+        this.divRandom.ping();
+
+        // Random stretch activation
+        this.stretchActive = Math.random() < this.params.rprob;
+
+        this.port.postMessage({
+            type: 'sampleTriggered',
+            index: idx
+        });
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1];
+
+        if (!this.playing) {
+            outL.fill(0);
+            outR.fill(0);
+            return true;
+        }
+
+        // Calculate effective rate with division probability
+        const divMod = Math.random() < this.params.divProb ? this.params.div : 1;
+        const effectiveRate = this.clockRate * this.params.mul / divMod;
+        this.gate.setRate(effectiveRate);
+
+        // Probability modulated by random
+        const probMod = this.probRandom.process(0.01) * this.params.rprob;
+        this.gate.setProb(Math.max(0, Math.min(1, this.params.prob + probMod)));
+
+        // Delay synced to BPM
+        const beatTime = 60 / this.bpm;
+        this.delayL.setTime(this.params.delayTime * beatTime);
+        this.delayR.setTime(this.params.delayTime * beatTime * 1.05);
+        this.delayL.setFeedback(this.params.delayFb);
+        this.delayR.setFeedback(this.params.delayFb);
+
+        let gateState = false;
+
+        for (let i = 0; i < outL.length; i++) {
+            const trig = this.gate.process();
+            gateState = this.gate.gateOpen;
+
+            if (trig) {
+                this.triggerSample();
+            }
+
+            // Sample playback
+            let sampleOut = 0;
+            if (this.currentSample) {
+                const idx = Math.floor(this.samplePosition);
+                if (idx >= 0 && idx < this.currentSample.length - 1) {
+                    const frac = this.samplePosition - idx;
+                    const s0 = this.currentSample[idx];
+                    const s1 = this.currentSample[idx + 1];
+                    sampleOut = s0 + frac * (s1 - s0);
+
+                    // Apply velocity
+                    sampleOut *= this.velocity;
+
+                    // Speed with random modulation
+                    const randMod = this.pitchRandom.process(0.01) * this.params.rnul;
+                    let speed = this.params.sp * (1 + randMod);
+
+                    // Stretch effect
+                    if (this.stretchActive) {
+                        const stretchInfo = this.stretch.process(this.samplePosition, this.currentSample.length);
+                        sampleOut *= stretchInfo.envelope;
+                        speed *= 0.5; // Slow down during stretch
+                    }
+
+                    this.samplePosition += speed;
+                }
+            }
+
+            // Stereo spread based on random div
+            const divMod = this.divRandom.process(0.01) * this.params.rdiv;
+            const stereoSpread = divMod * 0.3;
+
+            let sigL = sampleOut * (1 + stereoSpread);
+            let sigR = sampleOut * (1 - stereoSpread);
+
+            // Delay
+            const delayedL = this.delayL.process(sigL);
+            const delayedR = this.delayR.process(sigR);
+            sigL = sigL * (1 - this.params.delayMix) + delayedL * this.params.delayMix;
+            sigR = sigR * (1 - this.params.delayMix) + delayedR * this.params.delayMix;
+
+            // Compression
+            sigL = this.compressor.process(sigL);
+            sigR = this.compressor.process(sigR);
+
+            // Volume and limit
+            sigL *= this.params.vol;
+            sigR *= this.params.vol;
+
+            outL[i] = Math.tanh(sigL);
+            outR[i] = Math.tanh(sigR);
+        }
+
+        // UI updates
+        this.uiCounter++;
+        if (this.uiCounter >= 256) {
+            this.uiCounter = 0;
+            this.port.postMessage({
+                type: 'status',
+                gate: gateState,
+                stretch: this.stretchActive
+            });
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('ninja-processor', NinjaProcessor);
+`;
+
+        let audioContext, workletNode, pedalboard;
+        let isPlaying = false;
+        let samples = [];
+        let sampleNames = [];
+        let currentPlayingIndex = -1;
+        let tapTimes = [];
+        let midiAccess = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const tapBtn = document.getElementById('tapBtn');
+        const triggerBtn = document.getElementById('triggerBtn');
+        const sampleGrid = document.getElementById('sampleGrid');
+        const nowPlaying = document.getElementById('nowPlaying');
+        const sampleCountEl = document.getElementById('sampleCount');
+        const bpmDisplayEl = document.getElementById('bpmDisplay');
+        const gateIndicator = document.getElementById('gateIndicator');
+        const stretchIndicator = document.getElementById('stretchIndicator');
+        const importBtn = document.getElementById('importBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const sampleInput = document.getElementById('sampleInput');
+
+        // Manual trigger
+        triggerBtn.addEventListener('mousedown', () => {
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'trigger', velocity: 1 });
+            }
+        });
+
+        // Keyboard trigger (spacebar or keys 1-9)
+        document.addEventListener('keydown', (e) => {
+            if (!workletNode || e.repeat) return;
+
+            if (e.code === 'Space') {
+                e.preventDefault();
+                workletNode.port.postMessage({ type: 'trigger', velocity: 1 });
+            } else if (e.key >= '1' && e.key <= '9') {
+                const sampleIdx = parseInt(e.key) - 1;
+                if (sampleIdx < samples.length) {
+                    workletNode.port.postMessage({ type: 'midiNote', note: 36 + sampleIdx, velocity: 100 });
+                }
+            }
+        });
+
+        // MIDI setup
+        async function setupMIDI() {
+            try {
+                midiAccess = await navigator.requestMIDIAccess();
+                midiAccess.inputs.forEach(input => {
+                    input.onmidimessage = handleMIDI;
+                });
+                midiAccess.onstatechange = () => {
+                    midiAccess.inputs.forEach(input => {
+                        input.onmidimessage = handleMIDI;
+                    });
+                };
+            } catch (e) {
+                console.log('MIDI not available');
+            }
+        }
+
+        function handleMIDI(e) {
+            const [status, note, velocity] = e.data;
+            const command = status & 0xf0;
+
+            if (command === 0x90 && velocity > 0) {
+                // Note on
+                if (workletNode) {
+                    workletNode.port.postMessage({ type: 'midiNote', note, velocity });
+                }
+            }
+        }
+
+        // Tap tempo
+        tapBtn.addEventListener('click', () => {
+            const now = Date.now();
+            tapTimes.push(now);
+            if (tapTimes.length > 4) tapTimes.shift();
+
+            tapBtn.classList.add('flash');
+            setTimeout(() => tapBtn.classList.remove('flash'), 100);
+
+            if (tapTimes.length >= 2) {
+                let totalInterval = 0;
+                for (let i = 1; i < tapTimes.length; i++) {
+                    totalInterval += tapTimes[i] - tapTimes[i-1];
+                }
+                const avgInterval = totalInterval / (tapTimes.length - 1);
+                const bpm = Math.round(60000 / avgInterval);
+
+                if (bpm >= 40 && bpm <= 300) {
+                    bpmDisplayEl.textContent = bpm;
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'bpm', bpm: bpm });
+                    }
+                }
+            }
+
+            if (tapTimes.length >= 2) {
+                const lastGap = tapTimes[tapTimes.length - 1] - tapTimes[tapTimes.length - 2];
+                if (lastGap > 2000) tapTimes = [now];
+            }
+        });
+
+        // Parameters
+        const params = [
+            'range', 'prob', 'mul', 'div', 'divProb', 'sp',
+            'rprob', 'rnul', 'rdiv',
+            'delayTime', 'delayFb', 'delayMix', 'vol'
+        ];
+
+        params.forEach(param => {
+            const el = document.getElementById(param);
+            const valEl = document.getElementById(param + 'Val');
+            if (el && valEl) {
+                el.addEventListener('input', () => {
+                    const v = parseFloat(el.value);
+                    valEl.textContent = v.toFixed(el.step.includes('.') ? el.step.split('.')[1].length : 0);
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'param', name: param, value: v });
+                    }
+                });
+            }
+        });
+
+        function updateSampleGrid() {
+            sampleGrid.innerHTML = '';
+            samples.forEach((_, idx) => {
+                const slot = document.createElement('div');
+                slot.className = 'sample-slot';
+                slot.textContent = idx + 1;
+                slot.id = 'slot-' + idx;
+                sampleGrid.appendChild(slot);
+            });
+            sampleCountEl.textContent = samples.length;
+        }
+
+        async function loadDefaultSamples() {
+            const samplePath = '../samples/hyperscale/ninja/';
+            const sampleFiles = [
+                'Ninja Kick1.wav', 'Ninja Kick2.wav', 'Ninja Kick3.wav', 'Ninja Kick4.wav', 'Ninja Kick5.wav',
+                'Ninja Open Kick.wav',
+                'Ninja Snare1.wav', 'Ninja Snare2.wav', 'Ninja Snare3.wav', 'Ninja Snare4.wav', 'Ninja Snare5.wav',
+                'Ninja Snare6.wav', 'Ninja Snare7.wav', 'Ninja Snare8.wav', 'Ninja Snare9.wav', 'Ninja Snare10.wav',
+                'Ninja Snare11.wav',
+                'Ninja CH1.wav', 'Ninja CH2.wav', 'Ninja CH3.wav', 'Ninja CH4.wav', 'Ninja CH5.wav',
+                'Ninja CH6.wav', 'Ninja CH7.wav', 'Ninja CH8.wav',
+                'Ninja OH1.wav', 'Ninja OH2.wav', 'Ninja OH3.wav', 'Ninja OH4.wav',
+                'Ninja Cymbal3.wav', 'Ninja Cymbal4.wav', 'Ninja Cymbal5.wav', 'Ninja Cymbal6.wav',
+                'Ninja Cymbal7.wav', 'Ninja Cymbal8.wav',
+                'Ninja Knock1.wav', 'Ninja Knock2.wav', 'Ninja Knock3.wav', 'Ninja Knock4.wav', 'Ninja Knock5.wav',
+                'Ninja Knock6.wav', 'Ninja Knock7.wav', 'Ninja Knock8.wav', 'Ninja Knock9.wav',
+                'Ninja Rev1.wav', 'Ninja Rev2.wav', 'Ninja Rev3.wav', 'Ninja Rev4.wav', 'Ninja Rev5.wav',
+                'Ninja Shaker1.wav', 'Ninja Shaker2.wav',
+                'Ninja Stick1.wav', 'Ninja Stick2.wav',
+                'Ninja Sword1.wav'
+            ];
+
+            nowPlaying.textContent = `Loading ${sampleFiles.length} samples...`;
+            samples = [];
+            sampleNames = [];
+
+            let loaded = 0;
+            for (const file of sampleFiles) {
+                try {
+                    const response = await fetch(samplePath + encodeURIComponent(file));
+                    if (response.ok) {
+                        const arrayBuffer = await response.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        samples.push(audioBuffer.getChannelData(0));
+                        sampleNames.push(file.replace('.wav', '').replace('Ninja ', ''));
+                        loaded++;
+                        nowPlaying.textContent = `Loading... ${loaded}/${sampleFiles.length}`;
+                    }
+                } catch (e) {
+                    console.log('Sample not found:', file);
+                }
+            }
+
+            if (samples.length > 0) {
+                workletNode.port.postMessage({ type: 'loadSamples', samples, names: sampleNames });
+                nowPlaying.textContent = `${samples.length} Ninja samples loaded`;
+            } else {
+                nowPlaying.textContent = 'No default samples - Import your own';
+            }
+            updateSampleGrid();
+        }
+
+        importBtn.addEventListener('click', () => sampleInput.click());
+
+        sampleInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+
+            nowPlaying.textContent = `Loading ${files.length} samples...`;
+            samples = [];
+            sampleNames = [];
+
+            for (const file of files) {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    samples.push(audioBuffer.getChannelData(0));
+                    sampleNames.push(file.name.replace(/\.[^.]+$/, ''));
+                } catch (e) {
+                    console.error('Error loading:', file.name, e);
+                }
+            }
+
+            if (workletNode && samples.length > 0) {
+                workletNode.port.postMessage({ type: 'loadSamples', samples, names: sampleNames });
+            }
+            nowPlaying.textContent = `${samples.length} samples loaded`;
+            updateSampleGrid();
+            sampleInput.value = '';
+        });
+
+        clearBtn.addEventListener('click', () => {
+            samples = [];
+            sampleNames = [];
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'clearSamples' });
+            }
+            updateSampleGrid();
+            nowPlaying.textContent = 'Samples cleared - Import new samples';
+        });
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'ninja-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'sampleTriggered') {
+                    const prevSlot = document.getElementById('slot-' + currentPlayingIndex);
+                    if (prevSlot) prevSlot.classList.remove('playing');
+
+                    currentPlayingIndex = e.data.index;
+                    const slot = document.getElementById('slot-' + currentPlayingIndex);
+                    if (slot) slot.classList.add('playing');
+
+                    if (sampleNames[currentPlayingIndex]) {
+                        nowPlaying.textContent = sampleNames[currentPlayingIndex];
+                    }
+                }
+                if (e.data.type === 'status') {
+                    gateIndicator.classList.toggle('active', e.data.gate);
+                    stretchIndicator.classList.toggle('active', e.data.stretch);
+                }
+            };
+
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboard = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'ninja-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-ninja'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-ninja');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-ninja',
+                    prefix: 'ninja',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+            fxNodeRef = fxNode;
+
+            params.forEach(param => {
+                const el = document.getElementById(param);
+                if (el) {
+                    workletNode.port.postMessage({
+                        type: 'param',
+                        name: param,
+                        value: parseFloat(el.value)
+                    });
+                }
+            });
+
+            workletNode.port.postMessage({ type: 'bpm', bpm: 120 });
+
+            await loadDefaultSamples();
+            await setupMIDI();
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+            }
+
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            isPlaying = !isPlaying;
+            playBtn.innerHTML = isPlaying ? '&#9632;' : '&#9654;';
+            workletNode.port.postMessage({ type: isPlaying ? 'start' : 'stop' });
+        });
+
+        // Visualization
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        let analyser, fxNodeRef;
+        function setupAnalyser() {
+            if (!audioContext || !fxNodeRef) return;
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            fxNodeRef.connect(analyser);
+        }
+
+        function draw() {
+            requestAnimationFrame(draw);
+
+            const w = canvas.offsetWidth;
+            const h = canvas.offsetHeight;
+
+            ctx.fillStyle = '#0a0a0f';
+            ctx.fillRect(0, 0, w, h);
+
+            if (!analyser) {
+                if (audioContext && fxNodeRef) setupAnalyser();
+                return;
+            }
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            const barWidth = w / bufferLength;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const barHeight = (dataArray[i] / 255) * h * 0.8;
+                const hue = 0 + (dataArray[i] / 255) * 20;
+                ctx.fillStyle = `hsl(${hue}, 70%, ${25 + dataArray[i] / 8}%)`;
+                ctx.fillRect(i * barWidth, h - barHeight, barWidth - 1, barHeight);
+            }
+        }
+
+        draw();
+
+        // Info panel
+        ER301InfoPanel.create({
+            title: 'ninja',
+            sections: [
+                {
+                    title: 'Overview',
+                    content: `ninja is a MIDI-playable drum machine using the Ninja Kit (54 samples - kicks, snares, hats, cymbals, knocks, sword sounds).
+Features clocked stretch, random modulation, clocked delay, and tap tempo. Full MIDI support for triggering samples.`
+                },
+                {
+                    title: 'Triggering',
+                    content: `<strong>TRIGGER button:</strong> Manual sample trigger<br>
+<strong>Spacebar:</strong> Quick trigger<br>
+<strong>Keys 1-9:</strong> Trigger specific samples<br>
+<strong>MIDI notes:</strong> C2 and up map to samples in order<br>
+Velocity affects sample loudness.`
+                },
+                {
+                    title: 'Sample Selection',
+                    content: `<strong>Range:</strong> Limits random selection to first N% of samples<br>
+Lower values focus on kicks/snares, higher values include all sounds.`
+                },
+                {
+                    title: 'Clock & Probability',
+                    content: `<strong>Prob:</strong> Probability of auto-triggering<br>
+<strong>Mul:</strong> Clock multiplier (faster triggers)<br>
+<strong>Div:</strong> Clock divider (slower triggers)<br>
+<strong>Div Prob:</strong> Probability of applying division`
+                },
+                {
+                    title: 'Speed & Stretch',
+                    content: `<strong>Speed:</strong> Sample playback speed (affects pitch)<br>
+Clocked Stretch provides grain-based time manipulation.`
+                },
+                {
+                    title: 'Random Modulation',
+                    content: `<strong>RProb:</strong> Probability of stretch activation<br>
+<strong>RMul:</strong> Random pitch modulation amount<br>
+<strong>RDiv:</strong> Random stereo spread amount`
+                },
+                {
+                    title: 'Clocked Delay',
+                    content: `<strong>Time:</strong> Delay time (synced to BPM)<br>
+<strong>Feedback:</strong> Delay feedback<br>
+<strong>Mix:</strong> Wet/dry blend`
+                },
+                {
+                    title: 'Sample Kit: Ninja',
+                    content: `54 samples including:<br>
+• Kicks (6 including Open Kick)<br>
+• Snares (11)<br>
+• Closed Hats (8)<br>
+• Open Hats (4)<br>
+• Cymbals (6)<br>
+• Knocks (9)<br>
+• Reverbs (5)<br>
+• Shakers (2), Sticks (2), Sword (1)`
+                },
+                {
+                    title: 'Tips',
+                    content: `• Use MIDI keyboard for expressive drum performance<br>
+• Lower Range for focused kick/snare patterns<br>
+• RProb controls how often stretch effect engages<br>
+• High Div values create sparse, spacious patterns<br>
+• The Sword sample makes great accent hits`
+                }
+            ]
+        });
+    </script>
+</body>
+</html>

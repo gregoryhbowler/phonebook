@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>grove - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 70px;
+        }
+        .status-display {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .status-card {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 10px 16px;
+            text-align: center;
+            min-width: 70px;
+        }
+        .status-card .label {
+            font-size: 0.6em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .status-card .value {
+            font-size: 1em;
+            color: #f39c12;
+            font-family: 'SF Mono', monospace;
+        }
+        .gate-indicator {
+            width: 12px;
+            height: 12px;
+            background: #333;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 8px;
+            transition: all 0.05s;
+        }
+        .gate-indicator.active {
+            background: #f39c12;
+            box-shadow: 0 0 10px rgba(243, 156, 18, 0.7);
+        }
+        .midi-status {
+            text-align: center;
+            font-size: 0.75em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+        .midi-status.connected {
+            color: #f39c12;
+        }
+        .osc-section {
+            display: flex;
+            gap: 1em;
+        }
+        .osc-panel {
+            flex: 1;
+            background: rgba(0,0,0,0.2);
+            padding: 0.5em;
+            border-radius: 6px;
+        }
+        .osc-panel h4 {
+            margin: 0 0 0.5em 0;
+            font-size: 0.8em;
+            color: #f39c12;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>grove</h1>
+                <p>West Coast dual formant oscillator with LPG, modulation envelope, filter and delay</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="midi-status" id="midiStatus">MIDI: Connect a controller to play</div>
+
+            <!-- Status Display -->
+            <div class="status-display">
+                <div class="status-card">
+                    <div class="label">Gate</div>
+                    <div class="value"><span class="gate-indicator" id="gateIndicator"></span></div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Freq</div>
+                    <div class="value" id="freqDisplay">440 Hz</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">LPG</div>
+                    <div class="value" id="lpgDisplay">0.00</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Env</div>
+                    <div class="value" id="envDisplay">0.00</div>
+                </div>
+            </div>
+
+            <!-- Pitch Section -->
+            <span class="section-label">Pitch</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Pitch</label>
+                        <input type="range" id="pitch" min="-24" max="24" value="0" step="1">
+                        <span class="param-value" id="pitchVal">0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Glide</label>
+                        <input type="range" id="glide" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="glideVal">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>FM 2→1</label>
+                        <input type="range" id="fm" min="0" max="1" value="0.1" step="0.01">
+                        <span class="param-value" id="fmVal">0.10</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Oscillators Section -->
+            <span class="section-label">Formant Oscillators</span>
+            <div class="param-controls">
+                <div class="osc-section">
+                    <div class="osc-panel">
+                        <h4>Osc 1</h4>
+                        <div class="param-row">
+                            <div class="param-group">
+                                <label>Freq</label>
+                                <input type="range" id="freq1" min="20" max="2000" value="440" step="1">
+                                <span class="param-value" id="freq1Val">440</span>
+                            </div>
+                            <div class="param-group">
+                                <label>Formant</label>
+                                <input type="range" id="fmnt1" min="0" max="1" value="0.5" step="0.01">
+                                <span class="param-value" id="fmnt1Val">0.50</span>
+                            </div>
+                        </div>
+                        <div class="param-row">
+                            <div class="param-group">
+                                <label>Shape</label>
+                                <input type="range" id="shape1" min="0" max="1" value="0.5" step="0.01">
+                                <span class="param-value" id="shape1Val">0.50</span>
+                            </div>
+                            <div class="param-group">
+                                <label>Vol</label>
+                                <input type="range" id="vol1" min="0" max="1" value="0.5" step="0.01">
+                                <span class="param-value" id="vol1Val">0.50</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="osc-panel">
+                        <h4>Osc 2</h4>
+                        <div class="param-row">
+                            <div class="param-group">
+                                <label>Freq</label>
+                                <input type="range" id="freq2" min="20" max="2000" value="220" step="1">
+                                <span class="param-value" id="freq2Val">220</span>
+                            </div>
+                            <div class="param-group">
+                                <label>Formant</label>
+                                <input type="range" id="fmnt2" min="0" max="1" value="0.5" step="0.01">
+                                <span class="param-value" id="fmnt2Val">0.50</span>
+                            </div>
+                        </div>
+                        <div class="param-row">
+                            <div class="param-group">
+                                <label>Shape</label>
+                                <input type="range" id="shape2" min="0" max="1" value="0.5" step="0.01">
+                                <span class="param-value" id="shape2Val">0.50</span>
+                            </div>
+                            <div class="param-group">
+                                <label>Vol</label>
+                                <input type="range" id="vol2" min="0" max="1" value="0.3" step="0.01">
+                                <span class="param-value" id="vol2Val">0.30</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Noise Section -->
+            <span class="section-label">Noise</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>White</label>
+                        <input type="range" id="white" min="0" max="1" value="0.1" step="0.01">
+                        <span class="param-value" id="whiteVal">0.10</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Pink</label>
+                        <input type="range" id="pink" min="0" max="1" value="0.11" step="0.01">
+                        <span class="param-value" id="pinkVal">0.11</span>
+                    </div>
+                    <div class="param-group">
+                        <label>BP Freq</label>
+                        <input type="range" id="bpFreq" min="100" max="8000" value="2000" step="10">
+                        <span class="param-value" id="bpFreqVal">2000</span>
+                    </div>
+                    <div class="param-group">
+                        <label>BP Q</label>
+                        <input type="range" id="bpQ" min="0.1" max="10" value="2" step="0.1">
+                        <span class="param-value" id="bpQVal">2.0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LPG Section -->
+            <span class="section-label">Low Pass Gate</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Rise</label>
+                        <input type="range" id="lpgRise" min="0" max="1" value="0.01" step="0.001">
+                        <span class="param-value" id="lpgRiseVal">0.01</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Fall</label>
+                        <input type="range" id="lpgFall" min="0" max="2" value="0.5" step="0.01">
+                        <span class="param-value" id="lpgFallVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Bend</label>
+                        <input type="range" id="lpgBend" min="-1" max="1" value="-0.57" step="0.01">
+                        <span class="param-value" id="lpgBendVal">-0.57</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Height</label>
+                        <input type="range" id="lpgHeight" min="0" max="1" value="0.8" step="0.01">
+                        <span class="param-value" id="lpgHeightVal">0.80</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mod Env Section -->
+            <span class="section-label">Mod Envelope</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Cycle</label>
+                        <input type="checkbox" id="cycle">
+                    </div>
+                    <div class="param-group">
+                        <label>Rise</label>
+                        <input type="range" id="modRise" min="0" max="2" value="0.1" step="0.01">
+                        <span class="param-value" id="modRiseVal">0.10</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Fall</label>
+                        <input type="range" id="modFall" min="0" max="5" value="1.99" step="0.01">
+                        <span class="param-value" id="modFallVal">1.99</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Height</label>
+                        <input type="range" id="modHeight" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="modHeightVal">0.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Section -->
+            <span class="section-label">Bique Filter</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Cutoff</label>
+                        <input type="range" id="lpFreq" min="100" max="12000" value="4000" step="10">
+                        <span class="param-value" id="lpFreqVal">4000</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Q</label>
+                        <input type="range" id="lpQ" min="0.1" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="lpQVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Gain</label>
+                        <input type="range" id="lpGain" min="0" max="2" value="1" step="0.01">
+                        <span class="param-value" id="lpGainVal">1.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delay Section -->
+            <span class="section-label">Clocked Doppler Delay</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Mult</label>
+                        <input type="range" id="dMult" min="1" max="16" value="4" step="1">
+                        <span class="param-value" id="dMultVal">4</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Div</label>
+                        <input type="range" id="dDiv" min="1" max="16" value="1" step="1">
+                        <span class="param-value" id="dDivVal">1</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Spread</label>
+                        <input type="range" id="dSpread" min="-1" max="1" value="0.48" step="0.01">
+                        <span class="param-value" id="dSpreadVal">0.48</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="dFbk" min="0" max="0.95" value="0.39" step="0.01">
+                        <span class="param-value" id="dFbkVal">0.39</span>
+                    </div>
+                    <div class="param-group">
+                        <label>W/D</label>
+                        <input type="range" id="dWet" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="dWetVal">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="vol" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="volVal">0.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        const processorCode = `
+// ============================================================================
+// DELAY LINE
+// ============================================================================
+class DelayLine {
+    constructor(maxDelay) {
+        this.buffer = new Float32Array(maxDelay);
+        this.maxDelay = maxDelay;
+        this.writeIndex = 0;
+    }
+
+    write(sample) {
+        this.buffer[this.writeIndex] = sample;
+        this.writeIndex = (this.writeIndex + 1) % this.maxDelay;
+    }
+
+    readLinear(delaySamples) {
+        const delay = Math.max(0, Math.min(delaySamples, this.maxDelay - 1));
+        const intDelay = Math.floor(delay);
+        const frac = delay - intDelay;
+        let idx0 = this.writeIndex - intDelay - 1;
+        let idx1 = this.writeIndex - intDelay;
+        if (idx0 < 0) idx0 += this.maxDelay;
+        if (idx1 < 0) idx1 += this.maxDelay;
+        return this.buffer[idx1] + frac * (this.buffer[idx0] - this.buffer[idx1]);
+    }
+}
+
+// ============================================================================
+// SLEW LIMITER (for glide)
+// ============================================================================
+class SlewLimiter {
+    constructor(time, sr) {
+        this.sr = sr;
+        this.setTime(time);
+        this.value = 0;
+    }
+
+    setTime(time) {
+        this.rate = 1 / (time * this.sr + 1);
+    }
+
+    process(target) {
+        const diff = target - this.value;
+        this.value += diff * this.rate;
+        return this.value;
+    }
+}
+
+// ============================================================================
+// FORMANT OSCILLATOR (simplified)
+// ============================================================================
+class FormantOsc {
+    constructor(sr) {
+        this.sr = sr;
+        this.phase = 0;
+        this.formantPhase = 0;
+        this.freq = 440;
+        this.formant = 0.5;
+        this.shape = 0.5;
+    }
+
+    setFreq(f) { this.freq = f; }
+    setFormant(f) { this.formant = f; }
+    setShape(s) { this.shape = s; }
+
+    process() {
+        // Main carrier
+        this.phase += this.freq / this.sr;
+        if (this.phase >= 1) this.phase -= 1;
+
+        // Formant frequency is higher than carrier
+        const formantFreq = this.freq * (1 + this.formant * 10);
+        this.formantPhase += formantFreq / this.sr;
+        if (this.formantPhase >= 1) this.formantPhase -= 1;
+
+        // Window function based on carrier phase
+        const window = 1 - this.phase;
+        const windowShaped = Math.pow(window, 1 + this.shape * 3);
+
+        // Formant waveform (sine with harmonics based on shape)
+        let formant = Math.sin(this.formantPhase * 2 * Math.PI);
+        formant += Math.sin(this.formantPhase * 4 * Math.PI) * this.shape * 0.3;
+        formant += Math.sin(this.formantPhase * 6 * Math.PI) * this.shape * 0.1;
+
+        return formant * windowShaped;
+    }
+}
+
+// ============================================================================
+// ARC ENVELOPE (AD with bend)
+// ============================================================================
+class ArcEnvelope {
+    constructor(sr) {
+        this.sr = sr;
+        this.stage = 'idle';
+        this.value = 0;
+        this.rise = 0.01;
+        this.fall = 0.5;
+        this.bend = 0;
+        this.height = 1;
+        this.cycle = false;
+    }
+
+    setRise(r) { this.rise = Math.max(0.001, r); }
+    setFall(f) { this.fall = Math.max(0.001, f); }
+    setBend(b) { this.bend = b; }
+    setHeight(h) { this.height = h; }
+    setCycle(c) { this.cycle = c; }
+
+    trigger() {
+        this.stage = 'rise';
+    }
+
+    process() {
+        const riseRate = 1 / (this.rise * this.sr);
+        const fallRate = 1 / (this.fall * this.sr);
+
+        if (this.stage === 'rise') {
+            const curve = this.bend < 0 ? Math.pow(this.value, 1 + this.bend * -2) : this.value;
+            this.value += riseRate * (1 + (1 - curve) * Math.abs(this.bend));
+            if (this.value >= 1) {
+                this.value = 1;
+                this.stage = 'fall';
+            }
+        } else if (this.stage === 'fall') {
+            const curve = this.bend > 0 ? Math.pow(1 - this.value, 1 + this.bend * 2) : (1 - this.value);
+            this.value -= fallRate * (1 + curve * Math.abs(this.bend));
+            if (this.value <= 0) {
+                this.value = 0;
+                if (this.cycle) {
+                    this.stage = 'rise';
+                } else {
+                    this.stage = 'idle';
+                }
+            }
+        }
+
+        return this.value * this.height;
+    }
+}
+
+// ============================================================================
+// BIQUAD FILTER
+// ============================================================================
+class BiquadLP {
+    constructor(sr) {
+        this.sr = sr;
+        this.b0 = 1; this.b1 = 0; this.b2 = 0;
+        this.a1 = 0; this.a2 = 0;
+        this.x1 = 0; this.x2 = 0;
+        this.y1 = 0; this.y2 = 0;
+    }
+
+    setParams(freq, q) {
+        const w0 = 2 * Math.PI * Math.min(freq, this.sr * 0.45) / this.sr;
+        const sinW0 = Math.sin(w0);
+        const cosW0 = Math.cos(w0);
+        const alpha = sinW0 / (2 * Math.max(q, 0.1));
+
+        const a0 = 1 + alpha;
+        this.b0 = (1 - cosW0) / 2 / a0;
+        this.b1 = (1 - cosW0) / a0;
+        this.b2 = (1 - cosW0) / 2 / a0;
+        this.a1 = -2 * cosW0 / a0;
+        this.a2 = (1 - alpha) / a0;
+    }
+
+    process(x) {
+        const y = this.b0 * x + this.b1 * this.x1 + this.b2 * this.x2
+                  - this.a1 * this.y1 - this.a2 * this.y2;
+        this.x2 = this.x1;
+        this.x1 = x;
+        this.y2 = this.y1;
+        this.y1 = y;
+        return y;
+    }
+}
+
+// ============================================================================
+// BIQUAD BANDPASS (for noise)
+// ============================================================================
+class BiquadBP {
+    constructor(sr) {
+        this.sr = sr;
+        this.b0 = 0; this.b1 = 0; this.b2 = 0;
+        this.a1 = 0; this.a2 = 0;
+        this.x1 = 0; this.x2 = 0;
+        this.y1 = 0; this.y2 = 0;
+    }
+
+    setParams(freq, q) {
+        const w0 = 2 * Math.PI * Math.min(freq, this.sr * 0.45) / this.sr;
+        const sinW0 = Math.sin(w0);
+        const cosW0 = Math.cos(w0);
+        const alpha = sinW0 / (2 * Math.max(q, 0.1));
+
+        const a0 = 1 + alpha;
+        this.b0 = alpha / a0;
+        this.b1 = 0;
+        this.b2 = -alpha / a0;
+        this.a1 = -2 * cosW0 / a0;
+        this.a2 = (1 - alpha) / a0;
+    }
+
+    process(x) {
+        const y = this.b0 * x + this.b1 * this.x1 + this.b2 * this.x2
+                  - this.a1 * this.y1 - this.a2 * this.y2;
+        this.x2 = this.x1;
+        this.x1 = x;
+        this.y2 = this.y1;
+        this.y1 = y;
+        return y;
+    }
+}
+
+// ============================================================================
+// PINK NOISE (simplified)
+// ============================================================================
+class PinkNoise {
+    constructor() {
+        this.b0 = 0; this.b1 = 0; this.b2 = 0;
+        this.b3 = 0; this.b4 = 0; this.b5 = 0; this.b6 = 0;
+    }
+
+    process() {
+        const white = Math.random() * 2 - 1;
+        this.b0 = 0.99886 * this.b0 + white * 0.0555179;
+        this.b1 = 0.99332 * this.b1 + white * 0.0750759;
+        this.b2 = 0.96900 * this.b2 + white * 0.1538520;
+        this.b3 = 0.86650 * this.b3 + white * 0.3104856;
+        this.b4 = 0.55000 * this.b4 + white * 0.5329522;
+        this.b5 = -0.7616 * this.b5 - white * 0.0168980;
+        const pink = this.b0 + this.b1 + this.b2 + this.b3 + this.b4 + this.b5 + this.b6 + white * 0.5362;
+        this.b6 = white * 0.115926;
+        return pink * 0.11;
+    }
+}
+
+// ============================================================================
+// GROVE PROCESSOR
+// ============================================================================
+class GroveProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+        this.playing = false;
+
+        // Oscillators
+        this.osc1 = new FormantOsc(this.sr);
+        this.osc2 = new FormantOsc(this.sr);
+
+        // Glide
+        this.pitchSlew = new SlewLimiter(0, this.sr);
+
+        // Noise
+        this.pinkNoise = new PinkNoise();
+        this.noiseBP = new BiquadBP(this.sr);
+
+        // Envelopes
+        this.lpgEnv = new ArcEnvelope(this.sr);
+        this.modEnv = new ArcEnvelope(this.sr);
+
+        // Filter
+        this.filterL = new BiquadLP(this.sr);
+        this.filterR = new BiquadLP(this.sr);
+
+        // Delay
+        const maxDelay = Math.ceil(this.sr * 0.5);
+        this.delayL = new DelayLine(maxDelay);
+        this.delayR = new DelayLine(maxDelay);
+        this.delayTimeL = 0.1 * this.sr;
+        this.delayTimeR = 0.12 * this.sr;
+
+        // Gate state
+        this.gate = false;
+        this.midiNote = 60;
+        this.midiVelocity = 0;
+
+        // Parameters
+        this.params = {
+            pitch: 0,
+            glide: 0,
+            fm: 0.1,
+            freq1: 440,
+            fmnt1: 0.5,
+            shape1: 0.5,
+            vol1: 0.5,
+            freq2: 220,
+            fmnt2: 0.5,
+            shape2: 0.5,
+            vol2: 0.3,
+            white: 0.1,
+            pink: 0.11,
+            bpFreq: 2000,
+            bpQ: 2,
+            lpgRise: 0.01,
+            lpgFall: 0.5,
+            lpgBend: -0.57,
+            lpgHeight: 0.8,
+            modRise: 0.1,
+            modFall: 1.99,
+            modHeight: 0.5,
+            cycle: false,
+            lpFreq: 4000,
+            lpQ: 0.5,
+            lpGain: 1,
+            dMult: 4,
+            dDiv: 1,
+            dSpread: 0.48,
+            dFbk: 0.39,
+            dWet: 0.3,
+            vol: 0.5
+        };
+
+        this.gateTimer = 0;
+        this.gateDuration = Math.floor(this.sr * 0.1); // 100ms in samples
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'start') this.playing = true;
+            if (e.data.type === 'stop') this.playing = false;
+            if (e.data.type === 'param') {
+                this.params[e.data.name] = e.data.value;
+            }
+            if (e.data.type === 'noteOn') {
+                this.midiNote = e.data.note;
+                this.midiVelocity = e.data.velocity / 127;
+                this.gate = true;
+                this.lpgEnv.trigger();
+                this.modEnv.trigger();
+            }
+            if (e.data.type === 'noteOff') {
+                if (e.data.note === this.midiNote) {
+                    this.gate = false;
+                }
+            }
+            if (e.data.type === 'trigger') {
+                this.gate = true;
+                this.lpgEnv.trigger();
+                this.modEnv.trigger();
+                this.gateTimer = this.gateDuration;
+            }
+        };
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1];
+
+        if (!this.playing) {
+            outL.fill(0);
+            outR.fill(0);
+            return true;
+        }
+
+        // Update envelope params
+        this.lpgEnv.setRise(this.params.lpgRise);
+        this.lpgEnv.setFall(this.params.lpgFall);
+        this.lpgEnv.setBend(this.params.lpgBend);
+        this.lpgEnv.setHeight(this.params.lpgHeight);
+
+        this.modEnv.setRise(this.params.modRise);
+        this.modEnv.setFall(this.params.modFall);
+        this.modEnv.setHeight(this.params.modHeight);
+        this.modEnv.setCycle(this.params.cycle);
+
+        // Glide time
+        this.pitchSlew.setTime(this.params.glide);
+
+        // Noise BP filter
+        this.noiseBP.setParams(this.params.bpFreq, this.params.bpQ);
+
+        // Gate timer for trigger mode
+        if (this.gateTimer > 0) {
+            this.gateTimer -= outL.length;
+            if (this.gateTimer <= 0) {
+                this.gate = false;
+            }
+        }
+
+        for (let i = 0; i < outL.length; i++) {
+            // Calculate pitch with MIDI and glide
+            const midiPitch = this.midiNote - 60 + this.params.pitch;
+            const smoothPitch = this.pitchSlew.process(midiPitch);
+            const pitchRatio = Math.pow(2, smoothPitch / 12);
+
+            // Envelopes
+            const lpgVal = this.lpgEnv.process();
+            const modVal = this.modEnv.process();
+
+            // Osc 2 (modulator for FM)
+            const osc2Freq = this.params.freq2 * pitchRatio;
+            this.osc2.setFreq(osc2Freq);
+            this.osc2.setFormant(this.params.fmnt2 + modVal * 0.3);
+            this.osc2.setShape(this.params.shape2);
+            const osc2Out = this.osc2.process() * this.params.vol2;
+
+            // Osc 1 (carrier with FM from osc2)
+            const fmAmount = osc2Out * this.params.fm * 500;
+            const osc1Freq = this.params.freq1 * pitchRatio + fmAmount;
+            this.osc1.setFreq(Math.max(20, osc1Freq));
+            this.osc1.setFormant(this.params.fmnt1 + modVal * 0.3);
+            this.osc1.setShape(this.params.shape1);
+            const osc1Out = this.osc1.process() * this.params.vol1;
+
+            // Noise
+            const whiteNoise = (Math.random() * 2 - 1) * this.params.white;
+            const pinkNoiseOut = this.pinkNoise.process() * this.params.pink;
+            const bpNoise = this.noiseBP.process(whiteNoise + pinkNoiseOut);
+
+            // Mix oscillators and noise
+            let signal = osc1Out + osc2Out + bpNoise;
+
+            // LPG (combined VCA + filter controlled by envelope)
+            const lpgCutoff = 200 + lpgVal * (this.params.lpFreq - 200);
+            this.filterL.setParams(lpgCutoff, this.params.lpQ * 10 + 0.5);
+            this.filterR.setParams(lpgCutoff, this.params.lpQ * 10 + 0.5);
+
+            signal *= lpgVal * this.params.lpGain;
+
+            let sigL = this.filterL.process(signal);
+            let sigR = this.filterR.process(signal);
+
+            // Tanh saturation
+            sigL = Math.tanh(sigL * 1.5);
+            sigR = Math.tanh(sigR * 1.5);
+
+            // Clocked Doppler Delay
+            const baseDelay = 0.1 * (this.params.dMult / this.params.dDiv);
+            const spreadOffset = this.params.dSpread * 0.05;
+            this.delayTimeL = (baseDelay - spreadOffset) * this.sr;
+            this.delayTimeR = (baseDelay + spreadOffset) * this.sr;
+
+            const delayedL = this.delayL.readLinear(Math.min(this.delayTimeL, this.sr * 0.4));
+            const delayedR = this.delayR.readLinear(Math.min(this.delayTimeR, this.sr * 0.4));
+
+            this.delayL.write(sigL + delayedR * this.params.dFbk);
+            this.delayR.write(sigR + delayedL * this.params.dFbk);
+
+            sigL = sigL * (1 - this.params.dWet) + delayedL * this.params.dWet;
+            sigR = sigR * (1 - this.params.dWet) + delayedR * this.params.dWet;
+
+            // Output
+            sigL *= this.params.vol;
+            sigR *= this.params.vol;
+
+            outL[i] = Math.tanh(sigL);
+            outR[i] = Math.tanh(sigR);
+        }
+
+        // Send state
+        this.port.postMessage({
+            type: 'state',
+            gate: this.gate,
+            freq: this.params.freq1 * Math.pow(2, (this.midiNote - 60 + this.params.pitch) / 12),
+            lpg: this.lpgEnv.value,
+            env: this.modEnv.value
+        });
+
+        return true;
+    }
+}
+
+registerProcessor('grove-processor', GroveProcessor);
+`;
+
+        let audioContext, workletNode, pedalboard;
+        let isPlaying = false;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const gateIndicator = document.getElementById('gateIndicator');
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext({ sampleRate: 48000 });
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            workletNode = new AudioWorkletNode(audioContext, 'grove-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboard = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'grove-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-grove'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-grove');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-grove',
+                    prefix: 'grove',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Handle messages
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'state') {
+                    if (e.data.gate) {
+                        gateIndicator.classList.add('active');
+                    } else {
+                        gateIndicator.classList.remove('active');
+                    }
+                    document.getElementById('freqDisplay').textContent = Math.round(e.data.freq) + ' Hz';
+                    document.getElementById('lpgDisplay').textContent = e.data.lpg.toFixed(2);
+                    document.getElementById('envDisplay').textContent = e.data.env.toFixed(2);
+                }
+            };
+
+            // Visualizer
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            fxNode.connect(analyser);
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            function draw() {
+                requestAnimationFrame(draw);
+                analyser.getByteTimeDomainData(dataArray);
+                ctx.fillStyle = '#0a0a14';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#f39c12';
+                ctx.beginPath();
+                const sliceWidth = canvas.width / dataArray.length;
+                let x = 0;
+                for (let i = 0; i < dataArray.length; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * canvas.height / 2;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                    x += sliceWidth;
+                }
+                ctx.stroke();
+            }
+            draw();
+
+            initMIDI();
+        }
+
+        // MIDI
+        const midiStatus = document.getElementById('midiStatus');
+
+        function handleMIDIMessage(event) {
+            const [status, note, velocity] = event.data;
+            const command = status & 0xf0;
+
+            if (command === 0x90 && velocity > 0) {
+                if (workletNode) {
+                    workletNode.port.postMessage({ type: 'noteOn', note, velocity });
+                }
+            } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+                if (workletNode) {
+                    workletNode.port.postMessage({ type: 'noteOff', note });
+                }
+            }
+        }
+
+        async function initMIDI() {
+            if (!navigator.requestMIDIAccess) {
+                midiStatus.textContent = 'MIDI: Not supported';
+                return;
+            }
+
+            try {
+                const midiAccess = await navigator.requestMIDIAccess();
+                let connected = false;
+
+                for (const input of midiAccess.inputs.values()) {
+                    input.onmidimessage = handleMIDIMessage;
+                    connected = true;
+                }
+
+                if (connected) {
+                    midiStatus.textContent = 'MIDI: Connected';
+                    midiStatus.classList.add('connected');
+                }
+
+                midiAccess.onstatechange = (e) => {
+                    if (e.port.type === 'input' && e.port.state === 'connected') {
+                        e.port.onmidimessage = handleMIDIMessage;
+                        midiStatus.textContent = 'MIDI: ' + e.port.name;
+                        midiStatus.classList.add('connected');
+                    }
+                };
+            } catch (err) {
+                midiStatus.textContent = 'MIDI: Access denied';
+            }
+        }
+
+        // Keyboard trigger
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !e.repeat && workletNode) {
+                e.preventDefault();
+                workletNode.port.postMessage({ type: 'trigger' });
+            }
+        });
+
+        playBtn.onclick = async () => {
+            if (!audioContext) await initAudio();
+            if (audioContext.state === 'suspended') await audioContext.resume();
+
+            isPlaying = !isPlaying;
+            playBtn.textContent = isPlaying ? '\u23F9' : '\u25B6';
+            workletNode.port.postMessage({ type: isPlaying ? 'start' : 'stop' });
+        };
+
+        // Parameter controls
+        const params = ['pitch', 'glide', 'fm', 'freq1', 'fmnt1', 'shape1', 'vol1',
+                        'freq2', 'fmnt2', 'shape2', 'vol2', 'white', 'pink', 'bpFreq', 'bpQ',
+                        'lpgRise', 'lpgFall', 'lpgBend', 'lpgHeight',
+                        'modRise', 'modFall', 'modHeight',
+                        'lpFreq', 'lpQ', 'lpGain',
+                        'dMult', 'dDiv', 'dSpread', 'dFbk', 'dWet', 'vol'];
+
+        params.forEach(name => {
+            const input = document.getElementById(name);
+            const display = document.getElementById(name + 'Val');
+            if (input && display) {
+                input.oninput = () => {
+                    const val = parseFloat(input.value);
+                    display.textContent = Number.isInteger(val) ? val : val.toFixed(2);
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'param', name, value: val });
+                    }
+                };
+            }
+        });
+
+        // Cycle checkbox
+        document.getElementById('cycle').onchange = (e) => {
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'param', name: 'cycle', value: e.target.checked });
+            }
+        };
+
+        // Info panel
+        if (typeof ER301InfoPanel !== 'undefined') {
+            new ER301InfoPanel(document.body, {
+                title: 'grove',
+                author: 'mudlogger',
+                origin: 'ER-301 Hyperscale Units',
+                description: 'West Coast-style dual formant oscillator synthesizer with FM cross-modulation, Low Pass Gate (Strike LPG), modulation envelope (Arc AD), Bique filter, white/pink noise with bandpass, and Clocked Doppler Delay. Features glide/portamento and MIDI control.',
+                controls: [
+                    { name: 'Pitch', range: '-24 to +24', description: 'Pitch offset in semitones' },
+                    { name: 'Glide', range: '0-1', description: 'Portamento time between notes' },
+                    { name: 'FM 2→1', range: '0-1', description: 'FM modulation depth from Osc2 to Osc1' },
+                    { name: 'Freq 1/2', range: '20-2000 Hz', description: 'Base frequency for each oscillator' },
+                    { name: 'Formant 1/2', range: '0-1', description: 'Formant frequency ratio' },
+                    { name: 'Shape 1/2', range: '0-1', description: 'Waveform shape/harmonic content' },
+                    { name: 'Vol 1/2', range: '0-1', description: 'Oscillator mix levels' },
+                    { name: 'White/Pink', range: '0-1', description: 'Noise levels' },
+                    { name: 'LPG Rise/Fall', range: '0-2s', description: 'Low Pass Gate envelope times' },
+                    { name: 'LPG Bend', range: '-1 to 1', description: 'Envelope curve shape' },
+                    { name: 'Mod Cycle', description: 'Enable cycling modulation envelope (LFO mode)' },
+                    { name: 'LP Cutoff', range: '100-12kHz', description: 'Filter cutoff frequency' },
+                    { name: 'Delay Spread', range: '-1 to 1', description: 'Stereo delay offset' }
+                ],
+                tips: [
+                    'Press SPACE to trigger the envelopes',
+                    'Connect a MIDI keyboard to play melodically',
+                    'FM 2→1 creates complex timbres from simple waves',
+                    'Negative LPG Bend creates more percussive attacks',
+                    'Enable Cycle on Mod Envelope for LFO-like modulation',
+                    'Formant controls the spectral peak frequency',
+                    'Use Glide for smooth pitch transitions'
+                ]
+            });
+        }
+    </script>
+</body>
+</html>

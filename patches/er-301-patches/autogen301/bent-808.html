@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bent 808 - ER-301 Autogen301</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 100px;
+        }
+        .drums-section {
+            background: linear-gradient(135deg, #1a0d0d 0%, #0d1a1a 100%);
+            border: 1px solid #3a2a2a;
+            border-radius: 8px;
+            padding: 1em;
+            margin-bottom: 1em;
+        }
+        .drums-section h3 {
+            margin: 0 0 0.75em 0;
+            font-size: 0.9em;
+            color: #ff6a6a;
+        }
+        .sequencer-section {
+            background: #0d0d18;
+            border: 1px solid #2a2a3a;
+            border-radius: 8px;
+            padding: 1em;
+            margin-bottom: 1em;
+        }
+        .sequencer-section h3 {
+            margin: 0 0 0.75em 0;
+            font-size: 0.9em;
+            color: #6a6aff;
+        }
+        .delay-section {
+            background: #0d180d;
+            border: 1px solid #2a3a2a;
+            border-radius: 8px;
+            padding: 1em;
+            margin-bottom: 1em;
+        }
+        .delay-section h3 {
+            margin: 0 0 0.75em 0;
+            font-size: 0.9em;
+            color: #6aff6a;
+        }
+        .sample-display {
+            display: flex;
+            gap: 1em;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .sample-slot {
+            flex: 1;
+            min-width: 200px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 0.5em;
+            text-align: center;
+        }
+        .sample-slot .label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 0.25em;
+        }
+        .sample-slot .name {
+            font-size: 0.85em;
+            color: #aaa;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .euclidean-viz {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+            margin: 0.5em 0;
+        }
+        .euclidean-step {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #222;
+            border: 1px solid #444;
+            transition: all 0.1s;
+        }
+        .euclidean-step.active {
+            background: #6a6aff;
+            border-color: #8a8aff;
+            box-shadow: 0 0 8px rgba(106, 106, 255, 0.5);
+        }
+        .euclidean-step.hit {
+            background: #ff6a6a;
+            border-color: #ff8a8a;
+        }
+        .sample-buttons {
+            display: flex;
+            gap: 0.5em;
+            margin: 1em 0;
+        }
+        .sample-buttons button {
+            flex: 1;
+            padding: 0.5em;
+            background: #1a1a2a;
+            border: 1px solid #333;
+            color: #aaa;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        .sample-buttons button:hover {
+            background: #2a2a3a;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Bent 808</h1>
+                <p>Circuit-bent TR-808 samples with Euclidean sequencing and filter delays</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Main Parameters -->
+            <div class="drums-section">
+                <h3>Main Controls</h3>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Slow</label>
+                        <input type="range" id="slow" min="-5" max="0" value="-2.6" step="0.1">
+                        <span class="param-value" id="slowVal">-2.6</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Motion</label>
+                        <input type="range" id="motion" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="motionVal">0%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Magic</label>
+                        <input type="range" id="magic" min="0" max="2.5" value="1.8" step="0.01">
+                        <span class="param-value" id="magicVal">1.80</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Meter</label>
+                        <input type="range" id="meter" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="meterVal">50%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sample Display -->
+            <span class="section-label">Sample Slots</span>
+            <div class="sample-display">
+                <div class="sample-slot">
+                    <div class="label">808 Slot 1</div>
+                    <div class="name" id="sample1Name">808 Bass Kick</div>
+                </div>
+                <div class="sample-slot">
+                    <div class="label">808 Slot 2</div>
+                    <div class="name" id="sample2Name">808 Snare 1</div>
+                </div>
+            </div>
+
+            <div class="sample-buttons">
+                <button id="importSamplesBtn">Import Samples</button>
+                <button id="clearSamplesBtn">Clear Samples</button>
+            </div>
+
+            <!-- Euclidean Sequencer -->
+            <div class="sequencer-section">
+                <h3>Euclidean Sequencer</h3>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Steps 1</label>
+                        <input type="range" id="eucSteps1" min="2" max="16" value="8" step="1">
+                        <span class="param-value" id="eucSteps1Val">8</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Hits 1</label>
+                        <input type="range" id="eucHits1" min="1" max="16" value="3" step="1">
+                        <span class="param-value" id="eucHits1Val">3</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Chance 1</label>
+                        <input type="range" id="chance1" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="chance1Val">70%</span>
+                    </div>
+                </div>
+                <div class="euclidean-viz" id="eucViz1"></div>
+
+                <div class="param-row" style="margin-top: 1em;">
+                    <div class="param-group">
+                        <label>Steps 2</label>
+                        <input type="range" id="eucSteps2" min="2" max="16" value="12" step="1">
+                        <span class="param-value" id="eucSteps2Val">12</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Hits 2</label>
+                        <input type="range" id="eucHits2" min="1" max="16" value="5" step="1">
+                        <span class="param-value" id="eucHits2Val">5</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Chance 2</label>
+                        <input type="range" id="chance2" min="0" max="1" value="0.6" step="0.01">
+                        <span class="param-value" id="chance2Val">60%</span>
+                    </div>
+                </div>
+                <div class="euclidean-viz" id="eucViz2"></div>
+            </div>
+
+            <!-- Filter Delays -->
+            <div class="delay-section">
+                <h3>Filter Delays</h3>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Delay Time</label>
+                        <input type="range" id="delayTime" min="0.1" max="2" value="0.5" step="0.01">
+                        <span class="param-value" id="delayTimeVal">500ms</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="delayFeedback" min="0" max="0.95" value="0.6" step="0.01">
+                        <span class="param-value" id="delayFeedbackVal">60%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Filter</label>
+                        <input type="range" id="delayFilter" min="200" max="8000" value="2000" step="10">
+                        <span class="param-value" id="delayFilterVal">2000 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mix</label>
+                        <input type="range" id="delayMix" min="0" max="1" value="0.4" step="0.01">
+                        <span class="param-value" id="delayMixVal">40%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reverb & Compression -->
+            <span class="section-label">Freeverb</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Size</label>
+                        <input type="range" id="reverbSize" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="reverbSizeVal">70%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Damp</label>
+                        <input type="range" id="reverbDamp" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="reverbDampVal">50%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Width</label>
+                        <input type="range" id="reverbWidth" min="0" max="1" value="0.8" step="0.01">
+                        <span class="param-value" id="reverbWidthVal">80%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mix</label>
+                        <input type="range" id="reverbMix" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="reverbMixVal">30%</span>
+                    </div>
+                </div>
+            </div>
+
+            <span class="section-label">CPR Compression</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Threshold</label>
+                        <input type="range" id="compThreshold" min="-40" max="0" value="-20" step="1">
+                        <span class="param-value" id="compThresholdVal">-20 dB</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Ratio</label>
+                        <input type="range" id="compRatio" min="1" max="20" value="4" step="0.5">
+                        <span class="param-value" id="compRatioVal">4:1</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Attack</label>
+                        <input type="range" id="compAttack" min="0.001" max="0.1" value="0.01" step="0.001">
+                        <span class="param-value" id="compAttackVal">10ms</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Release</label>
+                        <input type="range" id="compRelease" min="0.05" max="1" value="0.2" step="0.01">
+                        <span class="param-value" id="compReleaseVal">200ms</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Master -->
+            <span class="section-label">Master</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="volume" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="volumeVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <pre class="code-block">
+// Bent 808 - ER-301 Autogen301
+// Original by mudlogger
+//
+// Circuit-bent TR-808 drum machine featuring:
+// - 68 bent/processed 808 samples
+// - Dual Variable Speed Players
+// - Euclidean sequencing with probability gates
+// - Pingable Scaled Random modulation
+// - Dual Filter Delays with clocked timing
+// - Freeverb with slewed parameters
+// - CPR sidechain compression
+//
+// Control Parameters:
+// - slow: Sample playback speed (pitch)
+// - motion: Random modulation amount
+// - magic: Clock period control
+// - meter: Timing/feel parameter</pre>
+
+            <div id="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        // Phonebook features
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        // Audio context and nodes
+        let audioContext;
+        let analyser;
+        let pedalboardNode = null;
+        let pedalboardUI = null;
+        let isPlaying = false;
+
+        // Sample buffers
+        let sampleBuffers = [];
+        let sampleNames = [];
+        const SAMPLE_PATH = '../samples/autogen301/bent-808/';
+
+        // Default 808 samples
+        const DEFAULT_SAMPLES = [
+            '808 Bass Kick.wav',
+            '808 Snare 1.wav'
+        ];
+
+        // Sequencer state
+        let currentStep1 = 0;
+        let currentStep2 = 0;
+        let eucPattern1 = [];
+        let eucPattern2 = [];
+        let clockInterval = null;
+
+        // Generate Euclidean rhythm
+        function generateEuclidean(steps, hits) {
+            if (hits > steps) hits = steps;
+            if (hits === 0) return new Array(steps).fill(false);
+            if (hits === steps) return new Array(steps).fill(true);
+
+            let pattern = [];
+            let counts = [];
+            let remainders = [];
+
+            let divisor = steps - hits;
+            remainders.push(hits);
+            let level = 0;
+
+            while (true) {
+                counts.push(Math.floor(divisor / remainders[level]));
+                remainders.push(divisor % remainders[level]);
+                divisor = remainders[level];
+                level++;
+                if (remainders[level] <= 1) break;
+            }
+
+            counts.push(divisor);
+
+            function build(level) {
+                if (level === -1) {
+                    pattern.push(false);
+                } else if (level === -2) {
+                    pattern.push(true);
+                } else {
+                    for (let i = 0; i < counts[level]; i++) {
+                        build(level - 1);
+                    }
+                    if (remainders[level] !== 0) {
+                        build(level - 2);
+                    }
+                }
+            }
+
+            build(level);
+            return pattern;
+        }
+
+        // Update Euclidean visualization
+        function updateEuclideanViz(vizId, pattern, currentStep) {
+            const viz = document.getElementById(vizId);
+            viz.innerHTML = '';
+            pattern.forEach((hit, i) => {
+                const step = document.createElement('div');
+                step.className = 'euclidean-step';
+                if (hit) step.classList.add('hit');
+                if (i === currentStep) step.classList.add('active');
+                viz.appendChild(step);
+            });
+        }
+
+        // Load sample
+        async function loadSample(url) {
+            try {
+                const response = await fetch(url);
+                const arrayBuffer = await response.arrayBuffer();
+                return await audioContext.decodeAudioData(arrayBuffer);
+            } catch (e) {
+                console.warn('Could not load sample:', url);
+                return null;
+            }
+        }
+
+        // Load default samples
+        async function loadDefaultSamples() {
+            sampleBuffers = [];
+            sampleNames = [];
+
+            for (const filename of DEFAULT_SAMPLES) {
+                const buffer = await loadSample(SAMPLE_PATH + filename);
+                if (buffer) {
+                    sampleBuffers.push(buffer);
+                    sampleNames.push(filename.replace('.wav', ''));
+                }
+            }
+
+            // Update display
+            document.getElementById('sample1Name').textContent = sampleNames[0] || 'None';
+            document.getElementById('sample2Name').textContent = sampleNames[1] || 'None';
+        }
+
+        // Play sample with variable speed
+        function playSample(bufferIndex, speed = 1) {
+            if (!audioContext || !sampleBuffers[bufferIndex]) return;
+
+            const source = audioContext.createBufferSource();
+            source.buffer = sampleBuffers[bufferIndex];
+
+            const slow = parseFloat(document.getElementById('slow').value);
+            source.playbackRate.value = Math.pow(2, slow / 12) * speed;
+
+            const gain = audioContext.createGain();
+            gain.gain.value = 0.8;
+
+            source.connect(gain);
+            gain.connect(nodes.delayInput);
+
+            source.start();
+        }
+
+        // Audio nodes
+        let nodes = {};
+
+        // Initialize audio
+        async function initAudio() {
+            try {
+                await featuresLoaded;
+
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+                // Create analyser
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+
+                // Create master gain
+                const masterGain = audioContext.createGain();
+                masterGain.gain.value = parseFloat(document.getElementById('volume').value);
+
+                // Create delay nodes
+                const delayL = audioContext.createDelay(5);
+                const delayR = audioContext.createDelay(5);
+                delayL.delayTime.value = parseFloat(document.getElementById('delayTime').value);
+                delayR.delayTime.value = parseFloat(document.getElementById('delayTime').value) * 1.1;
+
+                const delayFeedbackL = audioContext.createGain();
+                const delayFeedbackR = audioContext.createGain();
+                delayFeedbackL.gain.value = parseFloat(document.getElementById('delayFeedback').value);
+                delayFeedbackR.gain.value = parseFloat(document.getElementById('delayFeedback').value);
+
+                const delayFilterL = audioContext.createBiquadFilter();
+                const delayFilterR = audioContext.createBiquadFilter();
+                delayFilterL.type = 'lowpass';
+                delayFilterR.type = 'lowpass';
+                delayFilterL.frequency.value = parseFloat(document.getElementById('delayFilter').value);
+                delayFilterR.frequency.value = parseFloat(document.getElementById('delayFilter').value);
+
+                const delayMix = audioContext.createGain();
+                delayMix.gain.value = parseFloat(document.getElementById('delayMix').value);
+
+                const delayDry = audioContext.createGain();
+                delayDry.gain.value = 1;
+
+                // Delay routing
+                const delayInput = audioContext.createGain();
+                delayInput.gain.value = 1;
+
+                delayInput.connect(delayDry);
+                delayInput.connect(delayL);
+                delayL.connect(delayFilterL);
+                delayFilterL.connect(delayFeedbackL);
+                delayFeedbackL.connect(delayL);
+                delayFilterL.connect(delayMix);
+
+                delayInput.connect(delayR);
+                delayR.connect(delayFilterR);
+                delayFilterR.connect(delayFeedbackR);
+                delayFeedbackR.connect(delayR);
+                delayFilterR.connect(delayMix);
+
+                // Create reverb (convolver approximation)
+                const reverbConvolver = audioContext.createConvolver();
+                const reverbMix = audioContext.createGain();
+                reverbMix.gain.value = parseFloat(document.getElementById('reverbMix').value);
+                const reverbDry = audioContext.createGain();
+                reverbDry.gain.value = 1 - parseFloat(document.getElementById('reverbMix').value);
+
+                // Create impulse response
+                const reverbSize = parseFloat(document.getElementById('reverbSize').value);
+                const reverbDamp = parseFloat(document.getElementById('reverbDamp').value);
+                await createReverbImpulse(reverbConvolver, reverbSize * 3, reverbDamp);
+
+                // Create compressor
+                const compressor = audioContext.createDynamicsCompressor();
+                compressor.threshold.value = parseFloat(document.getElementById('compThreshold').value);
+                compressor.ratio.value = parseFloat(document.getElementById('compRatio').value);
+                compressor.attack.value = parseFloat(document.getElementById('compAttack').value);
+                compressor.release.value = parseFloat(document.getElementById('compRelease').value);
+
+                // Mixer
+                const mixer = audioContext.createGain();
+                mixer.gain.value = 1;
+
+                // Connect chain
+                delayDry.connect(mixer);
+                delayMix.connect(mixer);
+                mixer.connect(reverbDry);
+                mixer.connect(reverbConvolver);
+                reverbConvolver.connect(reverbMix);
+                reverbDry.connect(compressor);
+                reverbMix.connect(compressor);
+                compressor.connect(masterGain);
+
+                // Store nodes
+                nodes = {
+                    delayInput,
+                    delayL,
+                    delayR,
+                    delayFeedbackL,
+                    delayFeedbackR,
+                    delayFilterL,
+                    delayFilterR,
+                    delayMix,
+                    delayDry,
+                    reverbConvolver,
+                    reverbMix,
+                    reverbDry,
+                    compressor,
+                    mixer,
+                    masterGain
+                };
+
+                // Initialize pedalboard
+                const pedalboardContainer = document.getElementById('pedalboard-container');
+                if (typeof PedalboardUI !== 'undefined' && pedalboardContainer) {
+                    pedalboardUI = new PedalboardUI(pedalboardContainer, audioContext, {
+                        patchId: 'er-301-patches-autogen301-bent-808'
+                    });
+                    pedalboardNode = await pedalboardUI.init();
+                    // Use pedalboard.connect() to connect source TO pedalboard input
+                    pedalboardUI.connect(masterGain);
+                    pedalboardNode.connect(audioContext.destination);
+                    pedalboardNode.connect(analyser);
+                } else {
+                    masterGain.connect(analyser);
+                    analyser.connect(audioContext.destination);
+                }
+
+                // Initialize phonebook features
+                const outputNode = pedalboardNode || analyser;
+                if (typeof StickyHeader !== 'undefined') {
+                    stickyHeader = new StickyHeader({
+                        patchName: 'bent-808-er-301-autogen301',
+                        patchId: 'er-301-patches-autogen301-bent-808'
+                    });
+                    await stickyHeader.init();
+                    await stickyHeader.initRecorder(audioContext, outputNode, audioContext.destination);
+                }
+
+                if (typeof getMidiLearn !== 'undefined') {
+                    midiLearn = await getMidiLearn('er-301-patches-autogen301-bent-808');
+                }
+
+                if (typeof getModulationMatrix !== 'undefined') {
+                    modMatrix = getModulationMatrix();
+                    modMatrixUI = new ModMatrixUI(
+                        document.querySelector('.patch-content') || document.body,
+                        { modMatrix: modMatrix }
+                    );
+                    modMatrixUI.init();
+                }
+
+                // Auto-register all sliders for MIDI Learn and Mod Matrix
+                if (typeof autoRegisterControls !== 'undefined') {
+                    await autoRegisterControls({
+                        patchId: 'er-301-patches-autogen301-bent-808',
+                        prefix: 'bent808',
+                        modMatrixUI: modMatrixUI
+                    });
+                }
+
+                // Load default samples
+                await loadDefaultSamples();
+
+                document.getElementById('playBtn').disabled = false;
+
+            } catch (err) {
+                console.error('Audio init error:', err);
+            }
+        }
+
+        // Create reverb impulse response
+        async function createReverbImpulse(convolver, duration, decay) {
+            const sampleRate = audioContext.sampleRate;
+            const length = sampleRate * duration;
+            const impulse = audioContext.createBuffer(2, length, sampleRate);
+
+            for (let channel = 0; channel < 2; channel++) {
+                const data = impulse.getChannelData(channel);
+                for (let i = 0; i < length; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay * 3 + 1);
+                }
+            }
+
+            convolver.buffer = impulse;
+        }
+
+        // Visualization
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width = canvas.offsetWidth * 2;
+            const height = canvas.height = canvas.offsetHeight * 2;
+
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            function draw() {
+                if (!isPlaying) {
+                    ctx.fillStyle = '#0a0a0a';
+                    ctx.fillRect(0, 0, width, height);
+                    return;
+                }
+
+                requestAnimationFrame(draw);
+                analyser.getByteFrequencyData(dataArray);
+
+                ctx.fillStyle = 'rgba(10, 10, 15, 0.2)';
+                ctx.fillRect(0, 0, width, height);
+
+                // Draw frequency bars with 808 colors
+                const barCount = 64;
+                const barWidth = width / barCount;
+
+                for (let i = 0; i < barCount; i++) {
+                    const dataIndex = Math.floor(i * (dataArray.length / barCount));
+                    const barHeight = (dataArray[dataIndex] / 255) * height * 0.8;
+
+                    // Red to orange gradient (808 style)
+                    const t = i / barCount;
+                    const r = Math.floor(255 - t * 50);
+                    const g = Math.floor(50 + t * 150);
+                    const b = Math.floor(50 + t * 50);
+
+                    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                    ctx.fillRect(i * barWidth, height - barHeight, barWidth - 2, barHeight);
+                }
+
+                // Draw sequencer indicators
+                const stepWidth = width / 16;
+                ctx.fillStyle = 'rgba(106, 106, 255, 0.3)';
+                ctx.fillRect(currentStep1 * stepWidth, 0, stepWidth, 20);
+                ctx.fillStyle = 'rgba(255, 106, 106, 0.3)';
+                ctx.fillRect(currentStep2 * stepWidth, 20, stepWidth, 20);
+            }
+
+            draw();
+        }
+
+        // Sequencer clock
+        function startSequencer() {
+            const magic = parseFloat(document.getElementById('magic').value);
+            const bpm = 60 + magic * 80; // 60-260 BPM based on magic
+            const stepTime = (60 / bpm) * 1000 / 4; // 16th notes
+
+            // Generate patterns
+            eucPattern1 = generateEuclidean(
+                parseInt(document.getElementById('eucSteps1').value),
+                parseInt(document.getElementById('eucHits1').value)
+            );
+            eucPattern2 = generateEuclidean(
+                parseInt(document.getElementById('eucSteps2').value),
+                parseInt(document.getElementById('eucHits2').value)
+            );
+
+            updateEuclideanViz('eucViz1', eucPattern1, currentStep1);
+            updateEuclideanViz('eucViz2', eucPattern2, currentStep2);
+
+            clockInterval = setInterval(() => {
+                if (!isPlaying) return;
+
+                // Sequencer 1
+                if (eucPattern1[currentStep1 % eucPattern1.length]) {
+                    const chance1 = parseFloat(document.getElementById('chance1').value);
+                    if (Math.random() < chance1) {
+                        const motion = parseFloat(document.getElementById('motion').value);
+                        const speed = 1 + (Math.random() - 0.5) * motion * 0.5;
+                        playSample(0, speed);
+                    }
+                }
+
+                // Sequencer 2
+                if (eucPattern2[currentStep2 % eucPattern2.length]) {
+                    const chance2 = parseFloat(document.getElementById('chance2').value);
+                    if (Math.random() < chance2) {
+                        const motion = parseFloat(document.getElementById('motion').value);
+                        const speed = 1 + (Math.random() - 0.5) * motion * 0.5;
+                        playSample(1, speed);
+                    }
+                }
+
+                currentStep1 = (currentStep1 + 1) % eucPattern1.length;
+                currentStep2 = (currentStep2 + 1) % eucPattern2.length;
+
+                updateEuclideanViz('eucViz1', eucPattern1, currentStep1);
+                updateEuclideanViz('eucViz2', eucPattern2, currentStep2);
+
+            }, stepTime);
+        }
+
+        function stopSequencer() {
+            if (clockInterval) {
+                clearInterval(clockInterval);
+                clockInterval = null;
+            }
+            currentStep1 = 0;
+            currentStep2 = 0;
+        }
+
+        // Toggle playback
+        async function togglePlay() {
+            if (!audioContext) {
+                await initAudio();
+            }
+
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            isPlaying = !isPlaying;
+            const btn = document.getElementById('playBtn');
+            btn.innerHTML = isPlaying ? '&#9632;' : '&#9654;';
+            btn.classList.toggle('playing', isPlaying);
+
+            if (isPlaying) {
+                if (modMatrix) modMatrix.start();
+                startSequencer();
+                drawVisualizer();
+            } else {
+                if (modMatrix) modMatrix.stop();
+                stopSequencer();
+            }
+        }
+
+        // Parameter handlers
+        function setupParameterHandlers() {
+            // Main controls
+            document.getElementById('slow').addEventListener('input', (e) => {
+                document.getElementById('slowVal').textContent = parseFloat(e.target.value).toFixed(1);
+            });
+
+            document.getElementById('motion').addEventListener('input', (e) => {
+                document.getElementById('motionVal').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            document.getElementById('magic').addEventListener('input', (e) => {
+                document.getElementById('magicVal').textContent = parseFloat(e.target.value).toFixed(2);
+                // Restart sequencer with new tempo
+                if (isPlaying) {
+                    stopSequencer();
+                    startSequencer();
+                }
+            });
+
+            document.getElementById('meter').addEventListener('input', (e) => {
+                document.getElementById('meterVal').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            // Euclidean controls
+            ['eucSteps1', 'eucHits1', 'eucSteps2', 'eucHits2'].forEach(id => {
+                document.getElementById(id).addEventListener('input', (e) => {
+                    document.getElementById(id + 'Val').textContent = e.target.value;
+                    // Regenerate patterns
+                    eucPattern1 = generateEuclidean(
+                        parseInt(document.getElementById('eucSteps1').value),
+                        parseInt(document.getElementById('eucHits1').value)
+                    );
+                    eucPattern2 = generateEuclidean(
+                        parseInt(document.getElementById('eucSteps2').value),
+                        parseInt(document.getElementById('eucHits2').value)
+                    );
+                    updateEuclideanViz('eucViz1', eucPattern1, currentStep1);
+                    updateEuclideanViz('eucViz2', eucPattern2, currentStep2);
+                });
+            });
+
+            document.getElementById('chance1').addEventListener('input', (e) => {
+                document.getElementById('chance1Val').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            document.getElementById('chance2').addEventListener('input', (e) => {
+                document.getElementById('chance2Val').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            // Delay controls
+            document.getElementById('delayTime').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('delayTimeVal').textContent = Math.round(val * 1000) + 'ms';
+                if (nodes.delayL) {
+                    nodes.delayL.delayTime.value = val;
+                    nodes.delayR.delayTime.value = val * 1.1;
+                }
+            });
+
+            document.getElementById('delayFeedback').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('delayFeedbackVal').textContent = Math.round(val * 100) + '%';
+                if (nodes.delayFeedbackL) {
+                    nodes.delayFeedbackL.gain.value = val;
+                    nodes.delayFeedbackR.gain.value = val;
+                }
+            });
+
+            document.getElementById('delayFilter').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('delayFilterVal').textContent = val + ' Hz';
+                if (nodes.delayFilterL) {
+                    nodes.delayFilterL.frequency.value = val;
+                    nodes.delayFilterR.frequency.value = val;
+                }
+            });
+
+            document.getElementById('delayMix').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('delayMixVal').textContent = Math.round(val * 100) + '%';
+                if (nodes.delayMix) {
+                    nodes.delayMix.gain.value = val;
+                    nodes.delayDry.gain.value = 1 - val * 0.5;
+                }
+            });
+
+            // Reverb controls
+            document.getElementById('reverbSize').addEventListener('input', async (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('reverbSizeVal').textContent = Math.round(val * 100) + '%';
+                if (nodes.reverbConvolver && audioContext) {
+                    const damp = parseFloat(document.getElementById('reverbDamp').value);
+                    await createReverbImpulse(nodes.reverbConvolver, val * 3, damp);
+                }
+            });
+
+            document.getElementById('reverbDamp').addEventListener('input', async (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('reverbDampVal').textContent = Math.round(val * 100) + '%';
+                if (nodes.reverbConvolver && audioContext) {
+                    const size = parseFloat(document.getElementById('reverbSize').value);
+                    await createReverbImpulse(nodes.reverbConvolver, size * 3, val);
+                }
+            });
+
+            document.getElementById('reverbWidth').addEventListener('input', (e) => {
+                document.getElementById('reverbWidthVal').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            document.getElementById('reverbMix').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('reverbMixVal').textContent = Math.round(val * 100) + '%';
+                if (nodes.reverbMix) {
+                    nodes.reverbMix.gain.value = val;
+                    nodes.reverbDry.gain.value = 1 - val;
+                }
+            });
+
+            // Compressor controls
+            document.getElementById('compThreshold').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('compThresholdVal').textContent = val + ' dB';
+                if (nodes.compressor) nodes.compressor.threshold.value = val;
+            });
+
+            document.getElementById('compRatio').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('compRatioVal').textContent = val + ':1';
+                if (nodes.compressor) nodes.compressor.ratio.value = val;
+            });
+
+            document.getElementById('compAttack').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('compAttackVal').textContent = Math.round(val * 1000) + 'ms';
+                if (nodes.compressor) nodes.compressor.attack.value = val;
+            });
+
+            document.getElementById('compRelease').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('compReleaseVal').textContent = Math.round(val * 1000) + 'ms';
+                if (nodes.compressor) nodes.compressor.release.value = val;
+            });
+
+            // Master
+            document.getElementById('volume').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('volumeVal').textContent = val.toFixed(2);
+                if (nodes.masterGain) nodes.masterGain.gain.value = val;
+            });
+
+            // Sample import/clear buttons
+            document.getElementById('importSamplesBtn').addEventListener('click', async () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'audio/*';
+                input.multiple = true;
+                input.onchange = async (e) => {
+                    const files = Array.from(e.target.files);
+                    sampleBuffers = [];
+                    sampleNames = [];
+
+                    for (const file of files.slice(0, 2)) {
+                        const arrayBuffer = await file.arrayBuffer();
+                        const buffer = await audioContext.decodeAudioData(arrayBuffer);
+                        sampleBuffers.push(buffer);
+                        sampleNames.push(file.name.replace(/\.[^/.]+$/, ''));
+                    }
+
+                    document.getElementById('sample1Name').textContent = sampleNames[0] || 'None';
+                    document.getElementById('sample2Name').textContent = sampleNames[1] || 'None';
+                };
+                input.click();
+            });
+
+            document.getElementById('clearSamplesBtn').addEventListener('click', () => {
+                sampleBuffers = [];
+                sampleNames = [];
+                document.getElementById('sample1Name').textContent = 'None';
+                document.getElementById('sample2Name').textContent = 'None';
+            });
+        }
+
+        // Initialize info panel
+        function initInfoPanel() {
+            if (typeof ER301InfoPanel !== 'undefined') {
+                ER301InfoPanel.create({
+                    title: 'Bent 808',
+                    origin: 'ER-301 mudlogger',
+                    sections: [
+                        {
+                            title: 'Overview',
+                            content: 'Circuit-bent TR-808 drum machine featuring 68 processed/bent samples with Euclidean sequencing, probability gates, filter delays, and sidechain compression.'
+                        },
+                        {
+                            title: 'Controls',
+                            content: 'Slow: Sample playback speed (pitch shift)<br>Motion: Random modulation amount<br>Magic: Clock period/tempo control (60-260 BPM)<br>Meter: Timing/feel parameter'
+                        },
+                        {
+                            title: 'Sequencer',
+                            content: 'Dual Euclidean sequencers with adjustable steps, hits, and probability (Chance). Red dots indicate hits, blue highlight shows current step.'
+                        },
+                        {
+                            title: 'Signal Flow',
+                            content: '2x Variable Speed Players → Filter Delays (L/R) → Freeverb → CPR Compression → Output'
+                        },
+                        {
+                            title: 'Tips',
+                            content: 'Adjust Magic for tempo. Use Motion for random pitch variations. The Euclidean patterns create polyrhythmic grooves. Increase Chance for denser patterns.'
+                        }
+                    ]
+                });
+            }
+        }
+
+        // Main initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            setupParameterHandlers();
+            initInfoPanel();
+
+            // Initialize Euclidean displays
+            eucPattern1 = generateEuclidean(8, 3);
+            eucPattern2 = generateEuclidean(12, 5);
+            updateEuclideanViz('eucViz1', eucPattern1, 0);
+            updateEuclideanViz('eucViz2', eucPattern2, 0);
+
+            document.getElementById('playBtn').addEventListener('click', togglePlay);
+        });
+    </script>
+</body>
+</html>

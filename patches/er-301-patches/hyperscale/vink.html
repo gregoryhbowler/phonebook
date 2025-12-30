@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>vink - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 80px;
+        }
+        .input-section {
+            background: #12121e;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .source-select {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 1em;
+        }
+        .source-btn {
+            flex: 1;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #888;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        .source-btn.active {
+            background: #2d1a4e;
+            border-color: #9b59b6;
+            color: #9b59b6;
+        }
+        .source-btn:hover { border-color: #9b59b6; }
+        #usbDeviceRow {
+            margin-top: 0.5em;
+        }
+        #usbDeviceRow select {
+            width: 100%;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #9b59b6;
+            padding: 6px;
+            border-radius: 4px;
+            margin-bottom: 0.5em;
+        }
+        .vocoder-display {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+            margin-bottom: 1em;
+            height: 60px;
+            align-items: flex-end;
+        }
+        .vocoder-band {
+            flex: 1;
+            background: linear-gradient(to top, #9b59b6 0%, #3498db 100%);
+            border-radius: 2px 2px 0 0;
+            min-width: 20px;
+            transition: height 0.05s ease;
+        }
+        .status-display {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .status-card {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 10px 16px;
+            text-align: center;
+            min-width: 70px;
+        }
+        .status-card .label {
+            font-size: 0.6em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .status-card .value {
+            font-size: 1em;
+            color: #9b59b6;
+            font-family: 'SF Mono', monospace;
+        }
+        .toggle-btn {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+        .toggle-btn.active {
+            border-color: #9b59b6;
+            color: #9b59b6;
+            background: rgba(155, 89, 182, 0.1);
+        }
+        .toggle-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .midi-status {
+            text-align: center;
+            font-size: 0.75em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+        .midi-status.connected { color: #9b59b6; }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>vink</h1>
+                <p>10-band vocoder with Ring Modulator, Feedback Looper, Grain Delay & Freeverb</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Vocoder Band Display -->
+            <div class="vocoder-display" id="vocoderDisplay">
+                <div class="vocoder-band" style="height: 10%"></div>
+                <div class="vocoder-band" style="height: 10%"></div>
+                <div class="vocoder-band" style="height: 10%"></div>
+                <div class="vocoder-band" style="height: 10%"></div>
+                <div class="vocoder-band" style="height: 10%"></div>
+                <div class="vocoder-band" style="height: 10%"></div>
+                <div class="vocoder-band" style="height: 10%"></div>
+                <div class="vocoder-band" style="height: 10%"></div>
+                <div class="vocoder-band" style="height: 10%"></div>
+                <div class="vocoder-band" style="height: 10%"></div>
+            </div>
+
+            <div class="status-display">
+                <div class="status-card">
+                    <div class="label">Ring Freq</div>
+                    <div class="value" id="ringFreqDisplay">659 Hz</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Pitch</div>
+                    <div class="value" id="pitchDisplay">+0.5 st</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Speed</div>
+                    <div class="value" id="speedDisplay">1.6x</div>
+                </div>
+            </div>
+
+            <div class="midi-status" id="midiStatus">MIDI: Not connected</div>
+
+            <!-- Input Source -->
+            <div class="input-section">
+                <span class="section-label">Input Source</span>
+                <div class="source-select">
+                    <button class="source-btn active" id="oscSrcBtn">Oscillator</button>
+                    <button class="source-btn" id="micSrcBtn">Microphone</button>
+                    <button class="source-btn" id="usbSrcBtn">USB Audio</button>
+                </div>
+                <div id="usbDeviceRow" style="display:none;">
+                    <select id="usbDeviceSelect">
+                        <option value="">Select USB Audio Device...</option>
+                    </select>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>USB Gain</label>
+                            <input type="range" id="usbGain" min="0.1" max="10" value="1" step="0.1">
+                            <span class="param-value" id="usbGainVal">1.0x</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Input Level</label>
+                        <input type="range" id="srcLevel" min="0" max="2" value="0.7" step="0.01">
+                        <span class="param-value" id="srcLevelVal">0.70</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Osc Freq</label>
+                        <input type="range" id="srcFreq" min="50" max="1000" value="220" step="1">
+                        <span class="param-value" id="srcFreqVal">220 Hz</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Controls (from original patch) -->
+            <span class="section-label">Vocoder & Ring Mod</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Ring</label>
+                        <input type="range" id="ring" min="-10" max="0" value="-3.5" step="0.1">
+                        <span class="param-value" id="ringVal">-3.5</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="feedback" min="0" max="4" value="1.42" step="0.01">
+                        <span class="param-value" id="feedbackVal">1.42</span>
+                    </div>
+                </div>
+            </div>
+
+            <span class="section-label">Grain Delay</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Pitch</label>
+                        <input type="range" id="pitch" min="-12" max="12" value="0.5" step="0.1">
+                        <span class="param-value" id="pitchVal">+0.5 st</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Speed</label>
+                        <input type="range" id="speed" min="-3" max="3" value="1.6" step="0.01">
+                        <span class="param-value" id="speedVal">1.6x</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Delay Wet</label>
+                        <input type="range" id="delayWet" min="0" max="1" value="0.39" step="0.01">
+                        <span class="param-value" id="delayWetVal">0.39</span>
+                    </div>
+                </div>
+            </div>
+
+            <span class="section-label">Looper</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Loop Wet</label>
+                        <input type="range" id="loopWet" min="0" max="1" value="0.85" step="0.01">
+                        <span class="param-value" id="loopWetVal">0.85</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Loop FB</label>
+                        <input type="range" id="loopFb" min="0" max="0.99" value="0.85" step="0.01">
+                        <span class="param-value" id="loopFbVal">0.85</span>
+                    </div>
+                </div>
+                <div class="toggle-row" style="margin-top: 0.5em;">
+                    <button class="toggle-btn active" id="loopEngageBtn">Loop Engaged</button>
+                    <button class="toggle-btn" id="loopPunchBtn">Punch</button>
+                </div>
+            </div>
+
+            <span class="section-label">Freeverb</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Size</label>
+                        <input type="range" id="size" min="0" max="0.99" value="0.92" step="0.01">
+                        <span class="param-value" id="sizeVal">0.92</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Damp</label>
+                        <input type="range" id="damp" min="0" max="1" value="0.36" step="0.01">
+                        <span class="param-value" id="dampVal">0.36</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Width</label>
+                        <input type="range" id="width" min="0" max="1" value="0.9" step="0.01">
+                        <span class="param-value" id="widthVal">0.90</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Reverb Wet</label>
+                        <input type="range" id="reverbWet" min="0" max="1" value="0.63" step="0.01">
+                        <span class="param-value" id="reverbWetVal">0.63</span>
+                    </div>
+                </div>
+            </div>
+
+            <span class="section-label">Vocoder Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Q In</label>
+                        <input type="range" id="qIn" min="0.1" max="2" value="0.2" step="0.01">
+                        <span class="param-value" id="qInVal">0.20</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Q Out</label>
+                        <input type="range" id="qOut" min="0.1" max="2" value="0.23" step="0.01">
+                        <span class="param-value" id="qOutVal">0.23</span>
+                    </div>
+                    <div class="param-group">
+                        <label>F Shift</label>
+                        <input type="range" id="fShift" min="-1" max="1" value="-0.13" step="0.01">
+                        <span class="param-value" id="fShiftVal">-0.13</span>
+                    </div>
+                </div>
+            </div>
+
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Master Vol</label>
+                        <input type="range" id="vol" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="volVal">0.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+// AudioWorklet Processor - Vink Vocoder
+const processorCode = `
+// ============================================================================
+// DELAY LINE - copied from working unskool
+// ============================================================================
+class DelayLine {
+    constructor(maxDelay) {
+        this.buffer = new Float32Array(maxDelay);
+        this.maxDelay = maxDelay;
+        this.writeIndex = 0;
+    }
+
+    write(sample) {
+        this.buffer[this.writeIndex] = sample;
+        this.writeIndex = (this.writeIndex + 1) % this.maxDelay;
+    }
+
+    readLinear(delaySamples) {
+        const delay = Math.max(0, Math.min(delaySamples, this.maxDelay - 1));
+        const intDelay = Math.floor(delay);
+        const frac = delay - intDelay;
+        let idx0 = this.writeIndex - intDelay - 1;
+        let idx1 = this.writeIndex - intDelay;
+        if (idx0 < 0) idx0 += this.maxDelay;
+        if (idx1 < 0) idx1 += this.maxDelay;
+        return this.buffer[idx1] + frac * (this.buffer[idx0] - this.buffer[idx1]);
+    }
+}
+
+// ============================================================================
+// BIQUAD FILTER
+// ============================================================================
+class Biquad {
+    constructor(sr) {
+        this.sr = sr;
+        this.b0 = 1; this.b1 = 0; this.b2 = 0;
+        this.a1 = 0; this.a2 = 0;
+        this.x1 = 0; this.x2 = 0;
+        this.y1 = 0; this.y2 = 0;
+    }
+
+    setBandpass(freq, q) {
+        const w0 = 2 * Math.PI * Math.max(20, Math.min(freq, this.sr * 0.45)) / this.sr;
+        const alpha = Math.sin(w0) / (2 * Math.max(0.1, q));
+        const cosw0 = Math.cos(w0);
+
+        const a0 = 1 + alpha;
+        this.b0 = alpha / a0;
+        this.b1 = 0;
+        this.b2 = -alpha / a0;
+        this.a1 = -2 * cosw0 / a0;
+        this.a2 = (1 - alpha) / a0;
+    }
+
+    setHighpass(freq, q) {
+        const w0 = 2 * Math.PI * Math.max(20, Math.min(freq, this.sr * 0.45)) / this.sr;
+        const alpha = Math.sin(w0) / (2 * Math.max(0.1, q));
+        const cosw0 = Math.cos(w0);
+
+        const a0 = 1 + alpha;
+        this.b0 = (1 + cosw0) / 2 / a0;
+        this.b1 = -(1 + cosw0) / a0;
+        this.b2 = (1 + cosw0) / 2 / a0;
+        this.a1 = -2 * cosw0 / a0;
+        this.a2 = (1 - alpha) / a0;
+    }
+
+    process(x) {
+        const y = this.b0 * x + this.b1 * this.x1 + this.b2 * this.x2
+                  - this.a1 * this.y1 - this.a2 * this.y2;
+        this.x2 = this.x1; this.x1 = x;
+        this.y2 = this.y1; this.y1 = y;
+        return y;
+    }
+}
+
+// ============================================================================
+// ENVELOPE FOLLOWER
+// ============================================================================
+class EnvelopeFollower {
+    constructor(sr) {
+        this.sr = sr;
+        this.attack = 0.005;  // 5ms
+        this.release = 0.05;  // 50ms
+        this.env = 0;
+    }
+
+    process(input) {
+        const absIn = Math.abs(input);
+        if (absIn > this.env) {
+            this.env += (1 - Math.exp(-1 / (this.attack * this.sr))) * (absIn - this.env);
+        } else {
+            this.env += (1 - Math.exp(-1 / (this.release * this.sr))) * (absIn - this.env);
+        }
+        return this.env;
+    }
+}
+
+// ============================================================================
+// SCORPIO VOCODER (10-band)
+// ============================================================================
+class ScorpioVocoder {
+    constructor(sr) {
+        this.sr = sr;
+
+        // 10 frequency bands (Hz) - from original patch
+        this.bandFreqs = [300, 770, 1240, 1710, 2180, 2650, 3120, 3590, 4060, 4530];
+
+        // Analysis filters (bandpass for input signal)
+        this.analysisFilters = this.bandFreqs.map(f => {
+            const bp = new Biquad(sr);
+            bp.setBandpass(f, 2);
+            return bp;
+        });
+
+        // Synthesis filters (bandpass for carrier signal)
+        this.synthesisFilters = this.bandFreqs.map(f => {
+            const bp = new Biquad(sr);
+            bp.setBandpass(f, 2);
+            return bp;
+        });
+
+        // Envelope followers for each band
+        this.envelopes = this.bandFreqs.map(() => new EnvelopeFollower(sr));
+
+        // Output high-pass filter
+        this.outputHPF = new Biquad(sr);
+        this.outputHPF.setHighpass(110, 0.7);
+
+        // Parameters
+        this.qIn = 0.2;
+        this.qOut = 0.23;
+        this.fShift = -0.13;  // Frequency shift in octaves
+        this.outputLevel = 0.9;
+
+        // Band levels for display
+        this.bandLevels = new Float32Array(10);
+    }
+
+    updateFilters() {
+        const shiftRatio = Math.pow(2, this.fShift);
+        for (let i = 0; i < 10; i++) {
+            const baseFreq = this.bandFreqs[i];
+            this.analysisFilters[i].setBandpass(baseFreq, 1 + this.qIn * 5);
+            this.synthesisFilters[i].setBandpass(baseFreq * shiftRatio, 1 + this.qOut * 5);
+        }
+    }
+
+    process(modulator, carrier) {
+        let output = 0;
+
+        for (let i = 0; i < 10; i++) {
+            // Analysis: extract envelope from modulator signal
+            const analyzed = this.analysisFilters[i].process(modulator);
+            const envelope = this.envelopes[i].process(analyzed);
+            this.bandLevels[i] = envelope;
+
+            // Synthesis: filter carrier and apply envelope
+            const filtered = this.synthesisFilters[i].process(carrier);
+            output += filtered * envelope * 3;
+        }
+
+        // High-pass output
+        output = this.outputHPF.process(output);
+
+        return output * this.outputLevel;
+    }
+}
+
+// ============================================================================
+// RING MODULATOR
+// ============================================================================
+class RingModulator {
+    constructor(sr) {
+        this.sr = sr;
+        this.phase = 0;
+        this.freq = 659.254;  // Default from patch
+    }
+
+    process(input) {
+        const mod = Math.sin(this.phase * 2 * Math.PI);
+        this.phase += this.freq / this.sr;
+        if (this.phase >= 1) this.phase -= 1;
+        return input * mod;
+    }
+}
+
+// ============================================================================
+// FEEDBACK LOOPER
+// ============================================================================
+class FeedbackLooper {
+    constructor(sr) {
+        this.sr = sr;
+        this.bufferSize = Math.ceil(sr * 2);  // 2 seconds
+        this.buffer = new Float32Array(this.bufferSize);
+        this.writeIndex = 0;
+        this.engaged = true;
+        this.punch = false;
+        this.wet = 0.85;
+        this.feedback = 0.85;
+        this.fadeTime = 0.02;
+    }
+
+    process(input) {
+        const delayed = this.buffer[this.writeIndex];
+
+        if (this.engaged) {
+            // Write new content
+            const newContent = this.punch ? input : input + delayed * this.feedback;
+            this.buffer[this.writeIndex] = Math.tanh(newContent);
+        }
+
+        this.writeIndex = (this.writeIndex + 1) % this.bufferSize;
+
+        // Mix
+        return input * (1 - this.wet) + delayed * this.wet;
+    }
+}
+
+// ============================================================================
+// GRAIN DELAY
+// ============================================================================
+class GrainDelay {
+    constructor(sr) {
+        this.sr = sr;
+        this.delayL = new DelayLine(Math.ceil(sr * 1));
+        this.delayR = new DelayLine(Math.ceil(sr * 1));
+        this.delaySamples = Math.ceil(0.25 * sr);
+        this.pitch = 0.5;  // Semitones
+        this.speed = 1.6;
+        this.wet = 0.39;
+
+        // Grain playback position
+        this.grainPosL = 0;
+        this.grainPosR = 0;
+    }
+
+    process(inL, inR) {
+        // Write to delay buffers
+        this.delayL.write(inL);
+        this.delayR.write(inR);
+
+        // Calculate pitch-shifted playback rate
+        const pitchRatio = Math.pow(2, this.pitch / 12);
+        const playbackRate = pitchRatio * Math.abs(this.speed);
+
+        // Read with pitch shifting
+        this.grainPosL += playbackRate;
+        this.grainPosR += playbackRate;
+
+        // Wrap grain position
+        if (this.grainPosL >= this.delaySamples) {
+            this.grainPosL -= this.delaySamples;
+        }
+        if (this.grainPosR >= this.delaySamples) {
+            this.grainPosR -= this.delaySamples;
+        }
+
+        const delayedL = this.delayL.readLinear(this.delaySamples - this.grainPosL);
+        const delayedR = this.delayR.readLinear(this.delaySamples - this.grainPosR);
+
+        return [
+            inL * (1 - this.wet) + delayedL * this.wet,
+            inR * (1 - this.wet) + delayedR * this.wet
+        ];
+    }
+}
+
+// ============================================================================
+// FREEVERB (8-comb stereo) - copied from working unskool
+// ============================================================================
+class Freeverb {
+    constructor(sr) {
+        this.sr = sr;
+        const scale = sr / 44100;
+
+        // 8 comb filters per channel with spread
+        const combTuningsL = [1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617];
+        const combTuningsR = combTuningsL.map(t => t + 23);
+
+        this.combDelaysL = combTuningsL.map(t => new DelayLine(Math.ceil(t * scale)));
+        this.combDelaysR = combTuningsR.map(t => new DelayLine(Math.ceil(t * scale)));
+        this.combFiltersL = new Array(8).fill(0);
+        this.combFiltersR = new Array(8).fill(0);
+
+        // 4 allpass filters
+        const allpassTunings = [556, 441, 341, 225];
+        this.allpassDelaysL = allpassTunings.map(t => new DelayLine(Math.ceil(t * scale)));
+        this.allpassDelaysR = allpassTunings.map(t => t + 23).map(t => new DelayLine(Math.ceil(t * scale)));
+
+        this.roomSize = 0.5;
+        this.damp = 0.5;
+        this.width = 1;
+        this.wet = 0.3;
+    }
+
+    process(inL, inR) {
+        const input = (inL + inR) * 0.015;
+        let outL = 0, outR = 0;
+
+        const feedback = this.roomSize * 0.85 + 0.1;
+
+        // Parallel comb filters
+        for (let i = 0; i < 8; i++) {
+            // Left channel
+            const delayL = this.combDelaysL[i];
+            const delayedL = delayL.readLinear(delayL.maxDelay - 1);
+            this.combFiltersL[i] = delayedL * (1 - this.damp) + this.combFiltersL[i] * this.damp;
+            delayL.write(input + this.combFiltersL[i] * feedback);
+            outL += delayedL;
+
+            // Right channel
+            const delayR = this.combDelaysR[i];
+            const delayedR = delayR.readLinear(delayR.maxDelay - 1);
+            this.combFiltersR[i] = delayedR * (1 - this.damp) + this.combFiltersR[i] * this.damp;
+            delayR.write(input + this.combFiltersR[i] * feedback);
+            outR += delayedR;
+        }
+
+        outL /= 8;
+        outR /= 8;
+
+        // Series allpass filters
+        for (let i = 0; i < 4; i++) {
+            const delayL = this.allpassDelaysL[i];
+            const bufferedL = delayL.readLinear(delayL.maxDelay - 1);
+            delayL.write(outL + bufferedL * 0.5);
+            outL = bufferedL - outL;
+
+            const delayR = this.allpassDelaysR[i];
+            const bufferedR = delayR.readLinear(delayR.maxDelay - 1);
+            delayR.write(outR + bufferedR * 0.5);
+            outR = bufferedR - outR;
+        }
+
+        // Width
+        const wet1 = this.wet * (1 + this.width) / 2;
+        const wet2 = this.wet * (1 - this.width) / 2;
+
+        return [
+            inL * (1 - this.wet) + outL * wet1 + outR * wet2,
+            inR * (1 - this.wet) + outR * wet1 + outL * wet2
+        ];
+    }
+}
+
+// ============================================================================
+// VINK PROCESSOR
+// ============================================================================
+class VinkProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+
+        // Components
+        this.vocoder = new ScorpioVocoder(this.sr);
+        this.ringMod = new RingModulator(this.sr);
+        this.looper = new FeedbackLooper(this.sr);
+        this.grainDelay = new GrainDelay(this.sr);
+        this.freeverb = new Freeverb(this.sr);
+
+        // Feedback VCA
+        this.feedbackLevel = 1.42;
+
+        // Input source
+        this.oscPhase = 0;
+        this.sourceType = 0;  // 0=osc, 1=mic, 2=usb
+
+        // Parameters
+        this.params = {
+            srcLevel: 0.7,
+            srcFreq: 220,
+            ring: -3.5,
+            feedback: 1.42,
+            pitch: 0.5,
+            speed: 1.6,
+            delayWet: 0.39,
+            loopWet: 0.85,
+            loopFb: 0.85,
+            size: 0.92,
+            damp: 0.36,
+            width: 0.9,
+            reverbWet: 0.63,
+            qIn: 0.2,
+            qOut: 0.23,
+            fShift: -0.13,
+            vol: 0.5
+        };
+
+        // MIDI
+        this.midiNote = -1;
+        this.midiFreq = 220;
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'param') {
+                this.params[e.data.name] = e.data.value;
+            }
+            if (e.data.type === 'sourceType') this.sourceType = e.data.value;
+            if (e.data.type === 'loopEngage') this.looper.engaged = e.data.value;
+            if (e.data.type === 'loopPunch') this.looper.punch = e.data.value;
+            if (e.data.type === 'noteOn') {
+                this.midiNote = e.data.note;
+                this.midiFreq = 440 * Math.pow(2, (e.data.note - 69) / 12);
+            }
+            if (e.data.type === 'noteOff') {
+                if (e.data.note === this.midiNote) {
+                    this.midiNote = -1;
+                }
+            }
+        };
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        if (!output || !output[0]) return true;
+        const outL = output[0];
+        const outR = output[1] || output[0];
+        const input = inputs[0];
+        const inL = input && input[0] ? input[0] : null;
+
+        // Update parameters
+        const ringExp = Math.pow(10, this.params.ring / 10);
+        this.ringMod.freq = 659.254 + ringExp * 100;
+        this.feedbackLevel = this.params.feedback;
+        this.grainDelay.pitch = this.params.pitch;
+        this.grainDelay.speed = this.params.speed;
+        this.grainDelay.wet = this.params.delayWet;
+        this.looper.wet = this.params.loopWet;
+        this.looper.feedback = this.params.loopFb;
+        this.freeverb.roomSize = this.params.size;
+        this.freeverb.damp = this.params.damp;
+        this.freeverb.width = this.params.width;
+        this.freeverb.wet = this.params.reverbWet;
+        this.vocoder.qIn = this.params.qIn;
+        this.vocoder.qOut = this.params.qOut;
+        this.vocoder.fShift = this.params.fShift;
+        this.vocoder.updateFilters();
+
+        for (let i = 0; i < outL.length; i++) {
+            // Generate carrier oscillator (rich harmonics)
+            const freq = this.midiNote >= 0 ? this.midiFreq : this.params.srcFreq;
+            let carrier = Math.sin(this.oscPhase * 2 * Math.PI);
+            carrier += Math.sin(this.oscPhase * 4 * Math.PI) * 0.5;
+            carrier += Math.sin(this.oscPhase * 6 * Math.PI) * 0.25;
+            carrier *= 0.3;
+            this.oscPhase += freq / this.sr;
+            if (this.oscPhase >= 1) this.oscPhase -= 1;
+
+            // Get input signal
+            let input = 0;
+            if (this.sourceType === 0) {
+                input = carrier * this.params.srcLevel;
+            } else if (inL) {
+                input = inL[i] * this.params.srcLevel;
+            }
+
+            // Ring mod
+            let sig = this.ringMod.process(input);
+
+            // Freeverb
+            let [sigL, sigR] = this.freeverb.process(sig, sig);
+
+            // Grain Delay
+            [sigL, sigR] = this.grainDelay.process(sigL, sigR);
+
+            // Vocoder (use reverbed signal as modulator, carrier as carrier)
+            const vocoderL = this.vocoder.process(sigL, carrier);
+            const vocoderR = this.vocoder.process(sigR, carrier);
+
+            // Mix vocoder with direct signal
+            const mixL = sigL * 0.3 + vocoderL * 0.7;
+            const mixR = sigR * 0.3 + vocoderR * 0.7;
+
+            // Feedback looper
+            const loopedL = this.looper.process(mixL);
+            const loopedR = this.looper.process(mixR);
+
+            // Output with limiter
+            outL[i] = Math.tanh(loopedL * this.params.vol * 3);
+            outR[i] = Math.tanh(loopedR * this.params.vol * 3);
+        }
+
+        // Send state
+        if (Math.random() < 0.1) {
+            this.port.postMessage({
+                type: 'state',
+                bandLevels: Array.from(this.vocoder.bandLevels),
+                ringFreq: this.ringMod.freq,
+                pitch: this.params.pitch,
+                speed: this.params.speed
+            });
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('vink-processor', VinkProcessor);
+`;
+
+let audioContext, workletNode;
+let isPlaying = false;
+let micStream, usbStream, usbSourceNode, usbGainNode;
+let pedalboardUI, pedalboardNode;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+const playBtn = document.getElementById('playBtn');
+
+// Initialize audio
+
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            try {
+                // Wait for features to load first
+                await featuresLoaded;
+
+        audioContext = new AudioContext();
+
+        if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+        }
+
+        const blob = new Blob([processorCode], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        await audioContext.audioWorklet.addModule(url);
+        URL.revokeObjectURL(url);
+
+        workletNode = new AudioWorkletNode(audioContext, 'vink-processor', {
+            numberOfInputs: 1,
+            numberOfOutputs: 1,
+            outputChannelCount: [2]
+        });
+
+        workletNode.port.onmessage = (e) => {
+            if (e.data.type === 'state') {
+                // Update vocoder band display
+                const bands = document.querySelectorAll('.vocoder-band');
+                e.data.bandLevels.forEach((level, i) => {
+                    if (bands[i]) {
+                        bands[i].style.height = (10 + level * 200) + '%';
+                    }
+                });
+
+                // Update status displays
+                document.getElementById('ringFreqDisplay').textContent = Math.round(e.data.ringFreq) + ' Hz';
+                document.getElementById('pitchDisplay').textContent = (e.data.pitch >= 0 ? '+' : '') + e.data.pitch.toFixed(1) + ' st';
+                document.getElementById('speedDisplay').textContent = e.data.speed.toFixed(1) + 'x';
+            }
+        };
+    } catch (err) {
+        console.error('Audio init error:', err);
+        return;
+    }
+
+    // Initialize pedalboard
+    if (typeof PedalboardUI !== 'undefined') {
+        try {
+            const pedalboardContainer = document.getElementById('pedalboard-container');
+            pedalboardUI = new PedalboardUI(pedalboardContainer, audioContext);
+            pedalboardNode = await pedalboardUI.init();
+
+            workletNode.connect(pedalboardNode);
+            pedalboardNode.connect(audioContext.destination);
+
+            pedalboardUI.loadFromLocalStorage('vink-pedalboard');
+        } catch (err) {
+            console.error('Pedalboard error, connecting directly:', err);
+            workletNode.connect(audioContext.destination);
+        }
+    } else {
+        workletNode.connect(audioContext.destination);
+    }
+
+    // Initialize features if phonebook-features.js is loaded
+    const outputNode = pedalboardNode || workletNode;
+    if (typeof StickyHeader !== 'undefined') {
+        stickyHeader = new StickyHeader({
+            patchName: 'vink-er-301-hyperscale',
+            patchId: 'er-301-patches-hyperscale-vink'
+        });
+        await stickyHeader.init();
+        await stickyHeader.initRecorder(audioContext, outputNode, audioContext.destination);
+    }
+
+    if (typeof getMidiLearn !== 'undefined') {
+        midiLearn = await getMidiLearn('er-301-patches-hyperscale-vink');
+    }
+
+    if (typeof getModulationMatrix !== 'undefined') {
+        modMatrix = getModulationMatrix();
+        modMatrixUI = new ModMatrixUI(
+            document.querySelector('.patch-content') || document.body,
+            { modMatrix: modMatrix }
+        );
+        modMatrixUI.init();
+    }
+
+    // Auto-register all sliders for MIDI Learn and Mod Matrix
+    if (typeof autoRegisterControls !== 'undefined') {
+        await autoRegisterControls({
+            patchId: 'er-301-patches-hyperscale-vink',
+            prefix: 'vink',
+            modMatrixUI: modMatrixUI
+        });
+    }
+
+    // Initialize all params
+    document.querySelectorAll('input[type="range"]').forEach(el => {
+        el.dispatchEvent(new Event('input'));
+    });
+
+    setupMIDI();
+    isPlaying = true;
+    if (modMatrix) modMatrix.start();
+    playBtn.textContent = '\u23F9';
+    playBtn.classList.add('active');
+}
+
+function stop() {
+    if (modMatrix) modMatrix.stop();
+    if (pedalboardUI) {
+        pedalboardUI.saveToLocalStorage('vink-pedalboard');
+    }
+    if (micStream) {
+        micStream.getTracks().forEach(t => t.stop());
+        micStream = null;
+    }
+    if (usbStream) {
+        usbStream.getTracks().forEach(t => t.stop());
+        usbStream = null;
+    }
+    if (workletNode) {
+        workletNode.disconnect();
+        workletNode = null;
+    }
+    if (pedalboardNode) {
+        pedalboardNode.disconnect();
+        pedalboardNode = null;
+    }
+    if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+    }
+    isPlaying = false;
+    playBtn.textContent = '\u25B6';
+    playBtn.classList.remove('active');
+}
+
+playBtn.onclick = async () => {
+    if (!isPlaying) {
+        await initAudio();
+    } else {
+        stop();
+    }
+};
+
+// Source selection
+document.getElementById('oscSrcBtn').onclick = () => setSource(0);
+document.getElementById('micSrcBtn').onclick = () => setSource(1);
+document.getElementById('usbSrcBtn').onclick = () => setSource(2);
+
+function setSource(type) {
+    document.getElementById('oscSrcBtn').classList.toggle('active', type === 0);
+    document.getElementById('micSrcBtn').classList.toggle('active', type === 1);
+    document.getElementById('usbSrcBtn').classList.toggle('active', type === 2);
+    document.getElementById('usbDeviceRow').style.display = type === 2 ? 'block' : 'none';
+
+    if (workletNode) {
+        workletNode.port.postMessage({ type: 'sourceType', value: type });
+    }
+
+    if (type !== 1 && micStream) {
+        micStream.getTracks().forEach(t => t.stop());
+        micStream = null;
+    }
+    if (type !== 2 && usbStream) {
+        usbStream.getTracks().forEach(t => t.stop());
+        usbStream = null;
+    }
+
+    if (type === 1) startMicrophone();
+    if (type === 2) populateUSBDevices();
+}
+
+async function startMicrophone() {
+    if (!audioContext || !workletNode) return;
+    try {
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const micSource = audioContext.createMediaStreamSource(micStream);
+        micSource.connect(workletNode);
+    } catch (err) {
+        console.error('Microphone access denied:', err);
+        setSource(0);
+    }
+}
+
+async function populateUSBDevices() {
+    try {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioInputs = devices.filter(d => d.kind === 'audioinput');
+
+        const select = document.getElementById('usbDeviceSelect');
+        select.innerHTML = '<option value="">Select USB Audio Device...</option>';
+        audioInputs.forEach(device => {
+            const option = document.createElement('option');
+            option.value = device.deviceId;
+            option.textContent = device.label || 'Audio Input';
+            select.appendChild(option);
+        });
+    } catch (err) {
+        console.error('Error enumerating devices:', err);
+    }
+}
+
+document.getElementById('usbDeviceSelect').onchange = async (e) => {
+    const deviceId = e.target.value;
+    if (!deviceId || !audioContext || !workletNode) return;
+
+    if (usbStream) {
+        usbStream.getTracks().forEach(t => t.stop());
+    }
+    if (usbSourceNode) usbSourceNode.disconnect();
+    if (usbGainNode) usbGainNode.disconnect();
+
+    try {
+        usbStream = await navigator.mediaDevices.getUserMedia({
+            audio: { deviceId: { exact: deviceId }, echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+        });
+
+        usbSourceNode = audioContext.createMediaStreamSource(usbStream);
+        usbGainNode = audioContext.createGain();
+        usbGainNode.gain.value = parseFloat(document.getElementById('usbGain').value);
+
+        usbSourceNode.connect(usbGainNode);
+        usbGainNode.connect(workletNode);
+    } catch (err) {
+        console.error('Error connecting USB audio:', err);
+    }
+};
+
+document.getElementById('usbGain').oninput = (e) => {
+    const val = parseFloat(e.target.value);
+    document.getElementById('usbGainVal').textContent = val.toFixed(1) + 'x';
+    if (usbGainNode) usbGainNode.gain.value = val;
+};
+
+// Toggle buttons
+document.getElementById('loopEngageBtn').onclick = function() {
+    this.classList.toggle('active');
+    workletNode?.port.postMessage({ type: 'loopEngage', value: this.classList.contains('active') });
+};
+
+document.getElementById('loopPunchBtn').onclick = function() {
+    this.classList.toggle('active');
+    workletNode?.port.postMessage({ type: 'loopPunch', value: this.classList.contains('active') });
+};
+
+// MIDI setup
+async function setupMIDI() {
+    try {
+        const midiAccess = await navigator.requestMIDIAccess();
+        const inputs = Array.from(midiAccess.inputs.values());
+
+        if (inputs.length > 0) {
+            document.getElementById('midiStatus').textContent = 'MIDI: ' + inputs[0].name;
+            document.getElementById('midiStatus').classList.add('connected');
+
+            inputs.forEach(input => {
+                input.onmidimessage = (msg) => {
+                    const [status, note, velocity] = msg.data;
+                    const command = status & 0xf0;
+
+                    if (command === 0x90 && velocity > 0) {
+                        workletNode?.port.postMessage({ type: 'noteOn', note, velocity });
+                    } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+                        workletNode?.port.postMessage({ type: 'noteOff', note });
+                    }
+                };
+            });
+        }
+    } catch (e) {
+        console.log('MIDI not available');
+    }
+}
+
+// Parameter controls
+const params = ['srcLevel', 'srcFreq', 'ring', 'feedback', 'pitch', 'speed', 'delayWet',
+                'loopWet', 'loopFb', 'size', 'damp', 'width', 'reverbWet',
+                'qIn', 'qOut', 'fShift', 'vol'];
+
+params.forEach(name => {
+    const input = document.getElementById(name);
+    const display = document.getElementById(name + 'Val');
+    if (input && display) {
+        input.oninput = () => {
+            const val = parseFloat(input.value);
+            if (name === 'srcFreq') {
+                display.textContent = val + ' Hz';
+            } else if (name === 'pitch') {
+                display.textContent = (val >= 0 ? '+' : '') + val.toFixed(1) + ' st';
+            } else if (name === 'speed') {
+                display.textContent = val.toFixed(1) + 'x';
+            } else {
+                display.textContent = val.toFixed(2);
+            }
+            workletNode?.port.postMessage({ type: 'param', name, value: val });
+        };
+    }
+});
+
+// Info panel
+if (typeof ER301InfoPanel !== 'undefined') {
+    new ER301InfoPanel(document.body, {
+        title: 'vink',
+        author: 'mudlogger',
+        origin: 'ER-301 Hyperscale Units',
+        description: 'Scorpio Vocoder-based effect processor with 10-band analysis/synthesis, Ring Modulator, Feedback Looper, Grain Delay, and Freeverb. Creates robotic, metallic, and evolving textures from any audio input. Uses the vocoder to impose spectral characteristics of processed audio onto the original carrier signal.',
+        controls: [
+            { name: 'Input Source', description: 'Oscillator (internal carrier), Microphone, or USB Audio' },
+            { name: 'Input Level', range: '0-2', description: 'Gain applied to input signal' },
+            { name: 'Osc Freq', range: '50-1000 Hz', description: 'Internal oscillator frequency (carrier)' },
+            { name: 'Ring', range: '-10 to 0', description: 'Ring modulator frequency offset (exponential)' },
+            { name: 'Feedback', range: '0-4', description: 'Amount of vocoder output fed back into chain' },
+            { name: 'Pitch', range: '-12 to +12 st', description: 'Grain delay pitch shift in semitones' },
+            { name: 'Speed', range: '-3 to 3', description: 'Grain delay playback speed multiplier' },
+            { name: 'Delay Wet', range: '0-1', description: 'Grain delay wet/dry mix' },
+            { name: 'Loop Wet', range: '0-1', description: 'Feedback looper wet/dry mix' },
+            { name: 'Loop FB', range: '0-0.99', description: 'Feedback looper internal feedback' },
+            { name: 'Loop Engaged', description: 'Enable/disable looper recording' },
+            { name: 'Punch', description: 'Punch-in mode (replace vs. overdub)' },
+            { name: 'Size', range: '0-0.99', description: 'Freeverb room size' },
+            { name: 'Damp', range: '0-1', description: 'Freeverb high-frequency damping' },
+            { name: 'Width', range: '0-1', description: 'Freeverb stereo width' },
+            { name: 'Reverb Wet', range: '0-1', description: 'Freeverb wet/dry mix' },
+            { name: 'Q In', range: '0.1-2', description: 'Vocoder analysis filter Q/resonance' },
+            { name: 'Q Out', range: '0.1-2', description: 'Vocoder synthesis filter Q/resonance' },
+            { name: 'F Shift', range: '-1 to 1', description: 'Vocoder frequency shift in octaves' }
+        ],
+        tips: [
+            'Start with the oscillator input for predictable carrier signal',
+            'Connect a microphone to use your voice as the modulator',
+            'Ring modulator creates metallic, bell-like tones',
+            'Increase Feedback for evolving, self-modulating textures',
+            'Q In/Out control vocoder articulation - higher = more resonant',
+            'F Shift transposes the vocoder bands - creates formant shifting',
+            'Use Grain Delay pitch shift for robotic pitch effects',
+            'Loop Engaged records and layers - great for building drones',
+            'MIDI notes control the internal oscillator frequency',
+            'Combine with external effects via the pedalboard'
+        ]
+    });
+}
+
+// Visualizer
+const canvas = document.getElementById('visualizer');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+    canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+    canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+let analyser;
+function setupAnalyser() {
+    if (!audioContext || analyser) return;
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    workletNode.connect(analyser);
+}
+
+function drawVisualizer() {
+    requestAnimationFrame(drawVisualizer);
+
+    const w = canvas.offsetWidth;
+    const h = canvas.offsetHeight;
+
+    ctx.fillStyle = '#0a0a14';
+    ctx.fillRect(0, 0, w, h);
+
+    if (!analyser || !isPlaying) return;
+
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteFrequencyData(dataArray);
+
+    const barWidth = w / bufferLength * 2;
+    let x = 0;
+
+    for (let i = 0; i < bufferLength; i++) {
+        const barHeight = (dataArray[i] / 255) * h * 0.8;
+
+        const gradient = ctx.createLinearGradient(0, h - barHeight, 0, h);
+        gradient.addColorStop(0, '#9b59b6');
+        gradient.addColorStop(1, '#3498db');
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, h - barHeight, barWidth - 1, barHeight);
+
+        x += barWidth;
+    }
+}
+
+drawVisualizer();
+
+// Setup analyser when audio starts
+const originalInit = initAudio;
+initAudio = async function() {
+    await originalInit();
+    setupAnalyser();
+};
+    </script>
+</body>
+</html>

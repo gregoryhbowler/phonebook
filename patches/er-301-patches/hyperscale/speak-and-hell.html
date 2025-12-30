@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>speak & hell - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 80px;
+        }
+        .status-display {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .status-card {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 10px 16px;
+            text-align: center;
+            min-width: 70px;
+        }
+        .status-card .label {
+            font-size: 0.6em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .status-card .value {
+            font-size: 1em;
+            color: #9b59b6;
+            font-family: 'SF Mono', monospace;
+        }
+        .sample-info {
+            text-align: center;
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+        .sample-info.loading { color: #f39c12; }
+        .sample-info.ready { color: #9b59b6; }
+        .sample-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 1em 0;
+            flex-wrap: wrap;
+        }
+        .sample-actions button, .sample-actions select {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+        .sample-actions button:hover, .sample-actions select:hover {
+            border-color: #9b59b6;
+            color: #9b59b6;
+        }
+        .toggle-btn {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+        .toggle-btn.active {
+            border-color: #9b59b6;
+            color: #9b59b6;
+            background: rgba(155, 89, 182, 0.1);
+        }
+        .toggle-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 1em;
+        }
+        .midi-status {
+            text-align: center;
+            font-size: 0.75em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+        .midi-status.connected { color: #9b59b6; }
+        .category-select {
+            background: var(--bg-card);
+            padding: 6px 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>speak & hell</h1>
+                <p>Speak & Spell voice samples through Grain Stretch, Tuned Filter Delay & Freeverb</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="midi-status" id="midiStatus">MIDI: Connect a controller - notes trigger samples & control pitch</div>
+
+            <div class="sample-info" id="sampleInfo">Loading samples...</div>
+
+            <!-- Status Display -->
+            <div class="status-display">
+                <div class="status-card">
+                    <div class="label">Trig Prob</div>
+                    <div class="value" id="trigProbDisplay">0.22</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Duration</div>
+                    <div class="value" id="durationDisplay">0.35</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Delay</div>
+                    <div class="value" id="delayDisplay">0.08</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Looper</div>
+                    <div class="value" id="looperDisplay">0.00</div>
+                </div>
+            </div>
+
+            <div class="toggle-row">
+                <button class="toggle-btn active" id="autoTrigBtn">Auto Trigger</button>
+            </div>
+
+            <div class="sample-actions">
+                <select id="categorySelect" class="category-select">
+                    <option value="all">All Samples (238)</option>
+                    <option value="ALPHABET">Alphabet (26)</option>
+                    <option value="CIRCUITBENT">Circuit Bent (13)</option>
+                    <option value="NUMBERS">Numbers (11)</option>
+                    <option value="OPERATING SYSTEM">Operating System (23)</option>
+                    <option value="WORDS">Words (165)</option>
+                </select>
+                <input type="file" id="sampleInput" accept="audio/*" multiple style="display: none;">
+                <button onclick="document.getElementById('sampleInput').click()">Import Samples</button>
+                <button id="clearSamples">Clear Samples</button>
+            </div>
+
+            <!-- Trigger Section -->
+            <span class="section-label">Clocked Random Gate</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Trig Prob</label>
+                        <input type="range" id="trigProb" min="0" max="1" value="0.22" step="0.01">
+                        <span class="param-value" id="trigProbVal">0.22</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Rate</label>
+                        <input type="range" id="rate" min="0.5" max="10" value="2" step="0.1">
+                        <span class="param-value" id="rateVal">2.0 Hz</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Variable Speed Player Section -->
+            <span class="section-label">Variable Speed Player</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Speed</label>
+                        <input type="range" id="speed" min="-2" max="2" value="1" step="0.01">
+                        <span class="param-value" id="speedVal">1.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Sample Select</label>
+                        <input type="range" id="sampleSelect" min="0" max="237" value="0" step="1">
+                        <span class="param-value" id="sampleSelectVal">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grain Stretch Section -->
+            <span class="section-label">Grain Stretch</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Duration</label>
+                        <input type="range" id="duration" min="0.01" max="1" value="0.35" step="0.01">
+                        <span class="param-value" id="durationVal">0.35</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Jitter</label>
+                        <input type="range" id="jitter" min="0" max="1" value="0.15" step="0.01">
+                        <span class="param-value" id="jitterVal">0.15</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feedback Looper Section -->
+            <span class="section-label">Feedback Looper</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Looper</label>
+                        <input type="range" id="looper" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="looperVal">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="feedback" min="0" max="0.95" value="0.5" step="0.01">
+                        <span class="param-value" id="feedbackVal">0.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delay Section -->
+            <span class="section-label">Delay</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Del Time</label>
+                        <input type="range" id="delTime" min="0" max="0.2" value="0.078" step="0.001">
+                        <span class="param-value" id="delTimeVal">0.078</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Del Mix</label>
+                        <input type="range" id="delMix" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="delMixVal">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EQ3 Section -->
+            <span class="section-label">EQ3</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Low</label>
+                        <input type="range" id="eqLow" min="-12" max="12" value="0" step="0.5">
+                        <span class="param-value" id="eqLowVal">0.0 dB</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mid</label>
+                        <input type="range" id="eqMid" min="-12" max="12" value="0" step="0.5">
+                        <span class="param-value" id="eqMidVal">0.0 dB</span>
+                    </div>
+                    <div class="param-group">
+                        <label>High</label>
+                        <input type="range" id="eqHigh" min="-12" max="12" value="0" step="0.5">
+                        <span class="param-value" id="eqHighVal">0.0 dB</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tuned Filter Delay Section -->
+            <span class="section-label">Tuned Filter Delay</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Filter Freq</label>
+                        <input type="range" id="filterFreq" min="100" max="8000" value="1200" step="10">
+                        <span class="param-value" id="filterFreqVal">1200 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Filter Q</label>
+                        <input type="range" id="filterQ" min="0.5" max="20" value="2" step="0.1">
+                        <span class="param-value" id="filterQVal">2.0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Filter Del</label>
+                        <input type="range" id="filterDelay" min="0" max="0.5" value="0.15" step="0.01">
+                        <span class="param-value" id="filterDelayVal">0.15</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Freeverb Section -->
+            <span class="section-label">Freeverb</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Size</label>
+                        <input type="range" id="reverbSize" min="0" max="1" value="0.6" step="0.01">
+                        <span class="param-value" id="reverbSizeVal">0.60</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Damp</label>
+                        <input type="range" id="reverbDamp" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="reverbDampVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Width</label>
+                        <input type="range" id="reverbWidth" min="0" max="1" value="0.8" step="0.01">
+                        <span class="param-value" id="reverbWidthVal">0.80</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mix</label>
+                        <input type="range" id="reverbMix" min="0" max="1" value="0.35" step="0.01">
+                        <span class="param-value" id="reverbMixVal">0.35</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tone/Meter Section -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Tone</label>
+                        <input type="range" id="tone" min="200" max="8000" value="4000" step="10">
+                        <span class="param-value" id="toneVal">4000 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Meter (Vol)</label>
+                        <input type="range" id="meter" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="meterVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pedalboard Effects -->
+            <div id="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+    class SpeakAndHellProcessor extends AudioWorkletProcessor {
+        constructor() {
+            super();
+            this.sampleBuffers = [];
+            this.currentSampleIndex = 0;
+            this.sampleRate = 48000;
+
+            // Playback state
+            this.playing = false;
+            this.playheadIndex = 0;
+            this.playheadFrac = 0;
+
+            // Clocked Random Gate
+            this.clockPhase = 0;
+            this.gateOpen = false;
+            this.trigProb = 0.22;
+            this.clockRate = 2;
+
+            // Variable Speed Player
+            this.speed = 1.0;
+            this.targetSampleIndex = 0;
+
+            // Grain Stretch
+            this.grains = [];
+            this.grainDuration = 0.35;
+            this.grainJitter = 0.15;
+            this.grainPhase = 0;
+            this.grainSpacing = 0.05;
+
+            // Feedback Looper
+            this.looperBuffer = new Float32Array(48000 * 4); // 4 seconds
+            this.looperWritePos = 0;
+            this.looperReadPos = 0;
+            this.looperMix = 0;
+            this.looperFeedback = 0.5;
+            this.looperRecording = false;
+
+            // Delay
+            this.delayBuffer = new Float32Array(48000);
+            this.delayWritePos = 0;
+            this.delayTime = 0.078;
+            this.delayMix = 0.3;
+
+            // EQ3
+            this.eqLowGain = 1;
+            this.eqMidGain = 1;
+            this.eqHighGain = 1;
+            // Low shelf filter state
+            this.lowShelfX1 = 0; this.lowShelfX2 = 0;
+            this.lowShelfY1 = 0; this.lowShelfY2 = 0;
+            // Mid peak filter state
+            this.midPeakX1 = 0; this.midPeakX2 = 0;
+            this.midPeakY1 = 0; this.midPeakY2 = 0;
+            // High shelf filter state
+            this.highShelfX1 = 0; this.highShelfX2 = 0;
+            this.highShelfY1 = 0; this.highShelfY2 = 0;
+
+            // Tuned Filter Delay
+            this.filterDelayBuffer = new Float32Array(48000);
+            this.filterDelayWritePos = 0;
+            this.filterFreq = 1200;
+            this.filterQ = 2;
+            this.filterDelayTime = 0.15;
+            // State for bandpass filter
+            this.bpX1 = 0; this.bpX2 = 0;
+            this.bpY1 = 0; this.bpY2 = 0;
+
+            // Freeverb (simplified Schroeder)
+            this.combFiltersL = [];
+            this.combFiltersR = [];
+            this.allpassFiltersL = [];
+            this.allpassFiltersR = [];
+            this.initFreeverb();
+            this.reverbSize = 0.6;
+            this.reverbDamp = 0.5;
+            this.reverbWidth = 0.8;
+            this.reverbMix = 0.35;
+
+            // Output
+            this.toneFreq = 4000;
+            this.meter = 0.7;
+            this.lpX1 = 0; this.lpY1 = 0;
+
+            // Pingable Scaled Random
+            this.randomValue = Math.random();
+            this.randomTarget = Math.random();
+            this.slewRate = 0.001;
+
+            // Auto trigger
+            this.autoTrigger = true;
+
+            // MIDI
+            this.midiNote = -1;
+            this.midiVelocity = 0;
+
+            this.port.onmessage = (e) => this.handleMessage(e.data);
+        }
+
+        initFreeverb() {
+            // Comb filter delays (in samples at 48kHz)
+            const combTuningsL = [1557, 1617, 1491, 1422, 1277, 1356, 1188, 1116];
+            const combTuningsR = [1557 + 23, 1617 + 23, 1491 + 23, 1422 + 23, 1277 + 23, 1356 + 23, 1188 + 23, 1116 + 23];
+
+            for (let i = 0; i < 8; i++) {
+                this.combFiltersL.push({
+                    buffer: new Float32Array(combTuningsL[i]),
+                    pos: 0,
+                    filterStore: 0
+                });
+                this.combFiltersR.push({
+                    buffer: new Float32Array(combTuningsR[i]),
+                    pos: 0,
+                    filterStore: 0
+                });
+            }
+
+            // Allpass delays
+            const allpassTunings = [556, 441, 341, 225];
+            for (let i = 0; i < 4; i++) {
+                this.allpassFiltersL.push({
+                    buffer: new Float32Array(allpassTunings[i]),
+                    pos: 0
+                });
+                this.allpassFiltersR.push({
+                    buffer: new Float32Array(allpassTunings[i] + 23),
+                    pos: 0
+                });
+            }
+        }
+
+        handleMessage(data) {
+            switch(data.type) {
+                case 'samples':
+                    this.sampleBuffers = data.buffers.map(b => new Float32Array(b));
+                    break;
+                case 'parameter':
+                    this[data.param] = data.value;
+                    break;
+                case 'trigger':
+                    this.triggerSample();
+                    break;
+                case 'sampleIndex':
+                    this.targetSampleIndex = Math.floor(data.value);
+                    break;
+                case 'midiNote':
+                    this.midiNote = data.note;
+                    this.midiVelocity = data.velocity;
+                    if (data.velocity > 0) {
+                        // Use MIDI note to select sample and set pitch
+                        this.targetSampleIndex = data.note % this.sampleBuffers.length;
+                        this.speed = Math.pow(2, (data.note - 60) / 12);
+                        this.triggerSample();
+                    }
+                    break;
+            }
+        }
+
+        triggerSample() {
+            if (this.sampleBuffers.length === 0) return;
+
+            this.currentSampleIndex = this.targetSampleIndex % this.sampleBuffers.length;
+            this.playheadIndex = 0;
+            this.playheadFrac = 0;
+            this.playing = true;
+
+            // Add grain
+            const jitterOffset = (Math.random() - 0.5) * this.grainJitter;
+            this.grains.push({
+                sampleIndex: this.currentSampleIndex,
+                position: 0,
+                phase: 0,
+                duration: this.grainDuration * this.sampleRate,
+                speed: this.speed * (1 + jitterOffset * 0.1)
+            });
+
+            // Limit grains
+            if (this.grains.length > 16) {
+                this.grains.shift();
+            }
+        }
+
+        processCombFilter(comb, input, feedback, damp) {
+            const output = comb.buffer[comb.pos];
+            comb.filterStore = output * (1 - damp) + comb.filterStore * damp;
+            comb.buffer[comb.pos] = input + comb.filterStore * feedback;
+            comb.pos = (comb.pos + 1) % comb.buffer.length;
+            return output;
+        }
+
+        processAllpassFilter(allpass, input) {
+            const bufOut = allpass.buffer[allpass.pos];
+            const output = bufOut - input;
+            allpass.buffer[allpass.pos] = input + bufOut * 0.5;
+            allpass.pos = (allpass.pos + 1) % allpass.buffer.length;
+            return output;
+        }
+
+        processFreeverb(inputL, inputR) {
+            const feedback = this.reverbSize * 0.28 + 0.7;
+            const damp = this.reverbDamp;
+
+            let outL = 0, outR = 0;
+
+            // Comb filters in parallel
+            for (let i = 0; i < 8; i++) {
+                outL += this.processCombFilter(this.combFiltersL[i], inputL, feedback, damp);
+                outR += this.processCombFilter(this.combFiltersR[i], inputR, feedback, damp);
+            }
+
+            // Allpass filters in series
+            for (let i = 0; i < 4; i++) {
+                outL = this.processAllpassFilter(this.allpassFiltersL[i], outL);
+                outR = this.processAllpassFilter(this.allpassFiltersR[i], outR);
+            }
+
+            // Width processing
+            const wet1 = outL * (1 + this.reverbWidth) * 0.5;
+            const wet2 = outR * (1 - this.reverbWidth) * 0.5;
+
+            return {
+                left: wet1 + wet2,
+                right: wet1 - wet2
+            };
+        }
+
+        process(inputs, outputs, parameters) {
+            const output = outputs[0];
+            const outL = output[0];
+            const outR = output[1] || output[0];
+
+            for (let i = 0; i < outL.length; i++) {
+                // Clock for auto-trigger
+                if (this.autoTrigger) {
+                    this.clockPhase += this.clockRate / this.sampleRate;
+                    if (this.clockPhase >= 1) {
+                        this.clockPhase -= 1;
+                        if (Math.random() < this.trigProb) {
+                            // Random sample selection modulated by Pingable Scaled Random
+                            this.randomTarget = Math.random();
+                            this.targetSampleIndex = Math.floor(this.randomValue * this.sampleBuffers.length);
+                            this.triggerSample();
+                        }
+                    }
+
+                    // Slew the random value
+                    if (this.randomValue < this.randomTarget) {
+                        this.randomValue = Math.min(this.randomValue + this.slewRate, this.randomTarget);
+                    } else {
+                        this.randomValue = Math.max(this.randomValue - this.slewRate, this.randomTarget);
+                    }
+                }
+
+                // Process grains
+                let grainOut = 0;
+                for (let g = this.grains.length - 1; g >= 0; g--) {
+                    const grain = this.grains[g];
+                    const buffer = this.sampleBuffers[grain.sampleIndex];
+
+                    if (buffer && grain.phase < grain.duration) {
+                        // Hann window
+                        const env = 0.5 * (1 - Math.cos(2 * Math.PI * grain.phase / grain.duration));
+
+                        // Read sample with interpolation
+                        const pos = Math.floor(grain.position);
+                        const frac = grain.position - pos;
+
+                        if (pos >= 0 && pos < buffer.length - 1) {
+                            const s0 = buffer[pos];
+                            const s1 = buffer[pos + 1];
+                            grainOut += (s0 + (s1 - s0) * frac) * env;
+                        }
+
+                        grain.position += grain.speed;
+                        grain.phase++;
+                    } else {
+                        this.grains.splice(g, 1);
+                    }
+                }
+
+                // Feedback Looper
+                let looperOut = 0;
+                if (this.looperMix > 0) {
+                    const loopDelaySamples = Math.floor(this.sampleRate * 0.5);
+                    const readPos = (this.looperWritePos - loopDelaySamples + this.looperBuffer.length) % this.looperBuffer.length;
+                    looperOut = this.looperBuffer[readPos];
+
+                    this.looperBuffer[this.looperWritePos] = grainOut + looperOut * this.looperFeedback;
+                    this.looperWritePos = (this.looperWritePos + 1) % this.looperBuffer.length;
+                }
+
+                let sample = grainOut * (1 - this.looperMix) + looperOut * this.looperMix;
+
+                // Simple Delay
+                const delaySamples = Math.floor(this.delayTime * this.sampleRate);
+                const delayReadPos = (this.delayWritePos - delaySamples + this.delayBuffer.length) % this.delayBuffer.length;
+                const delayOut = this.delayBuffer[delayReadPos];
+                this.delayBuffer[this.delayWritePos] = sample;
+                this.delayWritePos = (this.delayWritePos + 1) % this.delayBuffer.length;
+
+                sample = sample * (1 - this.delayMix) + delayOut * this.delayMix;
+
+                // EQ3 - simplified as gain stages with basic filtering
+                // Low shelf approximation
+                const lowCoeff = Math.exp(-2 * Math.PI * 300 / this.sampleRate);
+                this.lowShelfY1 = sample * (1 - lowCoeff) + this.lowShelfY1 * lowCoeff;
+                const lowBand = this.lowShelfY1;
+
+                // High shelf approximation
+                const highCoeff = Math.exp(-2 * Math.PI * 3000 / this.sampleRate);
+                this.highShelfY1 = sample * (1 - highCoeff) + this.highShelfY1 * highCoeff;
+                const highBand = sample - this.highShelfY1;
+
+                // Mid is what's left
+                const midBand = sample - lowBand - highBand;
+
+                sample = lowBand * this.eqLowGain + midBand * this.eqMidGain + highBand * this.eqHighGain;
+
+                // Tuned Filter Delay (bandpass + delay)
+                const filterDelaySamples = Math.floor(this.filterDelayTime * this.sampleRate);
+                const filterDelayReadPos = (this.filterDelayWritePos - filterDelaySamples + this.filterDelayBuffer.length) % this.filterDelayBuffer.length;
+                let filterDelayOut = this.filterDelayBuffer[filterDelayReadPos];
+
+                // Bandpass filter
+                const w0 = 2 * Math.PI * this.filterFreq / this.sampleRate;
+                const alpha = Math.sin(w0) / (2 * this.filterQ);
+                const b0 = alpha;
+                const b1 = 0;
+                const b2 = -alpha;
+                const a0 = 1 + alpha;
+                const a1 = -2 * Math.cos(w0);
+                const a2 = 1 - alpha;
+
+                const bpOut = (b0/a0) * filterDelayOut + (b1/a0) * this.bpX1 + (b2/a0) * this.bpX2
+                            - (a1/a0) * this.bpY1 - (a2/a0) * this.bpY2;
+                this.bpX2 = this.bpX1;
+                this.bpX1 = filterDelayOut;
+                this.bpY2 = this.bpY1;
+                this.bpY1 = bpOut;
+
+                this.filterDelayBuffer[this.filterDelayWritePos] = sample + bpOut * 0.3;
+                this.filterDelayWritePos = (this.filterDelayWritePos + 1) % this.filterDelayBuffer.length;
+
+                sample = sample * 0.7 + bpOut * 0.3;
+
+                // Freeverb
+                const reverb = this.processFreeverb(sample, sample);
+                const dryL = sample * (1 - this.reverbMix);
+                const dryR = sample * (1 - this.reverbMix);
+                const wetL = reverb.left * this.reverbMix;
+                const wetR = reverb.right * this.reverbMix;
+
+                let finalL = dryL + wetL;
+                let finalR = dryR + wetR;
+
+                // Output lowpass (tone)
+                const toneCoeff = Math.exp(-2 * Math.PI * this.toneFreq / this.sampleRate);
+                this.lpY1 = finalL * (1 - toneCoeff) + this.lpY1 * toneCoeff;
+                finalL = this.lpY1;
+
+                // Apply meter/volume
+                finalL *= this.meter;
+                finalR *= this.meter;
+
+                // Soft clip
+                outL[i] = Math.tanh(finalL);
+                outR[i] = Math.tanh(finalR);
+            }
+
+            return true;
+        }
+    }
+
+    registerProcessor('speak-and-hell-processor', SpeakAndHellProcessor);
+    </script>
+
+    <script>
+    let audioContext, workletNode, analyser;
+    let isPlaying = false;
+    let pedalboardUI;
+    let loadedSamples = [];
+    let allSamplePaths = [];
+    let currentCategory = 'all';
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+    // Build sample paths
+    const categories = {
+        'ALPHABET': [],
+        'CIRCUITBENT': [],
+        'NUMBERS': [],
+        'OPERATING SYSTEM': [],
+        'WORDS': []
+    };
+
+    // Alphabet A-Z
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(letter => {
+        categories['ALPHABET'].push(`speak-and-spell-${letter}.wav`);
+    });
+
+    // Circuit bent
+    ['ahwl', 'arrayooo', 'ayyee', 'blonk', 'blooip', 'croak', 'eeeey', 'ehhhyyy', 'errewoo', 'ewwowl', 'heyaay', 'ooee', 'twiptwap'].forEach(name => {
+        categories['CIRCUITBENT'].push(`speak-n-spell-${name}.wav`);
+    });
+
+    // Numbers
+    ['EIGHT', 'FIVE', 'FOUR', 'NINE', 'ONE', 'SEVEN', 'SIX', 'TEN', 'THREE', 'TWO', 'ZERO'].forEach(num => {
+        categories['NUMBERS'].push(`speak-and-spell-${num}.wav`);
+    });
+
+    // Operating System
+    ['CORRECT', 'HERE_IS_YOUR_SCORE', 'I_WIN', 'NEXT_SPELL', 'NOW_SPELL', 'NOW_TRY', 'PERFECT_SCORE', 'SAY_IT', 'SPELL', 'STARTUP_MELODY_1', 'STARTUP_MELODY_2', 'STARTUP_MELODY_3', 'STARTUP_MELODY_4', 'THAT_IS_CORRECT', 'THAT_IS_INCORRECT', 'THAT_IS_RIGHT', 'THE_CORRECT_SPELLING_OF', 'TRY', 'WRONG', 'WRONG_TRY_AGAIN', 'YOU_ARE_CORRECT', 'YOU_ARE_RIGHT', 'YOU_WIN'].forEach(name => {
+        categories['OPERATING SYSTEM'].push(`speak-and-spell-${name}.wav`);
+    });
+
+    // Words - extensive list
+    const words = ['ABOVE', 'ABSCESS', 'ALREADY', 'ANCIENT', 'ANGEL', 'ANOTHER', 'ANSWER', 'ANYTHING', 'BEAUTY', 'BEIGE', 'BELIEVE', 'BLOOD', 'BROTHER', 'BUILT', 'BULLET', 'BUREAU', 'BUSHEL', 'BUTCHER', 'CALF', 'CARAVAN', 'CARRY', 'CHALK', 'CHILD', 'CIRCUIT', 'COMFORT', 'COMING', 'CORSAGE', 'COULDN_T', 'COUPLE', 'COURAGE', 'COUSIN', 'DANGER', 'DISCOVER', 'DOES', 'DUNGEON', 'EARLY', 'EARNEST', 'EARTH', 'ECHO', 'EIGHT', 'EIGHT_AS_IN_EIGHT_REINDEER', 'ENOUGH', 'EXTRA', 'FEATHER', 'FINGER', 'FIVE', 'FLOOD', 'FLOOR', 'FOR', 'FOR_AS_IN_FOR_SOOMEONE', 'FOUR', 'FOUR_AS_IN_FOUR_WOLVES', 'FREIGHT', 'FRONT', 'GREATER', 'GUARD', 'GUESS', 'GUIDE', 'HALF', 'HASTE', 'HEALTH', 'HEALTHY', 'HEAVEN', 'HEAVY', 'INSTEAD', 'IRON', 'IS', 'JEALOUS', 'JOURNEY', 'LANGUAGE', 'LAUGH', 'LAUGHTER', 'LEARN', 'LEISURE', 'LETTUCE', 'LINGER', 'MACHINE', 'MEASURE', 'MINUTE', 'MIRROR', 'MOTHER', 'NIECE', 'NINE', 'OCEAN', 'ONCE', 'ONE', 'ONE_AS_IN_ONE_WORD', 'OTHER', 'OUTDOOR', 'OVEN', 'PERIOD', 'PIERCE', 'PINT', 'PLAGUE', 'PLEASURE', 'PLUNGER', 'POLICE', 'POULTRY', 'PRIEST', 'PROMISE', 'PULL', 'QUIET', 'QUOTIENT', 'RANGE', 'RANGER', 'READY', 'REINDEER', 'RELIEF', 'REMOVE', 'RHYTHM', 'RURAL', 'SAYS', 'SCHEDULE', 'SCHOOL', 'SCISSORS', 'SEARCH', 'SERIOUS', 'SEVEN', 'SHIELD', 'SHOULD', 'SHOULDER', 'SHOVEL', 'SIX', 'SKI', 'SOMEONE', 'SOURCE', 'SQUAD', 'SQUAT', 'STATUE', 'STOMACH', 'STRANGER', 'SUGAR', 'SURE', 'SURGEON', 'SWAP', 'TALK', 'TEN', 'TERROR', 'THREE', 'TO', 'TODAY', 'TOMORROW', 'TOUCH', 'TO_AS_IN_TO_PULL', 'TREASURE', 'TROUBLE', 'TWO', 'TWO_AS_IN_TWO_WOLVES', 'UNION', 'VIEW', 'WARM', 'WAS', 'WASH', 'WATCH', 'WATER', 'WELCOME', 'WOLVES', 'WOMAN', 'WONDER', 'WORD', 'WORKMAN', 'WORTH', 'YACHT', 'YIELD', 'ZERO'];
+    words.forEach(word => {
+        categories['WORDS'].push(`speak-and-spell-${word}.wav`);
+    });
+
+    function buildSamplePaths(category) {
+        const basePath = '../samples/speak-and-hell/';
+        let paths = [];
+
+        if (category === 'all') {
+            Object.keys(categories).forEach(cat => {
+                categories[cat].forEach(file => {
+                    paths.push(`${basePath}${cat}/${file}`);
+                });
+            });
+        } else {
+            categories[category].forEach(file => {
+                paths.push(`${basePath}${category}/${file}`);
+            });
+        }
+
+        return paths;
+    }
+
+    async function loadSamples(category = 'all') {
+        const sampleInfo = document.getElementById('sampleInfo');
+        sampleInfo.textContent = 'Loading samples...';
+        sampleInfo.className = 'sample-info loading';
+
+        allSamplePaths = buildSamplePaths(category);
+        loadedSamples = [];
+
+        let loadedCount = 0;
+        const buffers = [];
+
+        for (const path of allSamplePaths) {
+            try {
+                const response = await fetch(path);
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    buffers.push(audioBuffer.getChannelData(0));
+                    loadedCount++;
+                } else {
+                    buffers.push(new Float32Array(1));
+                }
+            } catch (e) {
+                buffers.push(new Float32Array(1));
+            }
+        }
+
+        loadedSamples = buffers;
+
+        if (workletNode) {
+            workletNode.port.postMessage({
+                type: 'samples',
+                buffers: buffers.map(b => b.buffer)
+            });
+        }
+
+        // Update sample select range
+        const sampleSelect = document.getElementById('sampleSelect');
+        sampleSelect.max = Math.max(0, buffers.length - 1);
+
+        sampleInfo.textContent = `${loadedCount}/${allSamplePaths.length} samples loaded (${category})`;
+        sampleInfo.className = 'sample-info ready';
+    }
+
+    
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        const processorCode = document.querySelector('script:not([src])').textContent;
+        const blob = new Blob([processorCode], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+
+        await audioContext.audioWorklet.addModule(url);
+
+        workletNode = new AudioWorkletNode(audioContext, 'speak-and-hell-processor');
+
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+
+        // Create pedalboard
+        const container = document.getElementById('pedalboard-container');
+        pedalboardUI = new PedalboardUI(container, audioContext);
+        const fxNode = await pedalboardUI.init();
+        pedalboardUI.connect(workletNode);
+        fxNode.connect(analyser);
+        analyser.connect(audioContext.destination);
+
+        // Initialize features if phonebook-features.js is loaded
+        if (typeof StickyHeader !== 'undefined') {
+            stickyHeader = new StickyHeader({
+                patchName: 'speak-and-hell',
+                patchId: 'er-301-patches-hyperscale-speak-and-hell'
+            });
+            await stickyHeader.init();
+            await stickyHeader.initRecorder(audioContext, fxNode, audioContext.destination);
+        }
+
+        if (typeof getMidiLearn !== 'undefined') {
+            midiLearn = await getMidiLearn('er-301-patches-hyperscale-speak-and-hell');
+        }
+
+        if (typeof getModulationMatrix !== 'undefined') {
+            modMatrix = getModulationMatrix();
+            modMatrixUI = new ModMatrixUI(
+                document.querySelector('.patch-content') || document.body,
+                { modMatrix: modMatrix }
+            );
+            modMatrixUI.init();
+        }
+
+        // Auto-register all sliders for MIDI Learn and Mod Matrix
+        if (typeof autoRegisterControls !== 'undefined') {
+            await autoRegisterControls({
+                patchId: 'er-301-patches-hyperscale-speak-and-hell',
+                prefix: 'hell',
+                modMatrixUI: modMatrixUI
+            });
+        }
+
+        await loadSamples('all');
+
+        // Setup MIDI
+        setupMIDI();
+
+        // Start visualization
+        visualize();
+    }
+
+    function setupMIDI() {
+        if (navigator.requestMIDIAccess) {
+            navigator.requestMIDIAccess().then(midiAccess => {
+                const inputs = midiAccess.inputs.values();
+                for (let input of inputs) {
+                    input.onmidimessage = handleMIDI;
+                    document.getElementById('midiStatus').textContent = `MIDI: ${input.name}`;
+                    document.getElementById('midiStatus').className = 'midi-status connected';
+                }
+            });
+        }
+    }
+
+    function handleMIDI(event) {
+        const [status, note, velocity] = event.data;
+        const command = status >> 4;
+
+        if (command === 9 && velocity > 0) {
+            workletNode.port.postMessage({
+                type: 'midiNote',
+                note: note,
+                velocity: velocity / 127
+            });
+        } else if (command === 8 || (command === 9 && velocity === 0)) {
+            workletNode.port.postMessage({
+                type: 'midiNote',
+                note: note,
+                velocity: 0
+            });
+        }
+    }
+
+    function visualize() {
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth * 2;
+        canvas.height = canvas.offsetHeight * 2;
+
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        function draw() {
+            requestAnimationFrame(draw);
+            analyser.getByteTimeDomainData(dataArray);
+
+            ctx.fillStyle = '#0a0a14';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#9b59b6';
+            ctx.beginPath();
+
+            const sliceWidth = canvas.width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = v * canvas.height / 2;
+
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+
+                x += sliceWidth;
+            }
+
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.stroke();
+        }
+
+        draw();
+    }
+
+    // UI bindings
+    document.getElementById('playBtn').addEventListener('click', async () => {
+        if (!audioContext) {
+            await initAudio();
+        }
+
+        if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+        }
+
+        isPlaying = !isPlaying;
+        document.getElementById('playBtn').textContent = isPlaying ? '⏸' : '▶';
+
+        if (isPlaying) {
+            if (modMatrix) modMatrix.start();
+        } else {
+            if (modMatrix) modMatrix.stop();
+        }
+
+        if (workletNode) {
+            workletNode.port.postMessage({
+                type: 'parameter',
+                param: 'autoTrigger',
+                value: isPlaying && document.getElementById('autoTrigBtn').classList.contains('active')
+            });
+        }
+    });
+
+    document.getElementById('autoTrigBtn').addEventListener('click', function() {
+        this.classList.toggle('active');
+        if (workletNode) {
+            workletNode.port.postMessage({
+                type: 'parameter',
+                param: 'autoTrigger',
+                value: this.classList.contains('active') && isPlaying
+            });
+        }
+    });
+
+    document.getElementById('categorySelect').addEventListener('change', async function() {
+        currentCategory = this.value;
+        if (audioContext) {
+            await loadSamples(currentCategory);
+        }
+    });
+
+    document.getElementById('sampleInput').addEventListener('change', async function(e) {
+        if (!audioContext) await initAudio();
+
+        const files = Array.from(e.target.files);
+        const sampleInfo = document.getElementById('sampleInfo');
+        sampleInfo.textContent = 'Loading custom samples...';
+        sampleInfo.className = 'sample-info loading';
+
+        const buffers = [];
+        for (const file of files) {
+            const arrayBuffer = await file.arrayBuffer();
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            buffers.push(audioBuffer.getChannelData(0));
+        }
+
+        loadedSamples = buffers;
+
+        if (workletNode) {
+            workletNode.port.postMessage({
+                type: 'samples',
+                buffers: buffers.map(b => b.buffer)
+            });
+        }
+
+        const sampleSelect = document.getElementById('sampleSelect');
+        sampleSelect.max = Math.max(0, buffers.length - 1);
+
+        sampleInfo.textContent = `${files.length} custom samples loaded`;
+        sampleInfo.className = 'sample-info ready';
+    });
+
+    document.getElementById('clearSamples').addEventListener('click', async () => {
+        if (audioContext) {
+            loadedSamples = [];
+            if (workletNode) {
+                workletNode.port.postMessage({
+                    type: 'samples',
+                    buffers: []
+                });
+            }
+            document.getElementById('sampleInfo').textContent = 'No samples loaded';
+            document.getElementById('sampleInfo').className = 'sample-info';
+        }
+    });
+
+    // Parameter controls
+    const paramMappings = {
+        'trigProb': { param: 'trigProb', display: 'trigProbDisplay', format: v => v.toFixed(2) },
+        'rate': { param: 'clockRate', display: null, format: v => v.toFixed(1) + ' Hz' },
+        'speed': { param: 'speed', display: null, format: v => v.toFixed(2) },
+        'sampleSelect': { param: null, display: null, format: v => Math.floor(v) },
+        'duration': { param: 'grainDuration', display: 'durationDisplay', format: v => v.toFixed(2) },
+        'jitter': { param: 'grainJitter', display: null, format: v => v.toFixed(2) },
+        'looper': { param: 'looperMix', display: 'looperDisplay', format: v => v.toFixed(2) },
+        'feedback': { param: 'looperFeedback', display: null, format: v => v.toFixed(2) },
+        'delTime': { param: 'delayTime', display: 'delayDisplay', format: v => v.toFixed(3) },
+        'delMix': { param: 'delayMix', display: null, format: v => v.toFixed(2) },
+        'eqLow': { param: 'eqLowGain', display: null, format: v => v.toFixed(1) + ' dB', transform: v => Math.pow(10, v / 20) },
+        'eqMid': { param: 'eqMidGain', display: null, format: v => v.toFixed(1) + ' dB', transform: v => Math.pow(10, v / 20) },
+        'eqHigh': { param: 'eqHighGain', display: null, format: v => v.toFixed(1) + ' dB', transform: v => Math.pow(10, v / 20) },
+        'filterFreq': { param: 'filterFreq', display: null, format: v => Math.round(v) + ' Hz' },
+        'filterQ': { param: 'filterQ', display: null, format: v => v.toFixed(1) },
+        'filterDelay': { param: 'filterDelayTime', display: null, format: v => v.toFixed(2) },
+        'reverbSize': { param: 'reverbSize', display: null, format: v => v.toFixed(2) },
+        'reverbDamp': { param: 'reverbDamp', display: null, format: v => v.toFixed(2) },
+        'reverbWidth': { param: 'reverbWidth', display: null, format: v => v.toFixed(2) },
+        'reverbMix': { param: 'reverbMix', display: null, format: v => v.toFixed(2) },
+        'tone': { param: 'toneFreq', display: null, format: v => Math.round(v) + ' Hz' },
+        'meter': { param: 'meter', display: null, format: v => v.toFixed(2) }
+    };
+
+    Object.keys(paramMappings).forEach(id => {
+        const input = document.getElementById(id);
+        const mapping = paramMappings[id];
+
+        if (input) {
+            input.addEventListener('input', function() {
+                const value = parseFloat(this.value);
+                const displayValue = mapping.format(value);
+
+                document.getElementById(id + 'Val').textContent = displayValue;
+
+                if (mapping.display) {
+                    document.getElementById(mapping.display).textContent = displayValue;
+                }
+
+                if (workletNode && mapping.param) {
+                    const sendValue = mapping.transform ? mapping.transform(value) : value;
+                    workletNode.port.postMessage({
+                        type: 'parameter',
+                        param: mapping.param,
+                        value: sendValue
+                    });
+                }
+
+                if (id === 'sampleSelect') {
+                    workletNode.port.postMessage({
+                        type: 'sampleIndex',
+                        value: value
+                    });
+                }
+            });
+        }
+    });
+
+    // Info panel
+    document.addEventListener('DOMContentLoaded', () => {
+        if (typeof ER301InfoPanel !== 'undefined') {
+            new ER301InfoPanel(document.body, {
+                title: 'speak & hell',
+                author: 'mudlogger',
+                origin: 'ER-301 Hyperscale Units',
+                description: 'A nostalgic exploration of the iconic Speak & Spell voice synthesizer. This patch features 238 samples across 5 categories: Alphabet, Circuit Bent, Numbers, Operating System phrases, and Words. Samples pass through Grain Stretch for textural manipulation, then through EQ3 and Tuned Filter Delay for tonal shaping, finishing with Freeverb for spatial depth. The Clocked Random Gate provides rhythmic sample triggering with adjustable probability.',
+                controls: [
+                    { name: 'Category', range: 'Dropdown', description: 'Select sample category (All, Alphabet, Circuit Bent, Numbers, OS, Words)' },
+                    { name: 'Trig Prob', range: '0-1', description: 'Probability of triggering on each clock cycle' },
+                    { name: 'Rate', range: '0.5-10 Hz', description: 'Clock rate for auto-trigger' },
+                    { name: 'Speed', range: '-2 to +2', description: 'Playback speed (negative = reverse)' },
+                    { name: 'Sample Select', range: '0-237', description: 'Select specific sample from current category' },
+                    { name: 'Duration', range: '0.01-1 s', description: 'Grain duration' },
+                    { name: 'Jitter', range: '0-1', description: 'Grain timing randomization' },
+                    { name: 'Looper', range: '0-1', description: 'Feedback looper mix' },
+                    { name: 'EQ Low/Mid/High', range: '-12 to +12 dB', description: '3-band EQ' },
+                    { name: 'Filter Freq/Q/Delay', range: 'Various', description: 'Tuned filter delay parameters' },
+                    { name: 'Reverb', range: '0-1', description: 'Freeverb size, damp, width, mix' }
+                ],
+                tips: [
+                    'Use category dropdown to focus on specific sample types',
+                    'MIDI notes trigger samples and control pitch',
+                    'Circuit Bent samples are great for glitchy textures',
+                    'Combine slow rate with high probability for rhythmic phrases',
+                    'Operating System samples make great intros/outros'
+                ]
+            });
+        }
+    });
+    </script>
+</body>
+</html>

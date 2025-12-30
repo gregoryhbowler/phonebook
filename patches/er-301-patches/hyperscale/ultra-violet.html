@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultra Violet - 4-Track Granular Looper</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            background: #0a0a14;
+            color: #ccc;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 1rem;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #222;
+        }
+        .header h1 {
+            color: #9b59b6;
+            margin: 0;
+            font-size: 1.5em;
+        }
+        .back-link {
+            color: #666;
+            text-decoration: none;
+        }
+        .back-link:hover { color: #9b59b6; }
+
+        /* Input Section */
+        .input-section {
+            background: #12121e;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .source-select {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 1em;
+        }
+        .source-btn {
+            flex: 1;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #888;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        .source-btn.active {
+            background: #2d1a4e;
+            border-color: #9b59b6;
+            color: #9b59b6;
+        }
+        .source-btn:hover { border-color: #9b59b6; }
+
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-group {
+            flex: 1;
+            min-width: 80px;
+        }
+        .param-group label {
+            font-size: 0.7em;
+            color: #666;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .param-group input[type="range"] {
+            width: 100%;
+        }
+        .param-value {
+            font-size: 0.75em;
+            color: #9b59b6;
+        }
+
+        /* Track Grid */
+        .tracks-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        @media (max-width: 900px) {
+            .tracks-grid { grid-template-columns: 1fr; }
+        }
+
+        /* Individual Track */
+        .track {
+            background: #12121e;
+            border-radius: 8px;
+            padding: 1rem;
+            border: 2px solid transparent;
+        }
+        .track.recording { border-color: #e74c3c; }
+        .track.armed { border-color: #f39c12; }
+
+        .track-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .track-name {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .track-1 .track-name { color: #e74c3c; }
+        .track-2 .track-name { color: #3498db; }
+        .track-3 .track-name { color: #2ecc71; }
+        .track-4 .track-name { color: #f39c12; }
+
+        .track-btns {
+            display: flex;
+            gap: 4px;
+        }
+        .track-btn {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #888;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75em;
+        }
+        .track-btn:hover { border-color: #9b59b6; }
+        .track-btn.active { background: #9b59b6; border-color: #9b59b6; color: white; }
+        .track-btn.rec-arm.active { background: #e74c3c; border-color: #e74c3c; }
+        .track-btn.mute.active { background: #e74c3c; border-color: #e74c3c; }
+        .track-btn.solo.active { background: #f39c12; border-color: #f39c12; }
+
+        /* Buffer Display */
+        .buffer-display {
+            height: 50px;
+            background: #0a0a14;
+            border-radius: 6px;
+            margin-bottom: 0.5em;
+            position: relative;
+            overflow: hidden;
+        }
+        .buffer-waveform {
+            width: 100%;
+            height: 100%;
+        }
+        .buffer-position {
+            position: absolute;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background: #9b59b6;
+        }
+        .buffer-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7em;
+            font-weight: bold;
+            pointer-events: none;
+        }
+
+        /* Transport */
+        .transport {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 0.5em;
+        }
+        .transport-btn {
+            flex: 1;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #888;
+            padding: 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        .transport-btn:hover { border-color: #9b59b6; }
+        .transport-btn.active { background: #9b59b6; border-color: #9b59b6; color: white; }
+        .transport-btn.rec.active { background: #e74c3c; border-color: #e74c3c; }
+
+        /* Grain dots */
+        .grain-indicators {
+            display: flex;
+            gap: 3px;
+            justify-content: center;
+            margin-bottom: 0.5em;
+        }
+        .grain-dot {
+            width: 8px;
+            height: 8px;
+            background: #222;
+            border-radius: 50%;
+        }
+        .grain-dot.active { background: #9b59b6; }
+
+        /* Compact sliders */
+        .track-params {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5em;
+        }
+        .track-params .param-group {
+            min-width: 0;
+        }
+        .track-params input[type="range"] {
+            height: 4px;
+        }
+
+        /* Master Section */
+        .master-section {
+            background: #12121e;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        .master-transport {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 1em;
+        }
+        .master-btn {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #888;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        .master-btn:hover { border-color: #9b59b6; }
+        .master-btn.active { background: #9b59b6; border-color: #9b59b6; color: white; }
+        .master-btn.rec { color: #e74c3c; border-color: #e74c3c; }
+        .master-btn.rec.active { background: #e74c3c; color: white; }
+
+        .play-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #1a1a2e;
+            border: 2px solid #9b59b6;
+            color: #9b59b6;
+            font-size: 1.5em;
+            cursor: pointer;
+        }
+        .play-btn.active { background: #9b59b6; color: white; }
+
+        /* Meters */
+        .meters {
+            display: flex;
+            gap: 1em;
+            align-items: center;
+        }
+        .meter-label {
+            font-size: 0.7em;
+            color: #666;
+            width: 40px;
+        }
+        .meter-bar {
+            flex: 1;
+            height: 6px;
+            background: #1a1a2e;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .meter-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #9b59b6, #e74c3c);
+            width: 0%;
+        }
+
+        /* USB Device Row */
+        #usbDeviceRow {
+            margin-top: 0.5em;
+        }
+        #usbDeviceRow select {
+            width: 100%;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #9b59b6;
+            padding: 6px;
+            border-radius: 4px;
+            margin-bottom: 0.5em;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="../../../index.html" class="back-link">← Back</a>
+        <h1>Ultra Violet</h1>
+        <button class="play-btn" id="playBtn">▶</button>
+    </div>
+
+    <!-- Input Source -->
+    <div class="input-section">
+        <span class="section-label">Input Source</span>
+        <div class="source-select">
+            <button class="source-btn active" id="oscSrcBtn">Oscillator</button>
+            <button class="source-btn" id="micSrcBtn">Microphone</button>
+            <button class="source-btn" id="usbSrcBtn">USB Audio</button>
+        </div>
+        <div id="usbDeviceRow" style="display:none;">
+            <select id="usbDeviceSelect">
+                <option value="">Select USB Audio Device...</option>
+            </select>
+            <div class="param-row">
+                <div class="param-group">
+                    <label>USB Gain</label>
+                    <input type="range" id="usbGain" min="0.1" max="10" value="1" step="0.1">
+                    <span class="param-value" id="usbGainVal">1.0x</span>
+                </div>
+            </div>
+        </div>
+        <div class="param-row">
+            <div class="param-group">
+                <label>Input Level</label>
+                <input type="range" id="srcLevel" min="0" max="2" value="0.5" step="0.01">
+                <span class="param-value" id="srcLevelVal">0.50</span>
+            </div>
+            <div class="param-group">
+                <label>Monitor</label>
+                <input type="range" id="monitorLevel" min="0" max="1" value="0.5" step="0.01">
+                <span class="param-value" id="monitorLevelVal">0.50</span>
+            </div>
+            <div class="param-group">
+                <label>Osc Freq</label>
+                <input type="range" id="srcFreq" min="50" max="1000" value="220" step="1">
+                <span class="param-value" id="srcFreqVal">220 Hz</span>
+            </div>
+        </div>
+        <div class="meters" style="margin-top: 0.5em;">
+            <span class="meter-label">Input</span>
+            <div class="meter-bar"><div class="meter-fill" id="inputMeter"></div></div>
+        </div>
+    </div>
+
+    <!-- 4 Tracks -->
+    <div class="tracks-grid">
+        <!-- Track 1 -->
+        <div class="track track-1" id="track1">
+            <div class="track-header">
+                <span class="track-name">Track 1</span>
+                <div class="track-btns">
+                    <button class="track-btn rec-arm" data-track="1">ARM</button>
+                    <button class="track-btn mute" data-track="1">M</button>
+                    <button class="track-btn solo" data-track="1">S</button>
+                </div>
+            </div>
+            <div class="buffer-display">
+                <canvas class="buffer-waveform" id="waveform1"></canvas>
+                <div class="buffer-position" id="position1"></div>
+                <div class="buffer-overlay" id="overlay1"></div>
+            </div>
+            <div class="transport">
+                <button class="transport-btn rec" data-track="1" data-action="rec">●</button>
+                <button class="transport-btn" data-track="1" data-action="pause">❚❚</button>
+                <button class="transport-btn" data-track="1" data-action="stop">■</button>
+                <button class="transport-btn" data-track="1" data-action="loop">LOOP</button>
+            </div>
+            <div class="grain-indicators" id="grains1">
+                <div class="grain-dot"></div><div class="grain-dot"></div><div class="grain-dot"></div><div class="grain-dot"></div>
+                <div class="grain-dot"></div><div class="grain-dot"></div><div class="grain-dot"></div><div class="grain-dot"></div>
+            </div>
+            <div class="track-params">
+                <div class="param-group">
+                    <label>Position</label>
+                    <input type="range" class="track-param" data-track="1" data-param="position" min="0" max="1" value="0" step="0.01">
+                </div>
+                <div class="param-group">
+                    <label>Pitch</label>
+                    <input type="range" class="track-param" data-track="1" data-param="pitch" min="-24" max="24" value="0" step="1">
+                </div>
+                <div class="param-group">
+                    <label>Size</label>
+                    <input type="range" class="track-param" data-track="1" data-param="size" min="0.01" max="4" value="0.5" step="0.01">
+                </div>
+                <div class="param-group">
+                    <label>Seed Hz</label>
+                    <input type="range" class="track-param" data-track="1" data-param="seed" min="0" max="50" value="1" step="0.1">
+                </div>
+                <div class="param-group">
+                    <label>Level</label>
+                    <input type="range" class="track-param" data-track="1" data-param="level" min="0" max="1" value="1" step="0.01">
+                </div>
+                <div class="param-group">
+                    <label>Length</label>
+                    <input type="range" class="track-param" data-track="1" data-param="bufferLen" min="0.5" max="20" value="5" step="0.1">
+                </div>
+            </div>
+        </div>
+
+        <!-- Track 2 -->
+        <div class="track track-2" id="track2">
+            <div class="track-header">
+                <span class="track-name">Track 2</span>
+                <div class="track-btns">
+                    <button class="track-btn rec-arm" data-track="2">ARM</button>
+                    <button class="track-btn mute" data-track="2">M</button>
+                    <button class="track-btn solo" data-track="2">S</button>
+                </div>
+            </div>
+            <div class="buffer-display">
+                <canvas class="buffer-waveform" id="waveform2"></canvas>
+                <div class="buffer-position" id="position2"></div>
+                <div class="buffer-overlay" id="overlay2"></div>
+            </div>
+            <div class="transport">
+                <button class="transport-btn rec" data-track="2" data-action="rec">●</button>
+                <button class="transport-btn" data-track="2" data-action="pause">❚❚</button>
+                <button class="transport-btn" data-track="2" data-action="stop">■</button>
+                <button class="transport-btn" data-track="2" data-action="loop">LOOP</button>
+            </div>
+            <div class="grain-indicators" id="grains2">
+                <div class="grain-dot"></div><div class="grain-dot"></div><div class="grain-dot"></div><div class="grain-dot"></div>
+                <div class="grain-dot"></div><div class="grain-dot"></div><div class="grain-dot"></div><div class="grain-dot"></div>
+            </div>
+            <div class="track-params">
+                <div class="param-group">
+                    <label>Position</label>
+                    <input type="range" class="track-param" data-track="2" data-param="position" min="0" max="1" value="0" step="0.01">
+                </div>
+                <div class="param-group">
+                    <label>Pitch</label>
+                    <input type="range" class="track-param" data-track="2" data-param="pitch" min="-24" max="24" value="0" step="1">
+                </div>
+                <div class="param-group">
+                    <label>Size</label>
+                    <input type="range" class="track-param" data-track="2" data-param="size" min="0.01" max="4" value="0.5" step="0.01">
+                </div>
+                <div class="param-group">
+                    <label>Seed Hz</label>
+                    <input type="range" class="track-param" data-track="2" data-param="seed" min="0" max="50" value="1" step="0.1">
+                </div>
+                <div class="param-group">
+                    <label>Level</label>
+                    <input type="range" class="track-param" data-track="2" data-param="level" min="0" max="1" value="1" step="0.01">
+                </div>
+                <div class="param-group">
+                    <label>Length</label>
+                    <input type="range" class="track-param" data-track="2" data-param="bufferLen" min="0.5" max="20" value="5" step="0.1">
+                </div>
+            </div>
+        </div>
+
+        <!-- Track 3 -->
+        <div class="track track-3" id="track3">
+            <div class="track-header">
+                <span class="track-name">Track 3</span>
+                <div class="track-btns">
+                    <button class="track-btn rec-arm" data-track="3">ARM</button>
+                    <button class="track-btn mute" data-track="3">M</button>
+                    <button class="track-btn solo" data-track="3">S</button>
+                </div>
+            </div>
+            <div class="buffer-display">
+                <canvas class="buffer-waveform" id="waveform3"></canvas>
+                <div class="buffer-position" id="position3"></div>
+                <div class="buffer-overlay" id="overlay3"></div>
+            </div>
+            <div class="transport">
+                <button class="transport-btn rec" data-track="3" data-action="rec">●</button>
+                <button class="transport-btn" data-track="3" data-action="pause">❚❚</button>
+                <button class="transport-btn" data-track="3" data-action="stop">■</button>
+                <button class="transport-btn" data-track="3" data-action="loop">LOOP</button>
+            </div>
+            <div class="grain-indicators" id="grains3">
+                <div class="grain-dot"></div><div class="grain-dot"></div><div class="grain-dot"></div><div class="grain-dot"></div>
+                <div class="grain-dot"></div><div class="grain-dot"></div><div class="grain-dot"></div><div class="grain-dot"></div>
+            </div>
+            <div class="track-params">
+                <div class="param-group">
+                    <label>Position</label>
+                    <input type="range" class="track-param" data-track="3" data-param="position" min="0" max="1" value="0" step="0.01">
+                </div>
+                <div class="param-group">
+                    <label>Pitch</label>
+                    <input type="range" class="track-param" data-track="3" data-param="pitch" min="-24" max="24" value="0" step="1">
+                </div>
+                <div class="param-group">
+                    <label>Size</label>
+                    <input type="range" class="track-param" data-track="3" data-param="size" min="0.01" max="4" value="0.5" step="0.01">
+                </div>
+                <div class="param-group">
+                    <label>Seed Hz</label>
+                    <input type="range" class="track-param" data-track="3" data-param="seed" min="0" max="50" value="1" step="0.1">
+                </div>
+                <div class="param-group">
+                    <label>Level</label>
+                    <input type="range" class="track-param" data-track="3" data-param="level" min="0" max="1" value="1" step="0.01">
+                </div>
+                <div class="param-group">
+                    <label>Length</label>
+                    <input type="range" class="track-param" data-track="3" data-param="bufferLen" min="0.5" max="20" value="5" step="0.1">
+                </div>
+            </div>
+        </div>
+
+        <!-- Track 4 -->
+        <div class="track track-4" id="track4">
+            <div class="track-header">
+                <span class="track-name">Track 4</span>
+                <div class="track-btns">
+                    <button class="track-btn rec-arm" data-track="4">ARM</button>
+                    <button class="track-btn mute" data-track="4">M</button>
+                    <button class="track-btn solo" data-track="4">S</button>
+                </div>
+            </div>
+            <div class="buffer-display">
+                <canvas class="buffer-waveform" id="waveform4"></canvas>
+                <div class="buffer-position" id="position4"></div>
+                <div class="buffer-overlay" id="overlay4"></div>
+            </div>
+            <div class="transport">
+                <button class="transport-btn rec" data-track="4" data-action="rec">●</button>
+                <button class="transport-btn" data-track="4" data-action="pause">❚❚</button>
+                <button class="transport-btn" data-track="4" data-action="stop">■</button>
+                <button class="transport-btn" data-track="4" data-action="loop">LOOP</button>
+            </div>
+            <div class="grain-indicators" id="grains4">
+                <div class="grain-dot"></div><div class="grain-dot"></div><div class="grain-dot"></div><div class="grain-dot"></div>
+                <div class="grain-dot"></div><div class="grain-dot"></div><div class="grain-dot"></div><div class="grain-dot"></div>
+            </div>
+            <div class="track-params">
+                <div class="param-group">
+                    <label>Position</label>
+                    <input type="range" class="track-param" data-track="4" data-param="position" min="0" max="1" value="0" step="0.01">
+                </div>
+                <div class="param-group">
+                    <label>Pitch</label>
+                    <input type="range" class="track-param" data-track="4" data-param="pitch" min="-24" max="24" value="0" step="1">
+                </div>
+                <div class="param-group">
+                    <label>Size</label>
+                    <input type="range" class="track-param" data-track="4" data-param="size" min="0.01" max="4" value="0.5" step="0.01">
+                </div>
+                <div class="param-group">
+                    <label>Seed Hz</label>
+                    <input type="range" class="track-param" data-track="4" data-param="seed" min="0" max="50" value="1" step="0.1">
+                </div>
+                <div class="param-group">
+                    <label>Level</label>
+                    <input type="range" class="track-param" data-track="4" data-param="level" min="0" max="1" value="1" step="0.01">
+                </div>
+                <div class="param-group">
+                    <label>Length</label>
+                    <input type="range" class="track-param" data-track="4" data-param="bufferLen" min="0.5" max="20" value="5" step="0.1">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Master Section -->
+    <div class="master-section">
+        <span class="section-label">Master</span>
+        <div class="param-row">
+            <div class="param-group">
+                <label>Reverb</label>
+                <input type="range" id="reverbMix" min="0" max="1" value="0.2" step="0.01">
+                <span class="param-value" id="reverbMixVal">0.20</span>
+            </div>
+            <div class="param-group">
+                <label>Feedback</label>
+                <input type="range" id="feedback" min="0" max="0.95" value="0" step="0.01">
+                <span class="param-value" id="feedbackVal">0.00</span>
+            </div>
+            <div class="param-group">
+                <label>Master</label>
+                <input type="range" id="masterVol" min="0" max="1" value="0.8" step="0.01">
+                <span class="param-value" id="masterVolVal">0.80</span>
+            </div>
+        </div>
+        <div class="meters" style="margin-top: 0.5em;">
+            <span class="meter-label">Output</span>
+            <div class="meter-bar"><div class="meter-fill" id="outputMeter"></div></div>
+        </div>
+    </div>
+
+    <!-- Pedalboard Effects Chain -->
+    <div id="pedalboard-container"></div>
+
+    <script>
+// AudioWorklet Processor - 4-Track Granular Looper
+const processorCode = `
+class Track {
+    constructor(sr, index) {
+        this.sr = sr;
+        this.index = index;
+
+        // Buffer (max 20 seconds)
+        this.maxBufferSize = Math.floor(sr * 20);
+        this.bufferSize = Math.floor(sr * 5);
+        this.buffer = new Float32Array(this.maxBufferSize);
+        this.bufferPos = 0;
+        this.bufferRecordEnd = 0;
+
+        // State
+        this.recState = 'stopped'; // 'stopped', 'recording', 'paused'
+        this.looperMode = false;
+        this.muted = false;
+        this.solo = false;
+        this.armed = false;
+
+        // Grains
+        this.grains = [];
+        this.maxGrains = 8;
+        this.seedPhase = 0;
+
+        // Parameters
+        this.params = {
+            position: 0,
+            pitch: 0,
+            size: 0.5,
+            seed: 1,
+            level: 1,
+            bufferLen: 5,
+            reverse: false,
+            overdubMix: 0.8
+        };
+    }
+
+    setParam(name, value) {
+        this.params[name] = value;
+        if (name === 'bufferLen') {
+            const newSize = Math.floor(value * this.sr);
+            this.bufferSize = Math.min(newSize, this.maxBufferSize);
+            if (this.bufferPos >= this.bufferSize) this.bufferPos = 0;
+        }
+    }
+
+    rec() {
+        if (this.recState === 'stopped') {
+            this.bufferPos = 0;
+            this.bufferRecordEnd = 0;
+            if (!this.looperMode) this.buffer.fill(0);
+            this.recState = 'recording';
+        } else if (this.recState === 'paused') {
+            this.recState = 'recording';
+        }
+    }
+
+    pause() {
+        if (this.recState === 'recording') {
+            this.recState = 'paused';
+        }
+    }
+
+    stop() {
+        if (this.recState !== 'stopped') {
+            if (this.bufferRecordEnd > 0 && !this.looperMode) {
+                this.bufferSize = this.bufferRecordEnd;
+            }
+            this.recState = 'stopped';
+        }
+    }
+
+    spawnGrain() {
+        if (this.grains.length >= this.maxGrains) {
+            this.grains.shift();
+        }
+
+        const bufLen = Math.max(1, this.bufferRecordEnd);
+        if (bufLen <= 1) return;
+
+        const pitchRatio = Math.pow(2, this.params.pitch / 12);
+        const duration = Math.max(0.01, this.params.size) * this.sr;
+        const startPos = this.params.position * bufLen;
+
+        this.grains.push({
+            pos: startPos,
+            dur: duration,
+            elapsed: 0,
+            speed: pitchRatio * (this.params.reverse ? -1 : 1),
+            pan: (Math.random() - 0.5) * 0.5
+        });
+    }
+
+    processGrains() {
+        let outL = 0, outR = 0;
+        const bufLen = Math.max(1, this.bufferRecordEnd);
+
+        for (let i = this.grains.length - 1; i >= 0; i--) {
+            const g = this.grains[i];
+            const progress = g.elapsed / g.dur;
+
+            if (progress >= 1) {
+                this.grains.splice(i, 1);
+                continue;
+            }
+
+            // Gaussian envelope
+            const x = progress * 2 - 1;
+            const env = Math.exp(-x * x * 4);
+
+            // Read from buffer
+            let readPos = g.pos;
+            if (readPos < 0) readPos += bufLen;
+            if (readPos >= bufLen) readPos -= bufLen;
+
+            const idx = Math.floor(readPos);
+            const frac = readPos - idx;
+            const s0 = this.buffer[idx % bufLen];
+            const s1 = this.buffer[(idx + 1) % bufLen];
+            const sample = s0 + frac * (s1 - s0);
+
+            // Pan
+            const gainL = Math.cos((g.pan + 1) * Math.PI / 4);
+            const gainR = Math.sin((g.pan + 1) * Math.PI / 4);
+
+            outL += sample * env * gainL;
+            outR += sample * env * gainR;
+
+            g.pos += g.speed;
+            g.elapsed++;
+
+            if (g.pos < 0) g.pos += bufLen;
+            if (g.pos >= bufLen) g.pos -= bufLen;
+        }
+
+        return [outL * this.params.level, outR * this.params.level];
+    }
+
+    process(inputSample) {
+        // Seed LFO - spawn grains
+        if (this.params.seed > 0 && this.bufferRecordEnd > 0) {
+            this.seedPhase += this.params.seed / this.sr;
+            if (this.seedPhase >= 1) {
+                this.seedPhase -= 1;
+                this.spawnGrain();
+            }
+        }
+
+        // Process grains
+        const [grainL, grainR] = this.processGrains();
+
+        // Recording logic
+        if (this.recState === 'recording') {
+            if (this.looperMode) {
+                // Looper mode: overdub
+                const existing = this.buffer[this.bufferPos] * this.params.overdubMix;
+                const newContent = inputSample + (grainL + grainR) * 0.5 * 0.3;
+                this.buffer[this.bufferPos] = Math.tanh(existing + newContent);
+            } else {
+                // Normal recording
+                this.buffer[this.bufferPos] = inputSample;
+                this.bufferRecordEnd = Math.max(this.bufferRecordEnd, this.bufferPos + 1);
+            }
+        }
+
+        // Advance buffer position in looper mode or during recording
+        if (this.looperMode || this.recState === 'recording') {
+            this.bufferPos++;
+            if (this.bufferPos >= this.bufferSize) {
+                this.bufferPos = 0;
+                if (!this.looperMode && this.recState === 'recording') {
+                    this.bufferRecordEnd = this.bufferSize;
+                    this.recState = 'stopped';
+                }
+            }
+            if (this.looperMode) {
+                this.bufferRecordEnd = this.bufferSize;
+            }
+        }
+
+        return [grainL, grainR];
+    }
+
+    getState() {
+        // Downsample waveform for display
+        const waveform = new Float32Array(64);
+        const contentLen = Math.max(1, this.bufferRecordEnd);
+        const step = contentLen / 64;
+        for (let i = 0; i < 64; i++) {
+            waveform[i] = this.buffer[Math.floor(i * step)] || 0;
+        }
+
+        return {
+            index: this.index,
+            bufferPos: this.bufferRecordEnd > 0 ? this.bufferPos / this.bufferRecordEnd : 0,
+            grainCount: this.grains.length,
+            recState: this.recState,
+            looperMode: this.looperMode,
+            muted: this.muted,
+            waveform: waveform
+        };
+    }
+}
+
+class Freeverb {
+    constructor(sr) {
+        this.sr = sr;
+        const scale = sr / 44100;
+        this.combDelays = [1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617].map(d => Math.floor(d * scale));
+        this.combBuffers = this.combDelays.map(d => new Float32Array(d));
+        this.combIdx = this.combDelays.map(() => 0);
+        this.combFilt = this.combDelays.map(() => 0);
+        this.apDelays = [556, 441, 341, 225].map(d => Math.floor(d * scale));
+        this.apBuffers = this.apDelays.map(d => new Float32Array(d));
+        this.apIdx = this.apDelays.map(() => 0);
+        this.roomSize = 0.85;
+        this.damp = 0.5;
+    }
+
+    process(inL, inR, wet) {
+        const input = (inL + inR) * 0.5 * 0.015;
+        let outL = 0, outR = 0;
+
+        for (let c = 0; c < 8; c++) {
+            const buf = this.combBuffers[c];
+            const idx = this.combIdx[c];
+            const delayed = buf[idx];
+            this.combFilt[c] = delayed * (1 - this.damp) + this.combFilt[c] * this.damp;
+            buf[idx] = input + this.combFilt[c] * this.roomSize;
+            this.combIdx[c] = (idx + 1) % this.combDelays[c];
+            if (c < 4) outL += delayed; else outR += delayed;
+        }
+
+        for (let a = 0; a < 4; a++) {
+            const buf = this.apBuffers[a];
+            const idx = this.apIdx[a];
+            const delayed = buf[idx];
+            const coef = 0.5;
+            const outLNew = -outL * coef + delayed;
+            buf[idx] = outL + delayed * coef;
+            outL = outLNew;
+            const outRNew = -outR * coef + delayed;
+            outR = outRNew;
+            this.apIdx[a] = (idx + 1) % this.apDelays[a];
+        }
+
+        return [outL * wet, outR * wet];
+    }
+}
+
+class UltraVioletProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+
+        // 4 tracks
+        this.tracks = [
+            new Track(this.sr, 0),
+            new Track(this.sr, 1),
+            new Track(this.sr, 2),
+            new Track(this.sr, 3)
+        ];
+
+        // Global params
+        this.params = {
+            srcLevel: 0.5,
+            srcFreq: 220,
+            sourceType: 0, // 0=osc, 1=mic, 2=usb
+            monitorLevel: 0.5, // Direct monitoring of input
+            reverbMix: 0.2,
+            feedback: 0,
+            masterVol: 0.8
+        };
+
+        // Oscillator
+        this.oscPhase = 0;
+
+        // Reverb
+        this.freeverb = new Freeverb(this.sr);
+
+        // Feedback delay
+        this.fbBuffer = new Float32Array(Math.floor(this.sr));
+        this.fbIdx = 0;
+
+        // Meters
+        this.inputLevel = 0;
+        this.outputLevel = 0;
+        this.meterDecay = 0.99;
+
+        // Solo state
+        this.anySolo = false;
+
+        this.port.onmessage = (e) => {
+            const d = e.data;
+            if (d.type === 'param') {
+                this.params[d.name] = d.value;
+            } else if (d.type === 'trackParam') {
+                this.tracks[d.track].setParam(d.name, d.value);
+            } else if (d.type === 'trackAction') {
+                const track = this.tracks[d.track];
+                if (d.action === 'rec') track.rec();
+                else if (d.action === 'pause') track.pause();
+                else if (d.action === 'stop') track.stop();
+                else if (d.action === 'loop') track.looperMode = d.value;
+                else if (d.action === 'mute') track.muted = d.value;
+                else if (d.action === 'solo') {
+                    track.solo = d.value;
+                    this.anySolo = this.tracks.some(t => t.solo);
+                }
+                else if (d.action === 'arm') track.armed = d.value;
+                else if (d.action === 'sow') track.spawnGrain();
+            } else if (d.type === 'sow') {
+                // Trigger grain on all armed tracks
+                this.tracks.forEach(t => { if (t.armed) t.spawnGrain(); });
+            }
+        };
+    }
+
+    process(inputs, outputs) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1] || output[0];
+        const input = inputs[0];
+        const inL = input && input[0] ? input[0] : null;
+
+        for (let i = 0; i < outL.length; i++) {
+            // Get input sample
+            let inputSample = 0;
+            if (this.params.sourceType === 0) {
+                // Oscillator
+                inputSample = Math.sin(this.oscPhase * 2 * Math.PI) * this.params.srcLevel;
+                this.oscPhase += this.params.srcFreq / this.sr;
+                if (this.oscPhase >= 1) this.oscPhase -= 1;
+            } else if (inL) {
+                // Mic or USB
+                inputSample = inL[i] * this.params.srcLevel;
+            }
+
+            this.inputLevel = Math.max(Math.abs(inputSample), this.inputLevel * this.meterDecay);
+
+            // Direct input monitoring (always passes through)
+            const monitorSig = inputSample * this.params.monitorLevel;
+
+            // Process all tracks
+            let mixL = monitorSig, mixR = monitorSig;
+            for (const track of this.tracks) {
+                // Determine if this track should be heard
+                const shouldPlay = !track.muted && (!this.anySolo || track.solo);
+
+                // Always process (for recording), but only add to mix if should play
+                const [tL, tR] = track.process(inputSample);
+
+                if (shouldPlay) {
+                    mixL += tL;
+                    mixR += tR;
+                }
+            }
+
+            // Reverb
+            const [verbL, verbR] = this.freeverb.process(mixL, mixR, this.params.reverbMix);
+            mixL += verbL;
+            mixR += verbR;
+
+            // Feedback delay
+            const fbOut = this.fbBuffer[this.fbIdx];
+            this.fbBuffer[this.fbIdx] = (mixL + mixR) * 0.5 * this.params.feedback;
+            this.fbIdx = (this.fbIdx + 1) % this.fbBuffer.length;
+            mixL += fbOut;
+            mixR += fbOut;
+
+            // Master volume and soft clip
+            mixL = Math.tanh(mixL * this.params.masterVol);
+            mixR = Math.tanh(mixR * this.params.masterVol);
+
+            outL[i] = mixL;
+            outR[i] = mixR;
+
+            this.outputLevel = Math.max(Math.abs(mixL), this.outputLevel * this.meterDecay);
+        }
+
+        // Send state
+        if (Math.random() < 0.1) {
+            this.port.postMessage({
+                type: 'state',
+                tracks: this.tracks.map(t => t.getState()),
+                inputLevel: this.inputLevel,
+                outputLevel: this.outputLevel
+            });
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('ultra-violet-processor', UltraVioletProcessor);
+`;
+
+let audioContext, workletNode;
+let isPlaying = false;
+let micStream, usbStream, usbSourceNode, usbGainNode;
+let pedalboardUI, pedalboardNode;
+let stickyHeader = null;
+let modMatrixUI = null;
+let midiLearn = null;
+let modMatrix = null;
+
+// UI elements
+const playBtn = document.getElementById('playBtn');
+const inputMeter = document.getElementById('inputMeter');
+const outputMeter = document.getElementById('outputMeter');
+
+// Waveform canvases
+const waveformCanvases = [1, 2, 3, 4].map(i => {
+    const canvas = document.getElementById('waveform' + i);
+    return { canvas, ctx: canvas.getContext('2d') };
+});
+
+// Initialize canvas sizes
+function resizeCanvases() {
+    waveformCanvases.forEach(({ canvas, ctx }) => {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    });
+}
+resizeCanvases();
+window.addEventListener('resize', resizeCanvases);
+
+// Draw waveform
+function drawWaveform(trackIndex, waveform) {
+    const { canvas, ctx } = waveformCanvases[trackIndex];
+    const w = canvas.width / window.devicePixelRatio;
+    const h = canvas.height / window.devicePixelRatio;
+
+    ctx.fillStyle = '#0a0a14';
+    ctx.fillRect(0, 0, w, h);
+
+    if (!waveform || waveform.length === 0) return;
+
+    const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12'];
+    ctx.strokeStyle = colors[trackIndex];
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+
+    const sliceWidth = w / waveform.length;
+    const centerY = h / 2;
+
+    for (let i = 0; i < waveform.length; i++) {
+        const x = i * sliceWidth;
+        const y = centerY - (waveform[i] * centerY * 0.9);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+}
+
+// Handle worklet messages
+function handleWorkletMessage(e) {
+    if (e.data.type === 'state') {
+        // Update meters
+        inputMeter.style.width = (e.data.inputLevel * 100) + '%';
+        outputMeter.style.width = (e.data.outputLevel * 100) + '%';
+
+        // Update each track
+        e.data.tracks.forEach((state, i) => {
+            // Waveform
+            drawWaveform(i, state.waveform);
+
+            // Position indicator
+            const pos = document.getElementById('position' + (i + 1));
+            const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12'];
+            if (state.looperMode || state.recState === 'recording') {
+                pos.style.display = 'block';
+                pos.style.left = (state.bufferPos * 100) + '%';
+                pos.style.background = colors[i];
+            } else {
+                pos.style.display = 'none';
+            }
+
+            // Overlay
+            const overlay = document.getElementById('overlay' + (i + 1));
+            if (state.recState === 'recording') {
+                overlay.textContent = state.looperMode ? '●OVERDUB' : '●REC';
+                overlay.style.color = '#e74c3c';
+            } else if (state.looperMode) {
+                overlay.textContent = 'LOOPING';
+                overlay.style.color = colors[i];
+            } else if (state.recState === 'paused') {
+                overlay.textContent = 'PAUSED';
+                overlay.style.color = '#f39c12';
+            } else {
+                overlay.textContent = '';
+            }
+
+            // Grain indicators
+            const grains = document.getElementById('grains' + (i + 1));
+            const dots = grains.querySelectorAll('.grain-dot');
+            dots.forEach((dot, j) => {
+                dot.classList.toggle('active', j < state.grainCount);
+            });
+
+            // Track border
+            const track = document.getElementById('track' + (i + 1));
+            track.classList.toggle('recording', state.recState === 'recording');
+        });
+    }
+}
+
+// Source selection
+document.getElementById('oscSrcBtn').onclick = () => setSource(0);
+document.getElementById('micSrcBtn').onclick = () => setSource(1);
+document.getElementById('usbSrcBtn').onclick = () => setSource(2);
+
+function setSource(type) {
+    document.getElementById('oscSrcBtn').classList.toggle('active', type === 0);
+    document.getElementById('micSrcBtn').classList.toggle('active', type === 1);
+    document.getElementById('usbSrcBtn').classList.toggle('active', type === 2);
+    document.getElementById('usbDeviceRow').style.display = type === 2 ? 'block' : 'none';
+
+    if (workletNode) {
+        workletNode.port.postMessage({ type: 'param', name: 'sourceType', value: type });
+    }
+
+    // Stop streams when switching away
+    if (type !== 1 && micStream) {
+        micStream.getTracks().forEach(t => t.stop());
+        micStream = null;
+    }
+    if (type !== 2 && usbStream) {
+        usbStream.getTracks().forEach(t => t.stop());
+        usbStream = null;
+    }
+
+    if (type === 1) startMicrophone();
+    if (type === 2) populateUSBDevices();
+}
+
+async function startMicrophone() {
+    if (!audioContext || !workletNode) {
+        console.log('Audio not started yet - start first, then select mic');
+        return;
+    }
+    try {
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const micSource = audioContext.createMediaStreamSource(micStream);
+        micSource.connect(workletNode);
+        console.log('Microphone connected');
+    } catch (err) {
+        console.error('Microphone access denied:', err);
+        setSource(0);
+    }
+}
+
+async function populateUSBDevices() {
+    try {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioInputs = devices.filter(d => d.kind === 'audioinput');
+
+        const select = document.getElementById('usbDeviceSelect');
+        select.innerHTML = '<option value="">Select USB Audio Device...</option>';
+        audioInputs.forEach(device => {
+            const option = document.createElement('option');
+            option.value = device.deviceId;
+            option.textContent = device.label || 'Audio Input';
+            select.appendChild(option);
+        });
+    } catch (err) {
+        console.error('Error enumerating devices:', err);
+    }
+}
+
+document.getElementById('usbDeviceSelect').onchange = async (e) => {
+    const deviceId = e.target.value;
+    if (!deviceId) return;
+
+    if (!audioContext || !workletNode) {
+        console.log('Audio not started yet - start first, then select USB device');
+        return;
+    }
+
+    if (usbStream) {
+        usbStream.getTracks().forEach(t => t.stop());
+    }
+    if (usbSourceNode) usbSourceNode.disconnect();
+    if (usbGainNode) usbGainNode.disconnect();
+
+    try {
+        usbStream = await navigator.mediaDevices.getUserMedia({
+            audio: { deviceId: { exact: deviceId }, echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+        });
+
+        usbSourceNode = audioContext.createMediaStreamSource(usbStream);
+        usbGainNode = audioContext.createGain();
+        usbGainNode.gain.value = parseFloat(document.getElementById('usbGain').value);
+
+        usbSourceNode.connect(usbGainNode);
+        usbGainNode.connect(workletNode);
+
+        // Silent destination trick for Chrome
+        const silentGain = audioContext.createGain();
+        silentGain.gain.value = 0;
+        usbSourceNode.connect(silentGain);
+        silentGain.connect(audioContext.destination);
+
+        console.log('USB audio connected:', e.target.options[e.target.selectedIndex].text);
+    } catch (err) {
+        console.error('Error connecting USB audio:', err);
+    }
+};
+
+document.getElementById('usbGain').oninput = (e) => {
+    const val = parseFloat(e.target.value);
+    document.getElementById('usbGainVal').textContent = val.toFixed(1) + 'x';
+    if (usbGainNode) usbGainNode.gain.value = val;
+};
+
+// Global params
+['srcLevel', 'srcFreq', 'monitorLevel', 'reverbMix', 'feedback', 'masterVol'].forEach(id => {
+    const el = document.getElementById(id);
+    const valEl = document.getElementById(id + 'Val');
+    el.oninput = () => {
+        const val = parseFloat(el.value);
+        if (valEl) {
+            if (id === 'srcFreq') valEl.textContent = val + ' Hz';
+            else valEl.textContent = val.toFixed(2);
+        }
+        if (workletNode) {
+            workletNode.port.postMessage({ type: 'param', name: id, value: val });
+        }
+    };
+});
+
+// Track params
+document.querySelectorAll('.track-param').forEach(el => {
+    el.oninput = () => {
+        const track = parseInt(el.dataset.track) - 1;
+        const param = el.dataset.param;
+        const value = parseFloat(el.value);
+        if (workletNode) {
+            workletNode.port.postMessage({ type: 'trackParam', track, name: param, value });
+        }
+    };
+});
+
+// Transport buttons
+document.querySelectorAll('.transport-btn').forEach(btn => {
+    btn.onclick = () => {
+        const track = parseInt(btn.dataset.track) - 1;
+        const action = btn.dataset.action;
+
+        if (action === 'loop') {
+            btn.classList.toggle('active');
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'trackAction', track, action, value: btn.classList.contains('active') });
+            }
+        } else {
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'trackAction', track, action });
+            }
+            // Update button states
+            const parent = btn.parentElement;
+            parent.querySelectorAll('.transport-btn').forEach(b => {
+                if (b.dataset.action === 'rec') b.classList.toggle('active', action === 'rec');
+            });
+        }
+    };
+});
+
+// Track buttons (arm, mute, solo)
+document.querySelectorAll('.track-btn').forEach(btn => {
+    btn.onclick = () => {
+        const track = parseInt(btn.dataset.track) - 1;
+        btn.classList.toggle('active');
+        const isActive = btn.classList.contains('active');
+
+        let action = '';
+        if (btn.classList.contains('rec-arm')) action = 'arm';
+        else if (btn.classList.contains('mute')) action = 'mute';
+        else if (btn.classList.contains('solo')) action = 'solo';
+
+        if (workletNode && action) {
+            workletNode.port.postMessage({ type: 'trackAction', track, action, value: isActive });
+        }
+
+        // Update track armed state visually
+        if (action === 'arm') {
+            document.getElementById('track' + (track + 1)).classList.toggle('armed', isActive);
+        }
+    };
+});
+
+// MIDI
+async function setupMIDI() {
+    try {
+        const access = await navigator.requestMIDIAccess();
+        access.inputs.forEach(input => {
+            input.onmidimessage = (e) => {
+                const [status, note, velocity] = e.data;
+                const cmd = status >> 4;
+                if (cmd === 9 && velocity > 0 && workletNode) {
+                    // Note on - trigger grains on armed tracks
+                    workletNode.port.postMessage({ type: 'sow' });
+                }
+            };
+        });
+    } catch (err) {
+        console.log('MIDI not available');
+    }
+}
+
+// Start/Stop
+async function start() {
+    if (!audioContext) {
+        audioContext = new AudioContext({ sampleRate: 48000 });
+    }
+
+    if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+    }
+
+    const blob = new Blob([processorCode], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    await audioContext.audioWorklet.addModule(url);
+
+    workletNode = new AudioWorkletNode(audioContext, 'ultra-violet-processor', {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [2]
+    });
+
+    workletNode.port.onmessage = handleWorkletMessage;
+
+    // Initialize pedalboard if available
+    if (typeof PedalboardUI !== 'undefined') {
+        const pedalboardContainer = document.getElementById('pedalboard-container');
+        pedalboardUI = new PedalboardUI(pedalboardContainer, audioContext);
+        pedalboardNode = await pedalboardUI.init();
+
+        // Chain: workletNode -> pedalboard -> destination
+        workletNode.connect(pedalboardNode);
+        pedalboardNode.connect(audioContext.destination);
+
+        // Load saved preset if exists
+        pedalboardUI.loadFromLocalStorage('ultra-violet-pedalboard');
+    } else {
+        // No pedalboard, connect directly
+        workletNode.connect(audioContext.destination);
+    }
+
+    // Initialize features if phonebook-features.js is loaded
+    const outputNode = pedalboardNode || workletNode;
+    if (typeof StickyHeader !== 'undefined') {
+        stickyHeader = new StickyHeader({
+            patchName: 'ultra-violet-4-track-granular-looper',
+            patchId: 'er-301-patches-hyperscale-ultra-violet'
+        });
+        await stickyHeader.init();
+        await stickyHeader.initRecorder(audioContext, outputNode, audioContext.destination);
+    }
+
+    if (typeof getMidiLearn !== 'undefined') {
+        midiLearn = await getMidiLearn('er-301-patches-hyperscale-ultra-violet');
+    }
+
+    if (typeof getModulationMatrix !== 'undefined') {
+        modMatrix = getModulationMatrix();
+        modMatrixUI = new ModMatrixUI(
+            document.querySelector('.patch-content') || document.body,
+            { modMatrix: modMatrix }
+        );
+        modMatrixUI.init();
+    }
+
+    // Auto-register all sliders for MIDI Learn and Mod Matrix
+    if (typeof autoRegisterControls !== 'undefined') {
+        await autoRegisterControls({
+            patchId: 'er-301-patches-hyperscale-ultra-violet',
+            prefix: 'violet',
+            modMatrixUI: modMatrixUI
+        });
+    }
+
+    // Initialize params
+    document.querySelectorAll('input[type="range"]').forEach(el => {
+        el.dispatchEvent(new Event('input'));
+    });
+
+    setupMIDI();
+    isPlaying = true;
+    if (modMatrix) modMatrix.start();
+    playBtn.textContent = '⏹';
+    playBtn.classList.add('active');
+}
+
+function stop() {
+    // Save pedalboard preset before stopping
+    if (pedalboardUI) {
+        pedalboardUI.saveToLocalStorage('ultra-violet-pedalboard');
+    }
+    if (pedalboardNode) {
+        pedalboardNode.disconnect();
+        pedalboardNode = null;
+    }
+    if (workletNode) {
+        workletNode.disconnect();
+        workletNode = null;
+    }
+    if (micStream) {
+        micStream.getTracks().forEach(t => t.stop());
+        micStream = null;
+    }
+    if (usbStream) {
+        usbStream.getTracks().forEach(t => t.stop());
+        usbStream = null;
+    }
+    isPlaying = false;
+    if (modMatrix) modMatrix.stop();
+    playBtn.textContent = '▶';
+    playBtn.classList.remove('active');
+}
+
+playBtn.onclick = () => {
+    if (isPlaying) stop();
+    else start();
+};
+
+// Keyboard: space triggers grains on armed tracks
+document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && workletNode) {
+        e.preventDefault();
+        workletNode.port.postMessage({ type: 'sow' });
+    }
+});
+
+// Info Panel
+if (typeof ER301InfoPanel !== 'undefined') {
+    new ER301InfoPanel(document.body, {
+        title: 'Ultra Violet',
+        author: 'mudlogger',
+        origin: 'ER-301 Hyperscale Units',
+        description: '4-track granular looper with independent buffers, sound-on-sound recording, and per-track granular controls. Each track has its own buffer (up to 20 seconds), grain engine, and transport controls. Features USB audio input, direct monitoring, reverb, feedback, and pedalboard effects chain.',
+        controls: [
+            { name: 'Input Source', description: 'Oscillator, Microphone, or USB Audio input' },
+            { name: 'Input Level', range: '0-2', description: 'Gain applied to input signal' },
+            { name: 'Monitor', range: '0-1', description: 'Direct monitoring level (hear input without recording)' },
+            { name: 'Position', range: '0-1', description: 'Where in the buffer to read grains from' },
+            { name: 'Pitch', range: '-24 to +24 st', description: 'Pitch shift for grain playback' },
+            { name: 'Size', range: '0.01-4s', description: 'Duration of each grain' },
+            { name: 'Seed Hz', range: '0-50', description: 'Rate of automatic grain triggering' },
+            { name: 'Level', range: '0-1', description: 'Per-track output level' },
+            { name: 'Length', range: '0.5-20s', description: 'Buffer length for recording' },
+            { name: 'ARM', description: 'Arms track for MIDI/keyboard grain triggers' },
+            { name: 'M (Mute)', description: 'Mutes track output' },
+            { name: 'S (Solo)', description: 'Solos track (only soloed tracks are heard)' },
+            { name: 'LOOP', description: 'Enables looper mode for sound-on-sound recording' },
+            { name: 'FX Chain', description: 'Add effects like delay, reverb, chorus, distortion and more' }
+        ],
+        tips: [
+            'Click Play (▶) first, then select your input source',
+            'ARM a track and press Space or MIDI notes to trigger grains manually',
+            'Use LOOP mode to overdub/layer - modifications get recorded back to the buffer',
+            'In LOOP mode: record some audio, pause, change pitch/position, record again to layer',
+            'Set Seed Hz above 0 for continuous grain playback',
+            'Position 0 = start of buffer, Position 1 = end of buffer',
+            'Use Mute/Solo to build up arrangements with multiple tracks',
+            'Monitor slider lets you hear input without recording',
+            'Each track has independent length - create polyrhythmic loops',
+            'FX Chain at bottom lets you add effects - presets are saved automatically'
+        ]
+    });
+}
+    </script>
+</body>
+</html>

@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>krystal kastles - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 70px;
+        }
+        .voice-section {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 1em;
+            margin-bottom: 1em;
+        }
+        .voice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5em;
+        }
+        .voice-title {
+            font-size: 0.85em;
+            color: #8e44ad;
+        }
+        .voice-indicator {
+            width: 8px;
+            height: 8px;
+            background: #333;
+            border-radius: 50%;
+            transition: all 0.1s;
+        }
+        .voice-indicator.active {
+            background: #8e44ad;
+            box-shadow: 0 0 8px rgba(142, 68, 173, 0.7);
+        }
+        .sample-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+        .sample-actions button {
+            padding: 0.5em 1em;
+            background: #222;
+            border: 1px solid #444;
+            color: #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        .sample-actions button:hover {
+            background: #333;
+            border-color: #8e44ad;
+        }
+        .status-display {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .status-card {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 10px 16px;
+            text-align: center;
+            min-width: 60px;
+        }
+        .status-card .label {
+            font-size: 0.55em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .status-card .value {
+            font-size: 0.95em;
+            color: #8e44ad;
+            font-family: 'SF Mono', monospace;
+        }
+        .stutter-indicator {
+            width: 40px;
+            height: 6px;
+            background: #222;
+            border-radius: 3px;
+            position: relative;
+            display: inline-block;
+        }
+        .stutter-indicator .marker {
+            width: 6px;
+            height: 6px;
+            background: #8e44ad;
+            border-radius: 50%;
+            position: absolute;
+            top: 0;
+            transition: left 0.05s;
+        }
+        .sample-info {
+            text-align: center;
+            padding: 1rem;
+            background: #111;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        .sample-info .name {
+            font-size: 0.9em;
+            color: #8e44ad;
+        }
+        .sample-info .desc {
+            font-size: 0.75em;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>krystal kastles</h1>
+                <p>3-voice crystalline looper with stutter, granular and Andromeda shimmer reverb</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Status Display -->
+            <div class="status-display">
+                <div class="status-card">
+                    <div class="label">Sample</div>
+                    <div class="value" id="sampleStatus">--</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Gate</div>
+                    <div class="value"><span class="voice-indicator" id="gateIndicator"></span></div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Stutter</div>
+                    <div class="value">
+                        <div class="stutter-indicator"><span class="marker" id="stutterMarker"></span></div>
+                    </div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Grains</div>
+                    <div class="value" id="grainCount">0</div>
+                </div>
+            </div>
+
+            <!-- Sample Info -->
+            <div class="sample-info">
+                <div class="name" id="sampleName">Wind Chimes</div>
+                <div class="desc">Crystalline source sample</div>
+            </div>
+
+            <!-- Voice 1 -->
+            <div class="voice-section">
+                <div class="voice-header">
+                    <span class="voice-title">Voice 1</span>
+                    <span class="voice-indicator" id="v1Indicator"></span>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Pitch</label>
+                        <input type="range" id="p1" min="0.25" max="4" value="1" step="0.01">
+                        <span class="param-value" id="p1Val">1.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Loop Start</label>
+                        <input type="range" id="v1Start" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="v1StartVal">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Loop Len</label>
+                        <input type="range" id="v1Len" min="0.1" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="v1LenVal">0.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice 2 -->
+            <div class="voice-section">
+                <div class="voice-header">
+                    <span class="voice-title">Voice 2</span>
+                    <span class="voice-indicator" id="v2Indicator"></span>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Pitch</label>
+                        <input type="range" id="p2" min="0.25" max="4" value="1.5" step="0.01">
+                        <span class="param-value" id="p2Val">1.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Loop Start</label>
+                        <input type="range" id="v2Start" min="0" max="1" value="0.2" step="0.01">
+                        <span class="param-value" id="v2StartVal">0.20</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Loop Len</label>
+                        <input type="range" id="v2Len" min="0.1" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="v2LenVal">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice 3 -->
+            <div class="voice-section">
+                <div class="voice-header">
+                    <span class="voice-title">Voice 3</span>
+                    <span class="voice-indicator" id="v3Indicator"></span>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Pitch</label>
+                        <input type="range" id="p3" min="0.25" max="4" value="2" step="0.01">
+                        <span class="param-value" id="p3Val">2.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Loop Start</label>
+                        <input type="range" id="v3Start" min="0" max="1" value="0.4" step="0.01">
+                        <span class="param-value" id="v3StartVal">0.40</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Loop Len</label>
+                        <input type="range" id="v3Len" min="0.1" max="1" value="0.4" step="0.01">
+                        <span class="param-value" id="v3LenVal">0.40</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stutter -->
+            <span class="section-label">Stutter Looper</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Stutter</label>
+                        <input type="range" id="stutter" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="stutterVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Pitch</label>
+                        <input type="range" id="pstut" min="0.5" max="2" value="1" step="0.01">
+                        <span class="param-value" id="pstutVal">1.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="svol" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="svolVal">0.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manual Grains -->
+            <span class="section-label">Manual Grains</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Density</label>
+                        <input type="range" id="grainDensity" min="1" max="20" value="8" step="0.5">
+                        <span class="param-value" id="grainDensityVal">8.0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Size</label>
+                        <input type="range" id="grainSize" min="0.01" max="0.5" value="0.1" step="0.01">
+                        <span class="param-value" id="grainSizeVal">0.10</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Pitch Rnd</label>
+                        <input type="range" id="grainPitch" min="0" max="1" value="0.2" step="0.01">
+                        <span class="param-value" id="grainPitchVal">0.20</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mix</label>
+                        <input type="range" id="grainMix" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="grainMixVal">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Andromeda Shimmer Reverb -->
+            <span class="section-label">Andromeda Nebula (Shimmer Reverb)</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Size</label>
+                        <input type="range" id="revSize" min="0" max="1" value="0.8" step="0.01">
+                        <span class="param-value" id="revSizeVal">0.80</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Shimmer</label>
+                        <input type="range" id="shimmer" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="shimmerVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Damp</label>
+                        <input type="range" id="revDamp" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="revDampVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mix</label>
+                        <input type="range" id="revMix" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="revMixVal">0.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="vol" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="volVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sample Import -->
+            <div class="sample-actions">
+                <input type="file" id="sampleInput" accept="audio/*" style="display:none;">
+                <button id="importBtn">Import Sample</button>
+                <button id="clearBtn">Reload Default</button>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        const processorCode = `
+// ============================================================================
+// SLEW LIMITER
+// ============================================================================
+class SlewLimiter {
+    constructor(time, sr) {
+        this.sr = sr;
+        this.setTime(time);
+        this.value = 0;
+    }
+
+    setTime(time) {
+        this.rate = 1 / (time * this.sr + 1);
+    }
+
+    process(target) {
+        const diff = target - this.value;
+        this.value += diff * this.rate;
+        return this.value;
+    }
+}
+
+// ============================================================================
+// ALIASING TRIANGLE LFO
+// ============================================================================
+class AliasingTriangle {
+    constructor(sr) {
+        this.sr = sr;
+        this.phase = Math.random();
+        this.rate = 1;
+    }
+
+    setRate(r) { this.rate = Math.max(0.01, r); }
+
+    process() {
+        this.phase += this.rate / this.sr;
+        if (this.phase >= 1) this.phase -= 1;
+        return this.phase < 0.5 ? this.phase * 2 : 2 - this.phase * 2;
+    }
+}
+
+// ============================================================================
+// MANUAL LOOPS VOICE
+// ============================================================================
+class ManualLoopsVoice {
+    constructor(sr) {
+        this.sr = sr;
+        this.sample = null;
+        this.position = 0;
+        this.loopStart = 0;
+        this.loopLength = 0.5;
+        this.pitch = 1;
+        this.lfo = new AliasingTriangle(sr);
+        this.slew = new SlewLimiter(0.02, sr);
+        this.lfo.setRate(0.5 + Math.random() * 0.5);
+    }
+
+    setSample(s) {
+        this.sample = s;
+        this.position = 0;
+    }
+
+    process() {
+        if (!this.sample || this.sample.length === 0) return 0;
+
+        // LFO modulates pitch slightly
+        const lfoMod = this.lfo.process() * 0.1;
+        const speed = this.slew.process(this.pitch + lfoMod);
+
+        const sampleLen = this.sample.length;
+        const startSample = Math.floor(this.loopStart * sampleLen);
+        const loopSamples = Math.floor(this.loopLength * sampleLen);
+
+        if (loopSamples < 100) return 0;
+
+        // Interpolated read
+        const idx = Math.floor(this.position);
+        const frac = this.position - idx;
+        const actualIdx = startSample + (idx % loopSamples);
+        const nextIdx = startSample + ((idx + 1) % loopSamples);
+
+        const s0 = this.sample[actualIdx] || 0;
+        const s1 = this.sample[nextIdx] || 0;
+        const out = s0 + frac * (s1 - s0);
+
+        this.position += speed;
+        if (this.position >= loopSamples) {
+            this.position -= loopSamples;
+        }
+
+        return out;
+    }
+}
+
+// ============================================================================
+// STUTTER LOOPER (Dub Looper style)
+// ============================================================================
+class StutterLooper {
+    constructor(sr, maxTime) {
+        this.sr = sr;
+        this.buffer = new Float32Array(Math.ceil(maxTime * sr));
+        this.writeIdx = 0;
+        this.readIdx = 0;
+        this.loopLength = Math.floor(0.1 * sr);
+        this.stutterAmount = 0;
+        this.pitch = 1;
+        this.sinePhase = 0;
+        this.sineFreq = 2;
+    }
+
+    setStutter(amount) {
+        this.stutterAmount = amount;
+        this.loopLength = Math.floor((0.02 + amount * 0.3) * this.sr);
+    }
+
+    process(input) {
+        // Write to buffer
+        this.buffer[this.writeIdx] = input;
+        this.writeIdx = (this.writeIdx + 1) % this.buffer.length;
+
+        // Sine modulation for stutter effect
+        this.sinePhase += this.sineFreq / this.sr;
+        if (this.sinePhase >= 1) this.sinePhase -= 1;
+        const sineMod = Math.sin(this.sinePhase * Math.PI * 2);
+
+        // Read from buffer with stutter
+        let readPos = this.writeIdx - this.loopLength;
+        if (readPos < 0) readPos += this.buffer.length;
+
+        const idx = Math.floor(readPos + (sineMod * 0.5 + 0.5) * this.loopLength * this.stutterAmount);
+        const actualIdx = ((idx % this.buffer.length) + this.buffer.length) % this.buffer.length;
+
+        const stuttered = this.buffer[actualIdx];
+
+        return input * (1 - this.stutterAmount * 0.5) + stuttered * this.stutterAmount * 0.5;
+    }
+
+    getSineValue() {
+        return Math.sin(this.sinePhase * Math.PI * 2) * 0.5 + 0.5;
+    }
+}
+
+// ============================================================================
+// MANUAL GRAINS
+// ============================================================================
+class ManualGrains {
+    constructor(sr) {
+        this.sr = sr;
+        this.sample = null;
+        this.grains = [];
+        this.maxGrains = 16;
+        this.density = 8;
+        this.grainSize = 0.1;
+        this.pitchRandom = 0.2;
+        this.nextGrainTime = 0;
+        this.time = 0;
+    }
+
+    setSample(s) {
+        this.sample = s;
+    }
+
+    triggerGrain() {
+        if (!this.sample || this.sample.length === 0) return;
+        if (this.grains.length >= this.maxGrains) return;
+
+        const startPos = Math.random() * this.sample.length;
+        const pitch = 1 + (Math.random() - 0.5) * this.pitchRandom * 2;
+
+        this.grains.push({
+            position: startPos,
+            length: this.grainSize * this.sr,
+            progress: 0,
+            pitch: pitch
+        });
+    }
+
+    process() {
+        if (!this.sample) return 0;
+
+        this.time++;
+
+        // Trigger new grains based on density
+        if (this.time >= this.nextGrainTime) {
+            this.triggerGrain();
+            this.nextGrainTime = this.time + this.sr / this.density;
+        }
+
+        let output = 0;
+
+        // Process active grains
+        for (let i = this.grains.length - 1; i >= 0; i--) {
+            const grain = this.grains[i];
+
+            // Hanning window
+            const env = 0.5 * (1 - Math.cos(2 * Math.PI * grain.progress / grain.length));
+
+            // Read sample
+            const idx = Math.floor(grain.position);
+            if (idx >= 0 && idx < this.sample.length - 1) {
+                const frac = grain.position - idx;
+                const s0 = this.sample[idx];
+                const s1 = this.sample[idx + 1];
+                output += (s0 + frac * (s1 - s0)) * env;
+            }
+
+            grain.position += grain.pitch;
+            grain.progress++;
+
+            if (grain.progress >= grain.length) {
+                this.grains.splice(i, 1);
+            }
+        }
+
+        return output / Math.max(1, Math.sqrt(this.grains.length));
+    }
+}
+
+// ============================================================================
+// ANDROMEDA NEBULA (Shimmer Reverb)
+// ============================================================================
+class AndromedaNebula {
+    constructor(sr) {
+        this.sr = sr;
+        const scaleFactor = sr / 44100;
+
+        // Diffusion delays
+        this.diffDelays = [142, 107, 379, 277].map(t => Math.floor(t * scaleFactor));
+        this.diffBuffers = this.diffDelays.map(t => new Float32Array(t));
+        this.diffIdx = this.diffDelays.map(() => 0);
+
+        // Tank delays (longer for shimmer)
+        this.tankDelays = [1557, 1617, 1491, 1422].map(t => Math.floor(t * scaleFactor * 1.5));
+        this.tankBuffers = this.tankDelays.map(t => new Float32Array(t));
+        this.tankIdx = this.tankDelays.map(() => 0);
+        this.tankFilter = this.tankDelays.map(() => 0);
+
+        // Pitch shifter for shimmer (octave up)
+        this.shiftBuffer = new Float32Array(Math.floor(0.05 * sr));
+        this.shiftWriteIdx = 0;
+        this.shiftPhase = 0;
+
+        this.size = 0.8;
+        this.shimmer = 0.5;
+        this.damping = 0.3;
+        this.feedback = 0;
+    }
+
+    pitchShift(input) {
+        // Simple pitch doubler using crossfade
+        this.shiftBuffer[this.shiftWriteIdx] = input;
+
+        // Two read heads at different positions
+        const bufLen = this.shiftBuffer.length;
+        this.shiftPhase += 2; // Octave up
+        if (this.shiftPhase >= bufLen) this.shiftPhase -= bufLen;
+
+        const phase2 = (this.shiftPhase + bufLen / 2) % bufLen;
+
+        // Crossfade between heads
+        const fade1 = 0.5 + 0.5 * Math.cos(this.shiftPhase / bufLen * Math.PI * 2);
+        const fade2 = 1 - fade1;
+
+        const idx1 = Math.floor(this.shiftWriteIdx - this.shiftPhase);
+        const idx2 = Math.floor(this.shiftWriteIdx - phase2);
+
+        const actualIdx1 = ((idx1 % bufLen) + bufLen) % bufLen;
+        const actualIdx2 = ((idx2 % bufLen) + bufLen) % bufLen;
+
+        this.shiftWriteIdx = (this.shiftWriteIdx + 1) % bufLen;
+
+        return this.shiftBuffer[actualIdx1] * fade1 + this.shiftBuffer[actualIdx2] * fade2;
+    }
+
+    process(inputL, inputR) {
+        const input = (inputL + inputR) * 0.5;
+
+        // Input diffusion
+        let sig = input;
+        for (let i = 0; i < this.diffBuffers.length; i++) {
+            const buf = this.diffBuffers[i];
+            const idx = this.diffIdx[i];
+            const delayed = buf[idx];
+            buf[idx] = sig + delayed * 0.5;
+            sig = delayed - sig * 0.5;
+            this.diffIdx[i] = (idx + 1) % buf.length;
+        }
+
+        // Add feedback with shimmer
+        const shimmerSig = this.pitchShift(this.feedback) * this.shimmer;
+        sig = sig + shimmerSig;
+
+        // Tank processing
+        let tankOut = 0;
+        for (let i = 0; i < this.tankBuffers.length; i++) {
+            const buf = this.tankBuffers[i];
+            const idx = this.tankIdx[i];
+            const delayed = buf[idx];
+
+            // Damping filter
+            this.tankFilter[i] = delayed * (1 - this.damping) + this.tankFilter[i] * this.damping;
+
+            buf[idx] = sig + this.tankFilter[i] * this.size;
+            tankOut += delayed;
+
+            this.tankIdx[i] = (idx + 1) % buf.length;
+        }
+
+        tankOut /= this.tankBuffers.length;
+        this.feedback = tankOut;
+
+        // Stereo output with slight decorrelation
+        return [tankOut * 0.8 + sig * 0.2, tankOut * 0.8 - sig * 0.2];
+    }
+}
+
+// ============================================================================
+// CLOCKED RANDOM GATE
+// ============================================================================
+class ClockedRandomGate {
+    constructor(sr) {
+        this.sr = sr;
+        this.phase = 0;
+        this.rate = 2;
+        this.prob = 0.5;
+        this.gateOpen = false;
+    }
+
+    setRate(r) { this.rate = Math.max(0.1, r); }
+    setProb(p) { this.prob = p; }
+
+    process() {
+        this.phase += this.rate / this.sr;
+
+        let triggered = false;
+        if (this.phase >= 1) {
+            this.phase -= 1;
+            if (Math.random() < this.prob) {
+                triggered = true;
+                this.gateOpen = true;
+            }
+        }
+
+        if (this.phase > 0.5) {
+            this.gateOpen = false;
+        }
+
+        return triggered;
+    }
+}
+
+// ============================================================================
+// CPR COMPRESSOR
+// ============================================================================
+class CPR {
+    constructor(sr) {
+        this.sr = sr;
+        this.envelope = 0;
+        this.attackCoef = Math.exp(-1 / (sr * 0.005));
+        this.releaseCoef = Math.exp(-1 / (sr * 0.1));
+        this.threshold = 0.5;
+        this.ratio = 4;
+        this.makeupGain = 1.5;
+    }
+
+    process(input) {
+        const inputLevel = Math.abs(input);
+
+        if (inputLevel > this.envelope) {
+            this.envelope = this.attackCoef * this.envelope + (1 - this.attackCoef) * inputLevel;
+        } else {
+            this.envelope = this.releaseCoef * this.envelope + (1 - this.releaseCoef) * inputLevel;
+        }
+
+        let gain = 1;
+        if (this.envelope > this.threshold) {
+            const excess = this.envelope - this.threshold;
+            const compressed = excess / this.ratio;
+            gain = (this.threshold + compressed) / this.envelope;
+        }
+
+        return input * gain * this.makeupGain;
+    }
+}
+
+// ============================================================================
+// KRYSTAL KASTLES PROCESSOR
+// ============================================================================
+class KrystalKastlesProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+        this.playing = false;
+        this.sample = null;
+        this.sampleName = '';
+
+        // Three voices
+        this.voices = [
+            new ManualLoopsVoice(this.sr),
+            new ManualLoopsVoice(this.sr),
+            new ManualLoopsVoice(this.sr)
+        ];
+
+        // Stutter looper
+        this.stutter = new StutterLooper(this.sr, 1);
+
+        // Manual grains
+        this.grains = new ManualGrains(this.sr);
+
+        // Gate
+        this.gate = new ClockedRandomGate(this.sr);
+        this.gate.setRate(0.5);
+        this.gate.setProb(0.3);
+
+        // Andromeda shimmer reverb
+        this.reverb = new AndromedaNebula(this.sr);
+
+        // CPR compressor
+        this.compressorL = new CPR(this.sr);
+        this.compressorR = new CPR(this.sr);
+
+        // Parameters
+        this.params = {
+            p1: 1, v1Start: 0, v1Len: 0.5,
+            p2: 1.5, v2Start: 0.2, v2Len: 0.3,
+            p3: 2, v3Start: 0.4, v3Len: 0.4,
+            stutter: 0.3, pstut: 1, svol: 0.5,
+            grainDensity: 8, grainSize: 0.1, grainPitch: 0.2, grainMix: 0.3,
+            revSize: 0.8, shimmer: 0.5, revDamp: 0.3, revMix: 0.5,
+            vol: 0.7
+        };
+
+        this.uiCounter = 0;
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'start') this.playing = true;
+            if (e.data.type === 'stop') this.playing = false;
+            if (e.data.type === 'param') {
+                this.params[e.data.name] = e.data.value;
+            }
+            if (e.data.type === 'loadSample') {
+                this.sample = e.data.sample;
+                this.sampleName = e.data.name || 'Sample';
+                this.voices.forEach(v => v.setSample(this.sample));
+                this.grains.setSample(this.sample);
+            }
+        };
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1];
+
+        if (!this.playing || !this.sample) {
+            outL.fill(0);
+            outR.fill(0);
+            return true;
+        }
+
+        // Update voice parameters
+        this.voices[0].pitch = this.params.p1;
+        this.voices[0].loopStart = this.params.v1Start;
+        this.voices[0].loopLength = this.params.v1Len;
+
+        this.voices[1].pitch = this.params.p2;
+        this.voices[1].loopStart = this.params.v2Start;
+        this.voices[1].loopLength = this.params.v2Len;
+
+        this.voices[2].pitch = this.params.p3;
+        this.voices[2].loopStart = this.params.v3Start;
+        this.voices[2].loopLength = this.params.v3Len;
+
+        // Stutter
+        this.stutter.setStutter(this.params.stutter);
+        this.stutter.pitch = this.params.pstut;
+
+        // Grains
+        this.grains.density = this.params.grainDensity;
+        this.grains.grainSize = this.params.grainSize;
+        this.grains.pitchRandom = this.params.grainPitch;
+
+        // Reverb
+        this.reverb.size = this.params.revSize;
+        this.reverb.shimmer = this.params.shimmer;
+        this.reverb.damping = this.params.revDamp;
+
+        let gateState = false;
+
+        for (let i = 0; i < outL.length; i++) {
+            // Gate
+            this.gate.process();
+            gateState = this.gate.gateOpen;
+
+            // Mix voices
+            let voiceSum = 0;
+            voiceSum += this.voices[0].process();
+            voiceSum += this.voices[1].process() * 0.7;
+            voiceSum += this.voices[2].process() * 0.5;
+            voiceSum *= 0.4;
+
+            // Stutter processing
+            const stuttered = this.stutter.process(voiceSum) * this.params.svol;
+
+            // Grains
+            const grainOut = this.grains.process();
+
+            // Mix
+            let sig = voiceSum + stuttered + grainOut * this.params.grainMix;
+
+            // Andromeda shimmer reverb
+            const [revL, revR] = this.reverb.process(sig, sig);
+
+            let sigL = sig * (1 - this.params.revMix) + revL * this.params.revMix;
+            let sigR = sig * (1 - this.params.revMix) + revR * this.params.revMix;
+
+            // Compression
+            sigL = this.compressorL.process(sigL);
+            sigR = this.compressorR.process(sigR);
+
+            // Volume and soft clip
+            sigL *= this.params.vol;
+            sigR *= this.params.vol;
+
+            outL[i] = Math.tanh(sigL);
+            outR[i] = Math.tanh(sigR);
+        }
+
+        // Send UI updates
+        this.uiCounter++;
+        if (this.uiCounter >= 256) {
+            this.uiCounter = 0;
+            this.port.postMessage({
+                type: 'status',
+                gate: gateState,
+                stutterPhase: this.stutter.getSineValue(),
+                grainCount: this.grains.grains.length
+            });
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('krystal-kastles-processor', KrystalKastlesProcessor);
+`;
+
+        let audioContext, workletNode, pedalboard;
+        let isPlaying = false;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const sampleStatusEl = document.getElementById('sampleStatus');
+        const sampleNameEl = document.getElementById('sampleName');
+        const gateIndicator = document.getElementById('gateIndicator');
+        const stutterMarker = document.getElementById('stutterMarker');
+        const grainCountEl = document.getElementById('grainCount');
+        const v1Indicator = document.getElementById('v1Indicator');
+        const v2Indicator = document.getElementById('v2Indicator');
+        const v3Indicator = document.getElementById('v3Indicator');
+        const importBtn = document.getElementById('importBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const sampleInput = document.getElementById('sampleInput');
+
+        // Parameters
+        const params = [
+            'p1', 'v1Start', 'v1Len',
+            'p2', 'v2Start', 'v2Len',
+            'p3', 'v3Start', 'v3Len',
+            'stutter', 'pstut', 'svol',
+            'grainDensity', 'grainSize', 'grainPitch', 'grainMix',
+            'revSize', 'shimmer', 'revDamp', 'revMix', 'vol'
+        ];
+
+        params.forEach(param => {
+            const el = document.getElementById(param);
+            const valEl = document.getElementById(param + 'Val');
+            if (el && valEl) {
+                el.addEventListener('input', () => {
+                    const v = parseFloat(el.value);
+                    valEl.textContent = v.toFixed(el.step.includes('.') ? el.step.split('.')[1].length : 0);
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'param', name: param, value: v });
+                    }
+                });
+            }
+        });
+
+        async function loadDefaultSample() {
+            const samplePath = '../samples/hyperscale/krystal-kastles/wind-chimes2.wav';
+
+            sampleStatusEl.textContent = '...';
+
+            try {
+                const response = await fetch(samplePath);
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    const sample = audioBuffer.getChannelData(0);
+
+                    workletNode.port.postMessage({
+                        type: 'loadSample',
+                        sample: sample,
+                        name: 'Wind Chimes'
+                    });
+
+                    sampleStatusEl.textContent = 'OK';
+                    sampleNameEl.textContent = 'Wind Chimes';
+                } else {
+                    sampleStatusEl.textContent = '--';
+                }
+            } catch (e) {
+                console.log('Sample not found:', e);
+                sampleStatusEl.textContent = '--';
+            }
+        }
+
+        importBtn.addEventListener('click', () => sampleInput.click());
+
+        sampleInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            sampleStatusEl.textContent = '...';
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                const sample = audioBuffer.getChannelData(0);
+
+                const name = file.name.replace(/\.[^.]+$/, '');
+
+                workletNode.port.postMessage({
+                    type: 'loadSample',
+                    sample: sample,
+                    name: name
+                });
+
+                sampleStatusEl.textContent = 'OK';
+                sampleNameEl.textContent = name;
+            } catch (e) {
+                console.error('Error loading:', e);
+                sampleStatusEl.textContent = 'ERR';
+            }
+            sampleInput.value = '';
+        });
+
+        clearBtn.addEventListener('click', async () => {
+            await loadDefaultSample();
+        });
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'krystal-kastles-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'status') {
+                    gateIndicator.classList.toggle('active', e.data.gate);
+                    stutterMarker.style.left = (e.data.stutterPhase * 34) + 'px';
+                    grainCountEl.textContent = e.data.grainCount;
+
+                    // Animate voice indicators based on activity
+                    v1Indicator.classList.toggle('active', Math.random() > 0.3);
+                    v2Indicator.classList.toggle('active', Math.random() > 0.4);
+                    v3Indicator.classList.toggle('active', Math.random() > 0.5);
+                }
+            };
+
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboard = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'krystal-kastles-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-krystal-kastles'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-krystal-kastles');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-krystal-kastles',
+                    prefix: 'kastles',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+            fxNodeRef = fxNode;
+
+            // Send initial param values
+            params.forEach(param => {
+                const el = document.getElementById(param);
+                if (el) {
+                    workletNode.port.postMessage({
+                        type: 'param',
+                        name: param,
+                        value: parseFloat(el.value)
+                    });
+                }
+            });
+
+            await loadDefaultSample();
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+            }
+
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            isPlaying = !isPlaying;
+            playBtn.innerHTML = isPlaying ? '&#9632;' : '&#9654;';
+            workletNode.port.postMessage({ type: isPlaying ? 'start' : 'stop' });
+        });
+
+        // Visualization
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        let analyser, fxNodeRef;
+        function setupAnalyser() {
+            if (!audioContext || !fxNodeRef) return;
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            fxNodeRef.connect(analyser);
+        }
+
+        function draw() {
+            requestAnimationFrame(draw);
+
+            const w = canvas.offsetWidth;
+            const h = canvas.offsetHeight;
+
+            ctx.fillStyle = '#0a0a0f';
+            ctx.fillRect(0, 0, w, h);
+
+            if (!analyser) {
+                if (audioContext && fxNodeRef) setupAnalyser();
+                return;
+            }
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            const barWidth = w / bufferLength;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const barHeight = (dataArray[i] / 255) * h * 0.8;
+                const hue = 280 + (dataArray[i] / 255) * 20;
+                ctx.fillStyle = `hsl(${hue}, 60%, ${35 + dataArray[i] / 8}%)`;
+                ctx.fillRect(i * barWidth, h - barHeight, barWidth - 1, barHeight);
+            }
+        }
+
+        draw();
+
+        // Info panel
+        ER301InfoPanel.create({
+            title: 'krystal kastles',
+            sections: [
+                {
+                    title: 'Overview',
+                    content: `krystal kastles is a crystalline 3-voice looper that creates shimmering, glass-like textures
+from a single wind chimes sample. Each voice plays a different segment of the sample at
+different pitches, layered with a stutter effect, granular processing, and the ethereal
+Andromeda Nebula shimmer reverb.`
+                },
+                {
+                    title: 'Voice 1/2/3',
+                    content: `Each voice has independent controls:<br><br>
+<strong>Pitch:</strong> Playback speed (0.25x to 4x)<br>
+<strong>Loop Start:</strong> Where in the sample the loop begins (0-1)<br>
+<strong>Loop Len:</strong> Length of the loop segment<br><br>
+Each voice also has an Aliasing Triangle LFO subtly modulating pitch for organic movement.`
+                },
+                {
+                    title: 'Stutter Looper',
+                    content: `A dub-style stutter effect on the mixed voices:<br><br>
+<strong>Stutter:</strong> Amount of stutter effect (0=off, 1=maximum glitch)<br>
+<strong>Pitch:</strong> Stutter playback rate<br>
+<strong>Volume:</strong> Stutter layer volume in the mix`
+                },
+                {
+                    title: 'Manual Grains',
+                    content: `Granular processing layer:<br><br>
+<strong>Density:</strong> Grains triggered per second<br>
+<strong>Size:</strong> Duration of each grain<br>
+<strong>Pitch Rnd:</strong> Random pitch variation per grain<br>
+<strong>Mix:</strong> Grain layer volume in the mix`
+                },
+                {
+                    title: 'Andromeda Nebula',
+                    content: `Shimmer reverb with pitch-shifting in the feedback path:<br><br>
+<strong>Size:</strong> Reverb decay / room size<br>
+<strong>Shimmer:</strong> Amount of octave-up pitch shifting in reverb tail<br>
+<strong>Damp:</strong> High frequency damping<br>
+<strong>Mix:</strong> Wet/dry blend<br><br>
+The shimmer effect creates ethereal, rising harmonics in the reverb tail.`
+                },
+                {
+                    title: 'Signal Flow',
+                    content: `3 Manual Loops voices (pitched) → Mix → Stutter Looper →<br>
+Manual Grains (parallel) → Andromeda Nebula shimmer reverb →<br>
+CPR Compressor → Output`
+                },
+                {
+                    title: 'Tips',
+                    content: `• Use different pitches (1x, 1.5x, 2x) for harmonic layering<br>
+• Offset loop starts to create evolving polyrhythmic textures<br>
+• High shimmer + high reverb size = infinite ethereal pads<br>
+• Import your own sample - works best with sustained, textural sounds<br>
+• The wind chimes sample creates glass-like crystalline tones`
+                }
+            ]
+        });
+    </script>
+</body>
+</html>

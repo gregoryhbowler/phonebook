@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>marimba rom - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 60px;
+        }
+        .voice-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+            max-width: 800px;
+            margin: 1rem auto;
+        }
+        .voice-card {
+            background: #0a0a14;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+        .voice-card.active {
+            border-color: #e74c3c;
+            box-shadow: 0 0 15px rgba(231, 76, 60, 0.3);
+        }
+        .voice-number {
+            font-size: 0.7em;
+            color: #666;
+            margin-bottom: 6px;
+        }
+        .voice-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #1a1a1a;
+            border: 2px solid #e74c3c;
+            color: #e74c3c;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.1s;
+            margin-bottom: 8px;
+        }
+        .voice-btn:hover {
+            background: #e74c3c;
+            color: white;
+        }
+        .voice-btn.playing {
+            background: #e74c3c;
+            color: white;
+            box-shadow: 0 0 20px rgba(231, 76, 60, 0.5);
+        }
+        .voice-tune {
+            width: 100%;
+        }
+        .voice-tune-val {
+            font-size: 0.7em;
+            color: #e74c3c;
+            font-family: 'SF Mono', monospace;
+        }
+        .sample-display {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 1rem 0;
+        }
+        .sample-badge {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 8px 16px;
+            text-align: center;
+        }
+        .sample-badge .note {
+            font-size: 1.1em;
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .sample-badge .label {
+            font-size: 0.65em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .sample-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+        .sample-actions button {
+            padding: 0.5em 1em;
+            background: #222;
+            border: 1px solid #444;
+            color: #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        .sample-actions button:hover {
+            background: #333;
+            border-color: #e74c3c;
+        }
+        .status-display {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .status-card {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 10px 16px;
+            text-align: center;
+            min-width: 55px;
+        }
+        .status-card .label {
+            font-size: 0.55em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .status-card .value {
+            font-size: 0.95em;
+            color: #e74c3c;
+            font-family: 'SF Mono', monospace;
+        }
+        .midi-indicator {
+            width: 10px;
+            height: 10px;
+            background: #333;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .midi-indicator.active {
+            background: #2ecc71;
+            box-shadow: 0 0 8px rgba(46, 204, 113, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>marimba rom</h1>
+                <p>6-voice marimba ROM sampler with external triggers and Freeverb</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Status Display -->
+            <div class="status-display">
+                <div class="status-card">
+                    <div class="label">Samples</div>
+                    <div class="value" id="sampleCount">3</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">MIDI</div>
+                    <div class="value"><span class="midi-indicator" id="midiIndicator"></span></div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Last Note</div>
+                    <div class="value" id="lastNote">--</div>
+                </div>
+            </div>
+
+            <!-- Sample Display -->
+            <div class="sample-display">
+                <div class="sample-badge">
+                    <div class="note">C2</div>
+                    <div class="label">Low</div>
+                </div>
+                <div class="sample-badge">
+                    <div class="note">C3</div>
+                    <div class="label">Mid</div>
+                </div>
+                <div class="sample-badge">
+                    <div class="note">C5</div>
+                    <div class="label">High</div>
+                </div>
+            </div>
+
+            <!-- 6 Voice Triggers -->
+            <div class="voice-grid" id="voiceGrid">
+                <div class="voice-card" id="voice1">
+                    <div class="voice-number">VOICE 1</div>
+                    <button class="voice-btn" id="trig1">1</button>
+                    <input type="range" class="voice-tune" id="tune1" min="-12" max="12" value="0" step="1">
+                    <div class="voice-tune-val" id="tune1Val">0 st</div>
+                </div>
+                <div class="voice-card" id="voice2">
+                    <div class="voice-number">VOICE 2</div>
+                    <button class="voice-btn" id="trig2">2</button>
+                    <input type="range" class="voice-tune" id="tune2" min="-12" max="12" value="0" step="1">
+                    <div class="voice-tune-val" id="tune2Val">0 st</div>
+                </div>
+                <div class="voice-card" id="voice3">
+                    <div class="voice-number">VOICE 3</div>
+                    <button class="voice-btn" id="trig3">3</button>
+                    <input type="range" class="voice-tune" id="tune3" min="-12" max="12" value="0" step="1">
+                    <div class="voice-tune-val" id="tune3Val">0 st</div>
+                </div>
+                <div class="voice-card" id="voice4">
+                    <div class="voice-number">VOICE 4</div>
+                    <button class="voice-btn" id="trig4">4</button>
+                    <input type="range" class="voice-tune" id="tune4" min="-12" max="12" value="0" step="1">
+                    <div class="voice-tune-val" id="tune4Val">0 st</div>
+                </div>
+                <div class="voice-card" id="voice5">
+                    <div class="voice-number">VOICE 5</div>
+                    <button class="voice-btn" id="trig5">5</button>
+                    <input type="range" class="voice-tune" id="tune5" min="-12" max="12" value="0" step="1">
+                    <div class="voice-tune-val" id="tune5Val">0 st</div>
+                </div>
+                <div class="voice-card" id="voice6">
+                    <div class="voice-number">VOICE 6</div>
+                    <button class="voice-btn" id="trig6">6</button>
+                    <input type="range" class="voice-tune" id="tune6" min="-12" max="12" value="0" step="1">
+                    <div class="voice-tune-val" id="tune6Val">0 st</div>
+                </div>
+            </div>
+
+            <!-- Pitch Random -->
+            <span class="section-label">Pitch Modulation</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Rnd Pitch</label>
+                        <input type="range" id="rndPitch" min="0" max="12" value="2" step="0.5">
+                        <span class="param-value" id="rndPitchVal">2.0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Freeverb -->
+            <span class="section-label">Freeverb</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Room</label>
+                        <input type="range" id="room" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="roomVal">0.70</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Damp</label>
+                        <input type="range" id="damp" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="dampVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mix</label>
+                        <input type="range" id="verbMix" min="0" max="1" value="0.4" step="0.01">
+                        <span class="param-value" id="verbMixVal">0.40</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="vol" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="volVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sample Import -->
+            <div class="sample-actions">
+                <input type="file" id="sampleInput" multiple accept="audio/*" style="display:none;">
+                <button id="importBtn">Import Samples</button>
+                <button id="clearBtn">Clear Samples</button>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        const processorCode = `
+// ============================================================================
+// FREEVERB
+// ============================================================================
+class Freeverb {
+    constructor(sr) {
+        this.sr = sr;
+        const scale = sr / 44100;
+
+        // Comb filter delays (in samples)
+        const combTunings = [1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617];
+        const allpassTunings = [556, 441, 341, 225];
+
+        this.combsL = combTunings.map(t => ({
+            buffer: new Float32Array(Math.floor(t * scale)),
+            index: 0,
+            filterStore: 0
+        }));
+        this.combsR = combTunings.map(t => ({
+            buffer: new Float32Array(Math.floor((t + 23) * scale)),
+            index: 0,
+            filterStore: 0
+        }));
+
+        this.allpassesL = allpassTunings.map(t => ({
+            buffer: new Float32Array(Math.floor(t * scale)),
+            index: 0
+        }));
+        this.allpassesR = allpassTunings.map(t => ({
+            buffer: new Float32Array(Math.floor((t + 23) * scale)),
+            index: 0
+        }));
+
+        this.roomSize = 0.7;
+        this.damp = 0.5;
+        this.wet = 0.4;
+    }
+
+    processComb(comb, input, feedback, damp1, damp2) {
+        const output = comb.buffer[comb.index];
+        comb.filterStore = output * damp2 + comb.filterStore * damp1;
+        comb.buffer[comb.index] = input + comb.filterStore * feedback;
+        comb.index = (comb.index + 1) % comb.buffer.length;
+        return output;
+    }
+
+    processAllpass(ap, input) {
+        const bufOut = ap.buffer[ap.index];
+        const output = -input + bufOut;
+        ap.buffer[ap.index] = input + bufOut * 0.5;
+        ap.index = (ap.index + 1) % ap.buffer.length;
+        return output;
+    }
+
+    process(inputL, inputR) {
+        const input = (inputL + inputR) * 0.5;
+        const feedback = this.roomSize * 0.28 + 0.7;
+        const damp1 = this.damp * 0.4;
+        const damp2 = 1 - damp1;
+
+        let outL = 0, outR = 0;
+
+        for (let i = 0; i < 8; i++) {
+            outL += this.processComb(this.combsL[i], input, feedback, damp1, damp2);
+            outR += this.processComb(this.combsR[i], input, feedback, damp1, damp2);
+        }
+
+        for (let i = 0; i < 4; i++) {
+            outL = this.processAllpass(this.allpassesL[i], outL);
+            outR = this.processAllpass(this.allpassesR[i], outR);
+        }
+
+        return [
+            inputL * (1 - this.wet) + outL * this.wet,
+            inputR * (1 - this.wet) + outR * this.wet
+        ];
+    }
+}
+
+// ============================================================================
+// CPR COMPRESSOR
+// ============================================================================
+class CPR {
+    constructor(sr) {
+        this.sr = sr;
+        this.envelope = 0;
+        this.attackCoef = Math.exp(-1 / (sr * 0.005));
+        this.releaseCoef = Math.exp(-1 / (sr * 0.1));
+        this.threshold = 0.5;
+        this.ratio = 4;
+        this.makeupGain = 1.5;
+    }
+
+    process(input) {
+        const inputLevel = Math.abs(input);
+        if (inputLevel > this.envelope) {
+            this.envelope = this.attackCoef * this.envelope + (1 - this.attackCoef) * inputLevel;
+        } else {
+            this.envelope = this.releaseCoef * this.envelope + (1 - this.releaseCoef) * inputLevel;
+        }
+        let gain = 1;
+        if (this.envelope > this.threshold) {
+            const excess = this.envelope - this.threshold;
+            const compressed = excess / this.ratio;
+            gain = (this.threshold + compressed) / this.envelope;
+        }
+        return input * gain * this.makeupGain;
+    }
+}
+
+// ============================================================================
+// VOICE
+// ============================================================================
+class Voice {
+    constructor(sr) {
+        this.sr = sr;
+        this.sample = null;
+        this.sampleIndex = 0;
+        this.position = 0;
+        this.playing = false;
+        this.speed = 1;
+        this.tune = 0; // semitones
+        this.envelope = 0;
+        this.releaseRate = 1 / (sr * 0.3);
+    }
+
+    trigger(sample, sampleIndex, pitchRandom) {
+        this.sample = sample;
+        this.sampleIndex = sampleIndex;
+        this.position = 0;
+        this.playing = true;
+        this.envelope = 1;
+
+        // Apply tuning + random pitch
+        const randomPitch = (Math.random() - 0.5) * 2 * pitchRandom;
+        this.speed = Math.pow(2, (this.tune + randomPitch) / 12);
+    }
+
+    setTune(semitones) {
+        this.tune = semitones;
+    }
+
+    process() {
+        if (!this.playing || !this.sample) return 0;
+
+        const idx = Math.floor(this.position);
+        if (idx >= this.sample.length - 1) {
+            this.playing = false;
+            return 0;
+        }
+
+        const frac = this.position - idx;
+        const s0 = this.sample[idx];
+        const s1 = this.sample[idx + 1] || 0;
+        const out = (s0 + frac * (s1 - s0)) * this.envelope;
+
+        this.position += this.speed;
+
+        // Natural decay
+        this.envelope -= this.releaseRate;
+        if (this.envelope < 0) {
+            this.envelope = 0;
+            this.playing = false;
+        }
+
+        return out;
+    }
+}
+
+// ============================================================================
+// MARIMBA ROM PROCESSOR
+// ============================================================================
+class MarimbaRomProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+        this.playing = false;
+        this.samples = []; // 3 marimba samples (C2, C3, C5)
+        this.sampleNames = [];
+
+        // 6 voices
+        this.voices = [];
+        for (let i = 0; i < 6; i++) {
+            this.voices.push(new Voice(this.sr));
+        }
+
+        // Effects
+        this.reverb = new Freeverb(this.sr);
+        this.compressor = new CPR(this.sr);
+
+        // Params
+        this.params = {
+            rndPitch: 2,
+            room: 0.7,
+            damp: 0.5,
+            verbMix: 0.4,
+            vol: 0.7,
+            tune1: 0, tune2: 0, tune3: 0, tune4: 0, tune5: 0, tune6: 0
+        };
+
+        this.uiCounter = 0;
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'start') this.playing = true;
+            if (e.data.type === 'stop') this.playing = false;
+            if (e.data.type === 'param') {
+                this.params[e.data.name] = e.data.value;
+                // Update voice tuning
+                for (let i = 0; i < 6; i++) {
+                    this.voices[i].setTune(this.params['tune' + (i + 1)]);
+                }
+            }
+            if (e.data.type === 'trigger') {
+                const voiceIdx = e.data.voice;
+                if (voiceIdx >= 0 && voiceIdx < 6 && this.samples.length > 0) {
+                    // Select sample based on voice or random
+                    const sampleIdx = voiceIdx % this.samples.length;
+                    this.voices[voiceIdx].trigger(
+                        this.samples[sampleIdx],
+                        sampleIdx,
+                        this.params.rndPitch
+                    );
+                    this.port.postMessage({ type: 'voicePlaying', voice: voiceIdx });
+                }
+            }
+            if (e.data.type === 'midiTrigger') {
+                // MIDI note triggers - distribute across voices
+                const note = e.data.note;
+                const velocity = e.data.velocity / 127;
+
+                // Find free voice or steal oldest
+                let voiceIdx = 0;
+                for (let i = 0; i < 6; i++) {
+                    if (!this.voices[i].playing) {
+                        voiceIdx = i;
+                        break;
+                    }
+                }
+
+                if (this.samples.length > 0) {
+                    // Map MIDI note to sample and pitch
+                    // C2=36, C3=48, C5=72
+                    let sampleIdx = 1; // Default to C3
+                    let basePitch = 48;
+
+                    if (note < 42) {
+                        sampleIdx = 0; basePitch = 36; // C2
+                    } else if (note >= 60) {
+                        sampleIdx = 2; basePitch = 72; // C5
+                    } else {
+                        sampleIdx = 1; basePitch = 48; // C3
+                    }
+
+                    sampleIdx = Math.min(sampleIdx, this.samples.length - 1);
+
+                    // Set temporary pitch offset
+                    const pitchOffset = note - basePitch;
+                    this.voices[voiceIdx].setTune(pitchOffset);
+                    this.voices[voiceIdx].trigger(
+                        this.samples[sampleIdx],
+                        sampleIdx,
+                        this.params.rndPitch * 0.5
+                    );
+
+                    this.port.postMessage({
+                        type: 'voicePlaying',
+                        voice: voiceIdx,
+                        note: note
+                    });
+                }
+            }
+            if (e.data.type === 'loadSamples') {
+                this.samples = e.data.samples;
+                this.sampleNames = e.data.names || [];
+            }
+            if (e.data.type === 'clearSamples') {
+                this.samples = [];
+                this.sampleNames = [];
+            }
+        };
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1];
+
+        if (!this.playing) {
+            outL.fill(0);
+            outR.fill(0);
+            return true;
+        }
+
+        // Update reverb params
+        this.reverb.roomSize = this.params.room;
+        this.reverb.damp = this.params.damp;
+        this.reverb.wet = this.params.verbMix;
+
+        for (let i = 0; i < outL.length; i++) {
+            // Mix all voices
+            let mix = 0;
+            for (let v = 0; v < 6; v++) {
+                mix += this.voices[v].process();
+            }
+            mix *= 0.4; // Scale down
+
+            // Reverb
+            const [revL, revR] = this.reverb.process(mix, mix);
+
+            // Compression
+            let sigL = this.compressor.process(revL);
+            let sigR = this.compressor.process(revR);
+
+            // Volume and limit
+            sigL *= this.params.vol;
+            sigR *= this.params.vol;
+
+            outL[i] = Math.tanh(sigL);
+            outR[i] = Math.tanh(sigR);
+        }
+
+        // UI updates
+        this.uiCounter++;
+        if (this.uiCounter >= 512) {
+            this.uiCounter = 0;
+            const voiceStates = this.voices.map(v => v.playing);
+            this.port.postMessage({ type: 'voiceStates', states: voiceStates });
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('marimba-rom-processor', MarimbaRomProcessor);
+`;
+
+        let audioContext, workletNode, pedalboard;
+        let isPlaying = false;
+        let samples = [];
+        let sampleNames = [];
+        let midiAccess = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const sampleCountEl = document.getElementById('sampleCount');
+        const midiIndicator = document.getElementById('midiIndicator');
+        const lastNoteEl = document.getElementById('lastNote');
+        const importBtn = document.getElementById('importBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const sampleInput = document.getElementById('sampleInput');
+
+        // Tune controls
+        for (let i = 1; i <= 6; i++) {
+            const tuneEl = document.getElementById('tune' + i);
+            const tuneValEl = document.getElementById('tune' + i + 'Val');
+            tuneEl.addEventListener('input', () => {
+                const v = parseInt(tuneEl.value);
+                tuneValEl.textContent = v + ' st';
+                if (workletNode) {
+                    workletNode.port.postMessage({ type: 'param', name: 'tune' + i, value: v });
+                }
+            });
+        }
+
+        // Voice trigger buttons
+        for (let i = 1; i <= 6; i++) {
+            const btn = document.getElementById('trig' + i);
+            btn.addEventListener('click', () => {
+                if (workletNode) {
+                    workletNode.port.postMessage({ type: 'trigger', voice: i - 1 });
+                }
+            });
+        }
+
+        // Parameters
+        const params = ['rndPitch', 'room', 'damp', 'verbMix', 'vol'];
+        params.forEach(param => {
+            const el = document.getElementById(param);
+            const valEl = document.getElementById(param + 'Val');
+            if (el && valEl) {
+                el.addEventListener('input', () => {
+                    const v = parseFloat(el.value);
+                    valEl.textContent = v.toFixed(el.step.includes('.') ? el.step.split('.')[1].length : 0);
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'param', name: param, value: v });
+                    }
+                });
+            }
+        });
+
+        async function loadDefaultSamples() {
+            // Uses same marimba samples as endless marimba
+            const samplePath = '../samples/hyperscale/endless-marimba/';
+            const sampleFiles = ['Marimba C2.wav', 'Marimba C3.wav', 'Marimba C5.wav'];
+
+            samples = [];
+            sampleNames = [];
+
+            for (const file of sampleFiles) {
+                try {
+                    const response = await fetch(samplePath + encodeURIComponent(file));
+                    if (response.ok) {
+                        const arrayBuffer = await response.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        samples.push(audioBuffer.getChannelData(0));
+                        sampleNames.push(file.replace('.wav', ''));
+                    }
+                } catch (e) {
+                    console.log('Sample not found:', file);
+                }
+            }
+
+            if (samples.length > 0) {
+                workletNode.port.postMessage({ type: 'loadSamples', samples, names: sampleNames });
+                sampleCountEl.textContent = samples.length;
+            }
+        }
+
+        // MIDI handling
+        async function initMIDI() {
+            try {
+                midiAccess = await navigator.requestMIDIAccess();
+                midiAccess.inputs.forEach(input => {
+                    input.onmidimessage = handleMIDI;
+                });
+                midiIndicator.classList.add('active');
+            } catch (e) {
+                console.log('MIDI not available');
+            }
+        }
+
+        function handleMIDI(e) {
+            const [status, note, velocity] = e.data;
+            const command = status >> 4;
+
+            if (command === 9 && velocity > 0) { // Note on
+                if (workletNode) {
+                    workletNode.port.postMessage({
+                        type: 'midiTrigger',
+                        note: note,
+                        velocity: velocity
+                    });
+                }
+                lastNoteEl.textContent = note;
+                midiIndicator.classList.add('active');
+                setTimeout(() => midiIndicator.classList.remove('active'), 100);
+            }
+        }
+
+        importBtn.addEventListener('click', () => sampleInput.click());
+
+        sampleInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+
+            samples = [];
+            sampleNames = [];
+
+            for (const file of files) {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    samples.push(audioBuffer.getChannelData(0));
+                    sampleNames.push(file.name.replace(/\.[^.]+$/, ''));
+                } catch (e) {
+                    console.error('Error loading:', file.name, e);
+                }
+            }
+
+            if (workletNode && samples.length > 0) {
+                workletNode.port.postMessage({ type: 'loadSamples', samples, names: sampleNames });
+            }
+            sampleCountEl.textContent = samples.length;
+            sampleInput.value = '';
+        });
+
+        clearBtn.addEventListener('click', () => {
+            samples = [];
+            sampleNames = [];
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'clearSamples' });
+            }
+            sampleCountEl.textContent = 0;
+        });
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'marimba-rom-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'voicePlaying') {
+                    const voiceIdx = e.data.voice;
+                    const btn = document.getElementById('trig' + (voiceIdx + 1));
+                    const card = document.getElementById('voice' + (voiceIdx + 1));
+                    if (btn) {
+                        btn.classList.add('playing');
+                        setTimeout(() => btn.classList.remove('playing'), 200);
+                    }
+                    if (card) {
+                        card.classList.add('active');
+                        setTimeout(() => card.classList.remove('active'), 300);
+                    }
+                    if (e.data.note !== undefined) {
+                        lastNoteEl.textContent = e.data.note;
+                    }
+                }
+                if (e.data.type === 'voiceStates') {
+                    e.data.states.forEach((playing, idx) => {
+                        const btn = document.getElementById('trig' + (idx + 1));
+                        if (btn) btn.classList.toggle('playing', playing);
+                    });
+                }
+            };
+
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboard = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'marimba-rom-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-marimba-rom'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-marimba-rom');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-marimba-rom',
+                    prefix: 'rom',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+            fxNodeRef = fxNode;
+
+            // Send initial params
+            params.forEach(param => {
+                const el = document.getElementById(param);
+                if (el) {
+                    workletNode.port.postMessage({
+                        type: 'param',
+                        name: param,
+                        value: parseFloat(el.value)
+                    });
+                }
+            });
+
+            for (let i = 1; i <= 6; i++) {
+                const tuneEl = document.getElementById('tune' + i);
+                workletNode.port.postMessage({
+                    type: 'param',
+                    name: 'tune' + i,
+                    value: parseInt(tuneEl.value)
+                });
+            }
+
+            await loadDefaultSamples();
+            await initMIDI();
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+            }
+
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            isPlaying = !isPlaying;
+            playBtn.innerHTML = isPlaying ? '&#9632;' : '&#9654;';
+            workletNode.port.postMessage({ type: isPlaying ? 'start' : 'stop' });
+        });
+
+        // Keyboard support (1-6 keys)
+        document.addEventListener('keydown', (e) => {
+            if (e.key >= '1' && e.key <= '6') {
+                const voiceIdx = parseInt(e.key) - 1;
+                if (workletNode) {
+                    workletNode.port.postMessage({ type: 'trigger', voice: voiceIdx });
+                }
+            }
+        });
+
+        // Visualization
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        let analyser, fxNodeRef;
+        function setupAnalyser() {
+            if (!audioContext || !fxNodeRef) return;
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            fxNodeRef.connect(analyser);
+        }
+
+        function draw() {
+            requestAnimationFrame(draw);
+
+            const w = canvas.offsetWidth;
+            const h = canvas.offsetHeight;
+
+            ctx.fillStyle = '#0a0a0f';
+            ctx.fillRect(0, 0, w, h);
+
+            if (!analyser) {
+                if (audioContext && fxNodeRef) setupAnalyser();
+                return;
+            }
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            const barWidth = w / bufferLength;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const barHeight = (dataArray[i] / 255) * h * 0.8;
+                const hue = 0 + (dataArray[i] / 255) * 20;
+                ctx.fillStyle = `hsl(${hue}, 65%, ${35 + dataArray[i] / 8}%)`;
+                ctx.fillRect(i * barWidth, h - barHeight, barWidth - 1, barHeight);
+            }
+        }
+
+        draw();
+
+        // Info panel
+        ER301InfoPanel.create({
+            title: 'marimba rom',
+            sections: [
+                {
+                    title: 'Overview',
+                    content: `marimba rom is a 6-voice ROM sampler using 3 marimba samples (C2, C3, C5).
+Each voice has its own trigger and tuning control, making it ideal for live performance
+and MIDI control. Features Freeverb and CPR compression.`
+                },
+                {
+                    title: 'Voice Triggers',
+                    content: `<strong>Buttons 1-6:</strong> Trigger each voice manually<br>
+<strong>Keyboard 1-6:</strong> Trigger voices with number keys<br>
+<strong>MIDI:</strong> Play chromatically with MIDI keyboard`
+                },
+                {
+                    title: 'Voice Tuning',
+                    content: `Each voice has an independent tuning control:<br>
+<strong>Tune 1-6:</strong> Pitch offset in semitones (-12 to +12)<br>
+Set different tunings to create chords or intervals.`
+                },
+                {
+                    title: 'Pitch Modulation',
+                    content: `<strong>Rnd Pitch:</strong> Random pitch variation (0-12 semitones)<br>
+Adds organic variation to each triggered note.`
+                },
+                {
+                    title: 'MIDI Mapping',
+                    content: `MIDI notes are mapped to samples by register:<br>
+• Notes below C3 (48): Use C2 sample<br>
+• Notes C3-B4 (48-71): Use C3 sample<br>
+• Notes C5 and above (72+): Use C5 sample<br>
+Pitch is adjusted automatically to match the played note.`
+                },
+                {
+                    title: 'Freeverb',
+                    content: `<strong>Room:</strong> Room size / decay time<br>
+<strong>Damp:</strong> High frequency damping<br>
+<strong>Mix:</strong> Wet/dry blend`
+                },
+                {
+                    title: 'Signal Flow',
+                    content: `6 Voices (Variable Speed Players) →<br>
+Mixer → Freeverb → CPR Compressor → Limiter → Output`
+                },
+                {
+                    title: 'Samples',
+                    content: `3 marimba samples from EIIIX VOL I:<br>
+• Marimba C2 (low register)<br>
+• Marimba C3 (mid register)<br>
+• Marimba C5 (high register)`
+                },
+                {
+                    title: 'Tips',
+                    content: `• Set different tunings for each voice to create instant chords<br>
+• Use MIDI to play melodically with automatic sample selection<br>
+• Higher Rnd Pitch values create more natural, organic feel<br>
+• Combine with pedalboard delay for rhythmic patterns<br>
+• Keys 1-6 on your computer keyboard trigger voices`
+                }
+            ]
+        });
+    </script>
+</body>
+</html>

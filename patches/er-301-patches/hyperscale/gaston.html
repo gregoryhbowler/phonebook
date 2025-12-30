@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gaston - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 80px;
+        }
+        .status-display {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .status-card {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 10px 16px;
+            text-align: center;
+            min-width: 70px;
+        }
+        .status-card .label {
+            font-size: 0.6em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .status-card .value {
+            font-size: 1em;
+            color: #e74c3c;
+            font-family: 'SF Mono', monospace;
+        }
+        .gate-indicator {
+            width: 12px;
+            height: 12px;
+            background: #333;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 8px;
+            transition: all 0.05s;
+        }
+        .gate-indicator.active {
+            background: #e74c3c;
+            box-shadow: 0 0 10px rgba(231, 76, 60, 0.7);
+        }
+        .midi-status {
+            text-align: center;
+            font-size: 0.75em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+        .midi-status.connected {
+            color: #4da6ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>gaston</h1>
+                <p>Generative FM synth with probability gates, filtered delay and compression</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="midi-status" id="midiStatus">MIDI: Connect a controller for external pitch</div>
+
+            <!-- Status Display -->
+            <div class="status-display">
+                <div class="status-card">
+                    <div class="label">Gate</div>
+                    <div class="value"><span class="gate-indicator" id="gateIndicator"></span></div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Freq</div>
+                    <div class="value" id="freqDisplay">440 Hz</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Filter</div>
+                    <div class="value" id="filterDisplay">880 Hz</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Random</div>
+                    <div class="value" id="randomDisplay">0.00</div>
+                </div>
+            </div>
+
+            <!-- Trigger Section -->
+            <span class="section-label">Trigger</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Prob</label>
+                        <input type="range" id="prob" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="probVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Speed</label>
+                        <input type="range" id="speed" min="0.1" max="20" value="2.16" step="0.01">
+                        <span class="param-value" id="speedVal">2.16</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Oscillator Section -->
+            <span class="section-label">Oscillator</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Pitch</label>
+                        <input type="range" id="pitch" min="-24" max="24" value="0" step="1">
+                        <span class="param-value" id="pitchVal">0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Freq</label>
+                        <input type="range" id="freq" min="20" max="2000" value="780" step="1">
+                        <span class="param-value" id="freqVal">780</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Scale</label>
+                        <input type="range" id="scale" min="0" max="0.45" value="0.41" step="0.01">
+                        <span class="param-value" id="scaleVal">0.41</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Section -->
+            <span class="section-label">Biquad Filter</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Filter</label>
+                        <input type="range" id="filter" min="20" max="8000" value="881" step="1">
+                        <span class="param-value" id="filterVal">881</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Q</label>
+                        <input type="range" id="q" min="0.01" max="0.3" value="0.15" step="0.001">
+                        <span class="param-value" id="qVal">0.15</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Envelope Section -->
+            <span class="section-label">Envelope</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Attack</label>
+                        <input type="range" id="a" min="0" max="0.03" value="0" step="0.0001">
+                        <span class="param-value" id="aVal">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Decay</label>
+                        <input type="range" id="d" min="0.001" max="0.04" value="0.005" step="0.0001">
+                        <span class="param-value" id="dVal">0.005</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delay Section -->
+            <span class="section-label">Clocked Doppler Delay</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Spread</label>
+                        <input type="range" id="spread" min="-1" max="1" value="0.25" step="0.01">
+                        <span class="param-value" id="spreadVal">0.25</span>
+                    </div>
+                    <div class="param-group">
+                        <label>W/D</label>
+                        <input type="range" id="wd" min="0" max="1" value="0.15" step="0.01">
+                        <span class="param-value" id="wdVal">0.15</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="vol" min="0" max="1" value="0.41" step="0.01">
+                        <span class="param-value" id="volVal">0.41</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        const processorCode = `
+// ============================================================================
+// DELAY LINE
+// ============================================================================
+class DelayLine {
+    constructor(maxDelay) {
+        this.buffer = new Float32Array(maxDelay);
+        this.maxDelay = maxDelay;
+        this.writeIndex = 0;
+    }
+
+    write(sample) {
+        this.buffer[this.writeIndex] = sample;
+        this.writeIndex = (this.writeIndex + 1) % this.maxDelay;
+    }
+
+    readLinear(delaySamples) {
+        const delay = Math.max(0, Math.min(delaySamples, this.maxDelay - 1));
+        const intDelay = Math.floor(delay);
+        const frac = delay - intDelay;
+        let idx0 = this.writeIndex - intDelay - 1;
+        let idx1 = this.writeIndex - intDelay;
+        if (idx0 < 0) idx0 += this.maxDelay;
+        if (idx1 < 0) idx1 += this.maxDelay;
+        return this.buffer[idx1] + frac * (this.buffer[idx0] - this.buffer[idx1]);
+    }
+}
+
+// ============================================================================
+// SLEW LIMITER
+// ============================================================================
+class SlewLimiter {
+    constructor(time, sr) {
+        this.sr = sr;
+        this.setTime(time);
+        this.value = 0;
+    }
+
+    setTime(time) {
+        this.rate = 1 / (time * this.sr + 1);
+    }
+
+    process(target) {
+        const diff = target - this.value;
+        this.value += diff * this.rate;
+        return this.value;
+    }
+}
+
+// ============================================================================
+// BIQUAD FILTER (Bandpass)
+// ============================================================================
+class BiquadBP {
+    constructor(sr) {
+        this.sr = sr;
+        this.b0 = 0; this.b1 = 0; this.b2 = 0;
+        this.a1 = 0; this.a2 = 0;
+        this.x1 = 0; this.x2 = 0;
+        this.y1 = 0; this.y2 = 0;
+    }
+
+    setParams(freq, q) {
+        const w0 = 2 * Math.PI * Math.min(freq, this.sr * 0.45) / this.sr;
+        const sinW0 = Math.sin(w0);
+        const cosW0 = Math.cos(w0);
+        const alpha = sinW0 / (2 * Math.max(q, 0.01));
+
+        const a0 = 1 + alpha;
+        this.b0 = alpha / a0;
+        this.b1 = 0;
+        this.b2 = -alpha / a0;
+        this.a1 = -2 * cosW0 / a0;
+        this.a2 = (1 - alpha) / a0;
+    }
+
+    process(x) {
+        const y = this.b0 * x + this.b1 * this.x1 + this.b2 * this.x2
+                  - this.a1 * this.y1 - this.a2 * this.y2;
+        this.x2 = this.x1;
+        this.x1 = x;
+        this.y2 = this.y1;
+        this.y1 = y;
+        return y;
+    }
+}
+
+// ============================================================================
+// AD ENVELOPE
+// ============================================================================
+class ADEnvelope {
+    constructor(sr) {
+        this.sr = sr;
+        this.stage = 'idle';
+        this.value = 0;
+        this.attackRate = 0;
+        this.decayRate = 0;
+    }
+
+    setAttack(time) {
+        this.attackRate = 1 / (time * this.sr + 1);
+    }
+
+    setDecay(time) {
+        this.decayRate = 1 / (time * this.sr + 1);
+    }
+
+    trigger() {
+        this.stage = 'attack';
+    }
+
+    process() {
+        if (this.stage === 'attack') {
+            this.value += (1 - this.value) * this.attackRate;
+            if (this.value > 0.99) {
+                this.stage = 'decay';
+            }
+        } else if (this.stage === 'decay') {
+            this.value += (0 - this.value) * this.decayRate;
+            if (this.value < 0.001) {
+                this.value = 0;
+                this.stage = 'idle';
+            }
+        }
+        return this.value;
+    }
+}
+
+// ============================================================================
+// COMPRESSOR (CPR style)
+// ============================================================================
+class Compressor {
+    constructor(sr) {
+        this.sr = sr;
+        this.envelope = 0;
+        this.threshold = 0.5;
+        this.ratio = 2;
+        this.attackCoeff = Math.exp(-1 / (0.001 * sr));
+        this.releaseCoeff = Math.exp(-1 / (0.05 * sr));
+    }
+
+    process(x) {
+        const level = Math.abs(x);
+        if (level > this.envelope) {
+            this.envelope = this.attackCoeff * this.envelope + (1 - this.attackCoeff) * level;
+        } else {
+            this.envelope = this.releaseCoeff * this.envelope + (1 - this.releaseCoeff) * level;
+        }
+
+        let gain = 1;
+        if (this.envelope > this.threshold) {
+            const dBOver = 20 * Math.log10(this.envelope / this.threshold);
+            const reduction = dBOver * (1 - 1 / this.ratio);
+            gain = Math.pow(10, -reduction / 20);
+        }
+        return x * gain;
+    }
+}
+
+// ============================================================================
+// GASTON PROCESSOR
+// ============================================================================
+class GastonProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+        this.playing = false;
+
+        // Oscillators
+        this.sinePhase = 0;
+        this.sqrPhase = 0;
+
+        // Parameters
+        this.params = {
+            prob: 0.3,
+            speed: 2.16,
+            pitch: 0,
+            freq: 780,
+            filter: 881,
+            q: 0.15,
+            a: 0,
+            d: 0.005,
+            scale: 0.41,
+            spread: 0.25,
+            wd: 0.15,
+            vol: 0.41
+        };
+
+        // Clocked random gate
+        this.clockPhase = 0;
+        this.gateOpen = false;
+        this.randomValue = 0;
+        this.targetRandom = 0;
+
+        // Random slew (smoothing)
+        this.randomSlew = new SlewLimiter(0.012, this.sr);
+        this.speedSlew = new SlewLimiter(0.012, this.sr);
+
+        // Envelope
+        this.envelope = new ADEnvelope(this.sr);
+
+        // Filter
+        this.filterL = new BiquadBP(this.sr);
+        this.filterR = new BiquadBP(this.sr);
+
+        // Clocked Doppler Delay
+        const maxDelay = Math.ceil(this.sr * 0.5);
+        this.delayL = new DelayLine(maxDelay);
+        this.delayR = new DelayLine(maxDelay);
+        this.delayTimeL = 0.1 * this.sr;
+        this.delayTimeR = 0.1 * this.sr;
+        this.smoothDelayL = this.delayTimeL;
+        this.smoothDelayR = this.delayTimeR;
+        this.feedback = 0.5;
+
+        // Compressor
+        this.compL = new Compressor(this.sr);
+        this.compR = new Compressor(this.sr);
+
+        // MIDI pitch
+        this.midiPitch = 0;
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'start') this.playing = true;
+            if (e.data.type === 'stop') this.playing = false;
+            if (e.data.type === 'param') {
+                this.params[e.data.name] = e.data.value;
+                if (e.data.name === 'a') this.envelope.setAttack(e.data.value);
+                if (e.data.name === 'd') this.envelope.setDecay(e.data.value);
+            }
+            if (e.data.type === 'noteOn') {
+                this.midiPitch = e.data.note - 60; // Offset from middle C
+            }
+            if (e.data.type === 'noteOff') {
+                this.midiPitch = 0;
+            }
+        };
+
+        // Initialize envelope
+        this.envelope.setAttack(0);
+        this.envelope.setDecay(0.005);
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1];
+
+        if (!this.playing) {
+            outL.fill(0);
+            outR.fill(0);
+            return true;
+        }
+
+        for (let i = 0; i < outL.length; i++) {
+            // Smoothed speed with random modulation
+            const speedMod = this.speedSlew.process(this.params.speed + this.randomValue * 10);
+            const clockFreq = Math.max(0.1, speedMod);
+
+            // Clocked random gate
+            this.clockPhase += clockFreq / this.sr;
+            if (this.clockPhase >= 1) {
+                this.clockPhase -= 1;
+
+                // Probability gate
+                if (Math.random() < this.params.prob) {
+                    this.gateOpen = true;
+                    this.envelope.trigger();
+
+                    // Generate new random value for pitch
+                    this.targetRandom = Math.random();
+
+                    // Randomize delay times
+                    const baseDelay = 0.02 + Math.random() * 0.08;
+                    const spreadOffset = this.params.spread * 0.03;
+                    this.delayTimeL = (baseDelay - spreadOffset) * this.sr;
+                    this.delayTimeR = (baseDelay + spreadOffset) * this.sr;
+                }
+            }
+
+            // Smooth random value
+            this.randomValue = this.randomSlew.process(this.targetRandom);
+
+            // Calculate pitch with random modulation and MIDI
+            const pitchMod = this.randomValue * this.params.scale;
+            const totalPitch = this.params.pitch + this.midiPitch + pitchMod * 24;
+            const pitchRatio = Math.pow(2, totalPitch / 12);
+            const oscFreq = this.params.freq * pitchRatio;
+
+            // Sine oscillator with FM from square
+            const sqrFreq = speedMod * pitchRatio;
+            this.sqrPhase += sqrFreq / this.sr;
+            if (this.sqrPhase >= 1) this.sqrPhase -= 1;
+            const sqrVal = this.sqrPhase < 0.5 ? 1 : -1;
+
+            // Apply envelope to get level modulation
+            const envVal = this.envelope.process();
+
+            // Sine oscillator
+            this.sinePhase += oscFreq / this.sr;
+            if (this.sinePhase >= 1) this.sinePhase -= 1;
+            let sineVal = Math.sin(this.sinePhase * 2 * Math.PI);
+
+            // Modulate sine with square
+            sineVal *= (0.5 + sqrVal * 0.3);
+
+            // Apply envelope
+            let signal = sineVal * envVal;
+
+            // Bandpass filter with random-modulated cutoff
+            const filterMod = this.params.filter * (1 + this.randomValue * 0.5);
+            this.filterL.setParams(filterMod, this.params.q * 10 + 0.5);
+            this.filterR.setParams(filterMod, this.params.q * 10 + 0.5);
+
+            let sigL = this.filterL.process(signal);
+            let sigR = this.filterR.process(signal);
+
+            // Smooth delay times (doppler effect)
+            this.smoothDelayL += (this.delayTimeL - this.smoothDelayL) * 0.001;
+            this.smoothDelayR += (this.delayTimeR - this.smoothDelayR) * 0.001;
+
+            // Clocked Doppler Delay
+            const delayedL = this.delayL.readLinear(this.smoothDelayL);
+            const delayedR = this.delayR.readLinear(this.smoothDelayR);
+
+            this.delayL.write(sigL + delayedR * this.feedback);
+            this.delayR.write(sigR + delayedL * this.feedback);
+
+            sigL = sigL * (1 - this.params.wd) + delayedL * this.params.wd;
+            sigR = sigR * (1 - this.params.wd) + delayedR * this.params.wd;
+
+            // Compressor
+            sigL = this.compL.process(sigL);
+            sigR = this.compR.process(sigR);
+
+            // Volume and soft limiting
+            sigL *= this.params.vol * 2;
+            sigR *= this.params.vol * 2;
+
+            outL[i] = Math.tanh(sigL);
+            outR[i] = Math.tanh(sigR);
+        }
+
+        // Send state to UI
+        this.port.postMessage({
+            type: 'state',
+            gate: this.gateOpen,
+            random: this.randomValue,
+            freq: this.params.freq * Math.pow(2, (this.params.pitch + this.randomValue * this.params.scale * 24) / 12),
+            filter: this.params.filter * (1 + this.randomValue * 0.5)
+        });
+
+        this.gateOpen = false;
+
+        return true;
+    }
+}
+
+registerProcessor('gaston-processor', GastonProcessor);
+`;
+
+        let audioContext, workletNode, pedalboard;
+        let isPlaying = false;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const gateIndicator = document.getElementById('gateIndicator');
+        const freqDisplay = document.getElementById('freqDisplay');
+        const filterDisplay = document.getElementById('filterDisplay');
+        const randomDisplay = document.getElementById('randomDisplay');
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext({ sampleRate: 48000 });
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            workletNode = new AudioWorkletNode(audioContext, 'gaston-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboard = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'gaston-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-gaston'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-gaston');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-gaston',
+                    prefix: 'gaston',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Handle messages from processor
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'state') {
+                    if (e.data.gate) {
+                        gateIndicator.classList.add('active');
+                        setTimeout(() => gateIndicator.classList.remove('active'), 50);
+                    }
+                    freqDisplay.textContent = Math.round(e.data.freq) + ' Hz';
+                    filterDisplay.textContent = Math.round(e.data.filter) + ' Hz';
+                    randomDisplay.textContent = e.data.random.toFixed(2);
+                }
+            };
+
+            // Visualizer
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            fxNode.connect(analyser);
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            function draw() {
+                requestAnimationFrame(draw);
+                analyser.getByteTimeDomainData(dataArray);
+                ctx.fillStyle = '#0a0a14';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#e74c3c';
+                ctx.beginPath();
+                const sliceWidth = canvas.width / dataArray.length;
+                let x = 0;
+                for (let i = 0; i < dataArray.length; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * canvas.height / 2;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                    x += sliceWidth;
+                }
+                ctx.stroke();
+            }
+            draw();
+
+            // Initialize MIDI
+            initMIDI();
+        }
+
+        // MIDI Setup
+        const midiStatus = document.getElementById('midiStatus');
+
+        function handleMIDIMessage(event) {
+            const [status, note, velocity] = event.data;
+            const command = status & 0xf0;
+
+            if (command === 0x90 && velocity > 0) {
+                if (workletNode) {
+                    workletNode.port.postMessage({ type: 'noteOn', note, velocity });
+                }
+            } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+                if (workletNode) {
+                    workletNode.port.postMessage({ type: 'noteOff', note });
+                }
+            }
+        }
+
+        async function initMIDI() {
+            if (!navigator.requestMIDIAccess) {
+                midiStatus.textContent = 'MIDI: Not supported';
+                return;
+            }
+
+            try {
+                const midiAccess = await navigator.requestMIDIAccess();
+                let connected = false;
+
+                for (const input of midiAccess.inputs.values()) {
+                    input.onmidimessage = handleMIDIMessage;
+                    connected = true;
+                }
+
+                if (connected) {
+                    midiStatus.textContent = 'MIDI: Connected';
+                    midiStatus.classList.add('connected');
+                }
+
+                midiAccess.onstatechange = (e) => {
+                    if (e.port.type === 'input' && e.port.state === 'connected') {
+                        e.port.onmidimessage = handleMIDIMessage;
+                        midiStatus.textContent = 'MIDI: ' + e.port.name;
+                        midiStatus.classList.add('connected');
+                    }
+                };
+            } catch (err) {
+                midiStatus.textContent = 'MIDI: Access denied';
+            }
+        }
+
+        playBtn.onclick = async () => {
+            if (!audioContext) await initAudio();
+            if (audioContext.state === 'suspended') await audioContext.resume();
+
+            isPlaying = !isPlaying;
+            playBtn.textContent = isPlaying ? '\u23F9' : '\u25B6';
+            workletNode.port.postMessage({ type: isPlaying ? 'start' : 'stop' });
+        };
+
+        // Parameter controls
+        const params = ['prob', 'speed', 'pitch', 'freq', 'filter', 'q', 'a', 'd', 'scale', 'spread', 'wd', 'vol'];
+
+        params.forEach(name => {
+            const input = document.getElementById(name);
+            const display = document.getElementById(name + 'Val');
+            if (input && display) {
+                input.oninput = () => {
+                    const val = parseFloat(input.value);
+                    display.textContent = Number.isInteger(val) ? val : val.toFixed(name === 'a' || name === 'd' || name === 'q' ? 3 : 2);
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'param', name, value: val });
+                    }
+                };
+            }
+        });
+
+        // Info panel
+        if (typeof ER301InfoPanel !== 'undefined') {
+            new ER301InfoPanel(document.body, {
+                title: 'gaston',
+                author: 'mudlogger',
+                origin: 'ER-301 Hyperscale Units',
+                description: 'Generative FM synthesizer with probabilistic gate triggering, bandpass filtering, and clocked doppler delay. Uses Pingable Scaled Random for pitch variation and Clocked Random Gate for rhythmic events.',
+                controls: [
+                    { name: 'Prob', range: '0-1', description: 'Probability that a clock tick triggers a note' },
+                    { name: 'Speed', range: '0.1-20 Hz', description: 'Clock speed for gate generation, random modulated' },
+                    { name: 'Pitch', range: '-24 to +24', description: 'Base pitch offset in semitones' },
+                    { name: 'Freq', range: '20-2000 Hz', description: 'Base oscillator frequency' },
+                    { name: 'Scale', range: '0-0.45', description: 'Random pitch modulation range' },
+                    { name: 'Filter', range: '20-8000 Hz', description: 'Bandpass filter center frequency' },
+                    { name: 'Q', range: '0.01-0.3', description: 'Filter resonance (Q factor)' },
+                    { name: 'Attack', range: '0-30ms', description: 'Envelope attack time' },
+                    { name: 'Decay', range: '1-40ms', description: 'Envelope decay time' },
+                    { name: 'Spread', range: '-1 to 1', description: 'Stereo spread of delay times' },
+                    { name: 'W/D', range: '0-1', description: 'Delay wet/dry mix' },
+                    { name: 'Volume', range: '0-1', description: 'Output volume' }
+                ],
+                tips: [
+                    'Lower Prob values create sparser, more contemplative patterns',
+                    'Increase Scale for wider melodic variation',
+                    'Higher Q values create more resonant, singing tones',
+                    'Very short Attack + Decay creates percussive clicks',
+                    'MIDI input adds external pitch control on top of random',
+                    'Use Spread for wide stereo delay effects',
+                    'The filter frequency is also modulated by the random value'
+                ]
+            });
+        }
+    </script>
+</body>
+</html>

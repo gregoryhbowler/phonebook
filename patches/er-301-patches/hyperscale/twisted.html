@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>twisted - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 80px;
+        }
+        .status-display {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .status-card {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 10px 16px;
+            text-align: center;
+            min-width: 70px;
+        }
+        .status-card .label {
+            font-size: 0.6em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .status-card .value {
+            font-size: 1em;
+            color: #9b59b6;
+            font-family: 'SF Mono', monospace;
+        }
+        .sample-info {
+            text-align: center;
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+        .sample-info.loading { color: #f39c12; }
+        .sample-info.ready { color: #9b59b6; }
+        .sample-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 1em 0;
+        }
+        .sample-actions button {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+        .sample-actions button:hover {
+            border-color: #9b59b6;
+            color: #9b59b6;
+        }
+        .toggle-btn {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+        .toggle-btn.active {
+            border-color: #9b59b6;
+            color: #9b59b6;
+            background: rgba(155, 89, 182, 0.1);
+        }
+        .toggle-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .midi-status {
+            text-align: center;
+            font-size: 0.75em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+        .midi-status.connected { color: #9b59b6; }
+        .scan-slider {
+            width: 100%;
+            height: 40px;
+            -webkit-appearance: none;
+            background: linear-gradient(90deg, #1a1a2e 0%, #9b59b6 50%, #1a1a2e 100%);
+            border-radius: 20px;
+            outline: none;
+            margin: 0.5em 0;
+        }
+        .scan-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 30px;
+            height: 30px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(155, 89, 182, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>twisted</h1>
+                <p>Wavetable synth with human voice waveforms, LPG, drive & Dattorro reverb</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="midi-status" id="midiStatus">MIDI: Connect a controller to play</div>
+
+            <div class="sample-info" id="sampleInfo">Loading wavetables...</div>
+
+            <!-- Status Display -->
+            <div class="status-display">
+                <div class="status-card">
+                    <div class="label">Scan</div>
+                    <div class="value" id="scanDisplay">0.51</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Wave</div>
+                    <div class="value" id="waveDisplay">--</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">LPG</div>
+                    <div class="value" id="lpgDisplay">0.00</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Pitch</div>
+                    <div class="value" id="pitchDisplay">A3</div>
+                </div>
+            </div>
+
+            <div class="toggle-row">
+                <button class="toggle-btn active" id="lfoOnBtn">LFO On</button>
+                <button class="toggle-btn" id="lpgOnBtn">LPG On</button>
+                <button class="toggle-btn active" id="loopBtn">Loop Env</button>
+                <button class="toggle-btn" id="scanLfoBtn">Scan LFO</button>
+            </div>
+
+            <div class="sample-actions">
+                <input type="file" id="sampleInput" accept="audio/*" multiple style="display: none;">
+                <button onclick="document.getElementById('sampleInput').click()">Import Wavetables</button>
+                <button id="clearSamples">Reset to Default</button>
+            </div>
+
+            <!-- Wavetable Scan -->
+            <span class="section-label">Wavetable Scan</span>
+            <div class="param-controls">
+                <input type="range" class="scan-slider" id="scan" min="0" max="1" value="0.51" step="0.001">
+                <div style="text-align: center; color: #666; font-size: 0.8em;">
+                    Morphs through 104 human voice wavetables
+                </div>
+            </div>
+
+            <!-- Scan Macro LFO Section -->
+            <span class="section-label">Scan Macro LFO</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Rate</label>
+                        <input type="range" id="scanLfoRate" min="0.01" max="10" value="0.5" step="0.01">
+                        <span class="param-value" id="scanLfoRateVal">0.50 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Depth</label>
+                        <input type="range" id="scanLfoDepth" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="scanLfoDepthVal">0.50</span>
+                    </div>
+                </div>
+                <div style="text-align: center; color: #666; font-size: 0.8em;">
+                    Modulates the Scan slider position
+                </div>
+            </div>
+
+            <!-- LFO Section -->
+            <span class="section-label">LFO (Scan Modulation)</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Speed</label>
+                        <input type="range" id="lfoSpd" min="-2" max="2" value="-0.1" step="0.01">
+                        <span class="param-value" id="lfoSpdVal">-0.10</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Depth</label>
+                        <input type="range" id="lfoDep" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="lfoDepVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Freq</label>
+                        <input type="range" id="lfoF0" min="0.01" max="20" value="0.14" step="0.01">
+                        <span class="param-value" id="lfoF0Val">0.14 Hz</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Oscillator Section -->
+            <span class="section-label">Oscillator</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Freq</label>
+                        <input type="range" id="f0" min="20" max="2000" value="220" step="1">
+                        <span class="param-value" id="f0Val">220 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Phase</label>
+                        <input type="range" id="phase" min="-1" max="1" value="-0.65" step="0.01">
+                        <span class="param-value" id="phaseVal">-0.65</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Level</label>
+                        <input type="range" id="level" min="0" max="1" value="1" step="0.01">
+                        <span class="param-value" id="levelVal">1.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Strike LPG Section -->
+            <span class="section-label">Strike LPG</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Rise</label>
+                        <input type="range" id="rise" min="0" max="2" value="0" step="0.001">
+                        <span class="param-value" id="riseVal">0.00 s</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Fall</label>
+                        <input type="range" id="fall" min="0.01" max="5" value="0.29" step="0.01">
+                        <span class="param-value" id="fallVal">0.29 s</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Bend</label>
+                        <input type="range" id="bend" min="-1" max="1" value="0" step="0.01">
+                        <span class="param-value" id="bendVal">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Height</label>
+                        <input type="range" id="height" min="0" max="1" value="1" step="0.01">
+                        <span class="param-value" id="heightVal">1.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Drive Section -->
+            <span class="section-label">Drive</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Drive</label>
+                        <input type="range" id="drive" min="0" max="10" value="4.07" step="0.01">
+                        <span class="param-value" id="driveVal">4.07</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delay Section -->
+            <span class="section-label">Spread Delay</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Delay</label>
+                        <input type="range" id="delay" min="0.01" max="1" value="0.15" step="0.01">
+                        <span class="param-value" id="delayVal">0.15 s</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Spread</label>
+                        <input type="range" id="spread" min="-1" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="spreadVal">0.50</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="fb" min="0" max="0.95" value="0.08" step="0.01">
+                        <span class="param-value" id="fbVal">0.08</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Wet</label>
+                        <input type="range" id="dWet" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="dWetVal">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Section -->
+            <span class="section-label">Bique Filter</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Freq</label>
+                        <input type="range" id="fFreq" min="500" max="20000" value="22440" step="10">
+                        <span class="param-value" id="fFreqVal">22.4k Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Q</label>
+                        <input type="range" id="fQ" min="0.1" max="10" value="0.5" step="0.01">
+                        <span class="param-value" id="fQVal">0.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reverb Section -->
+            <span class="section-label">Dattorro Reverb</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Size</label>
+                        <input type="range" id="rBw" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="rBwVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Decay</label>
+                        <input type="range" id="rDecay" min="0" max="1" value="0.44" step="0.01">
+                        <span class="param-value" id="rDecayVal">0.44</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Damping</label>
+                        <input type="range" id="rDamp" min="0" max="1" value="0.87" step="0.01">
+                        <span class="param-value" id="rDampVal">0.87</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Wet</label>
+                        <input type="range" id="rWet" min="0" max="1" value="0.2" step="0.01">
+                        <span class="param-value" id="rWetVal">0.20</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="vol" min="0" max="1.5" value="0.89" step="0.01">
+                        <span class="param-value" id="volVal">0.89</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        const processorCode = `
+// ============================================================================
+// SLEW LIMITER
+// ============================================================================
+class SlewLimiter {
+    constructor(time, sr) {
+        this.sr = sr;
+        this.setTime(time);
+        this.value = 0;
+    }
+
+    setTime(time) {
+        this.rate = 1 / (Math.max(0.001, time) * this.sr + 1);
+    }
+
+    process(target) {
+        this.value += (target - this.value) * this.rate;
+        return this.value;
+    }
+}
+
+// ============================================================================
+// STRIKE LPG (Low Pass Gate with Arc Envelope)
+// ============================================================================
+class StrikeLPG {
+    constructor(sr) {
+        this.sr = sr;
+        this.rise = 0;
+        this.fall = 0.29;
+        this.bend = 0;
+        this.height = 1;
+        this.loop = true;
+        this.phase = 0;
+        this.value = 0;
+        this.triggered = false;
+        this.stage = 0;
+        this.finished = true; // Track if envelope has completed
+    }
+
+    trigger() {
+        this.triggered = true;
+        this.stage = 1;
+        this.phase = 0;
+        this.finished = false;
+    }
+
+    process() {
+        if (this.stage === 0 && !this.loop) {
+            // When not looping and envelope finished, stay silent
+            this.finished = true;
+            this.value = 0;
+            return 0;
+        }
+
+        if (this.stage === 1) {
+            // Rise
+            const riseTime = Math.max(0.001, this.rise);
+            this.phase += 1 / (riseTime * this.sr);
+            if (this.phase >= 1) {
+                this.phase = 0;
+                this.stage = 2;
+            }
+            const t = this.phase;
+            const curved = this.bend >= 0
+                ? Math.pow(t, 1 + this.bend * 3)
+                : 1 - Math.pow(1 - t, 1 - this.bend * 3);
+            this.value = curved * this.height;
+        } else if (this.stage === 2) {
+            // Fall
+            const fallTime = Math.max(0.01, this.fall);
+            this.phase += 1 / (fallTime * this.sr);
+            if (this.phase >= 1) {
+                this.phase = 0;
+                if (this.loop) {
+                    this.stage = 1;
+                } else {
+                    this.stage = 0;
+                    this.finished = true;
+                    this.value = 0;
+                    return 0;
+                }
+            }
+            const t = this.phase;
+            const curved = this.bend >= 0
+                ? 1 - Math.pow(t, 1 + this.bend * 3)
+                : Math.pow(1 - t, 1 - this.bend * 3);
+            this.value = curved * this.height;
+        }
+
+        return this.value;
+    }
+}
+
+// ============================================================================
+// SINGLE CYCLE WAVETABLE OSCILLATOR
+// ============================================================================
+class WavetableOsc {
+    constructor(sr) {
+        this.sr = sr;
+        this.wavetables = [];
+        this.phase = 0;
+        this.freq = 220;
+        this.scan = 0.5;
+        this.phaseOffset = 0;
+    }
+
+    process() {
+        if (this.wavetables.length === 0) return 0;
+
+        // Scan through wavetables
+        const tablePos = this.scan * (this.wavetables.length - 1);
+        const tableIdx1 = Math.floor(tablePos);
+        const tableIdx2 = Math.min(tableIdx1 + 1, this.wavetables.length - 1);
+        const tableFrac = tablePos - tableIdx1;
+
+        const table1 = this.wavetables[tableIdx1];
+        const table2 = this.wavetables[tableIdx2];
+
+        if (!table1 || !table2) return 0;
+
+        // Read from both tables with phase
+        const readPhase = (this.phase + this.phaseOffset + 1) % 1;
+        const readPos = readPhase * (table1.length - 1);
+        const idx = Math.floor(readPos);
+        const frac = readPos - idx;
+
+        // Linear interpolation within each table
+        const s1a = table1[idx] || 0;
+        const s1b = table1[(idx + 1) % table1.length] || 0;
+        const sample1 = s1a + frac * (s1b - s1a);
+
+        const s2a = table2[idx] || 0;
+        const s2b = table2[(idx + 1) % table2.length] || 0;
+        const sample2 = s2a + frac * (s2b - s2a);
+
+        // Crossfade between tables
+        const out = sample1 * (1 - tableFrac) + sample2 * tableFrac;
+
+        // Advance phase
+        this.phase += this.freq / this.sr;
+        if (this.phase >= 1) this.phase -= 1;
+
+        return out;
+    }
+}
+
+// ============================================================================
+// SPREAD DELAY
+// ============================================================================
+class SpreadDelay {
+    constructor(sr, maxTime = 2) {
+        this.sr = sr;
+        const maxSamples = Math.ceil(sr * maxTime);
+        this.bufferL = new Float32Array(maxSamples);
+        this.bufferR = new Float32Array(maxSamples);
+        this.maxSamples = maxSamples;
+        this.writeIndex = 0;
+        this.delayTime = 0.15;
+        this.spread = 0.5;
+        this.feedback = 0.08;
+        this.wet = 0.3;
+    }
+
+    process(inL, inR) {
+        const baseDelay = Math.floor(this.delayTime * this.sr);
+        const spreadSamples = Math.floor(Math.abs(this.spread) * this.delayTime * this.sr * 0.5);
+
+        const delayL = Math.max(1, Math.min(this.maxSamples - 1, baseDelay - spreadSamples));
+        const delayR = Math.max(1, Math.min(this.maxSamples - 1, baseDelay + spreadSamples));
+
+        const readIdxL = (this.writeIndex - delayL + this.maxSamples) % this.maxSamples;
+        const readIdxR = (this.writeIndex - delayR + this.maxSamples) % this.maxSamples;
+
+        const delayedL = this.bufferL[readIdxL];
+        const delayedR = this.bufferR[readIdxR];
+
+        // Cross-feedback
+        this.bufferL[this.writeIndex] = inL + delayedR * this.feedback;
+        this.bufferR[this.writeIndex] = inR + delayedL * this.feedback;
+        this.writeIndex = (this.writeIndex + 1) % this.maxSamples;
+
+        return [
+            inL * (1 - this.wet) + delayedL * this.wet,
+            inR * (1 - this.wet) + delayedR * this.wet
+        ];
+    }
+}
+
+// ============================================================================
+// BIQUE FILTER (BCF)
+// ============================================================================
+class BiqueFilter {
+    constructor(sr) {
+        this.sr = sr;
+        this.freq = 22440;
+        this.q = 0.5;
+        this.x1 = 0; this.x2 = 0;
+        this.y1 = 0; this.y2 = 0;
+        this.b0 = 1; this.b1 = 0; this.b2 = 0;
+        this.a1 = 0; this.a2 = 0;
+        this.updateCoeffs();
+    }
+
+    updateCoeffs() {
+        const w0 = 2 * Math.PI * Math.min(this.freq, this.sr * 0.49) / this.sr;
+        const cosw0 = Math.cos(w0);
+        const alpha = Math.sin(w0) / (2 * this.q);
+
+        const b0 = (1 - cosw0) / 2;
+        const b1 = 1 - cosw0;
+        const b2 = (1 - cosw0) / 2;
+        const a0 = 1 + alpha;
+        const a1 = -2 * cosw0;
+        const a2 = 1 - alpha;
+
+        this.b0 = b0 / a0;
+        this.b1 = b1 / a0;
+        this.b2 = b2 / a0;
+        this.a1 = a1 / a0;
+        this.a2 = a2 / a0;
+    }
+
+    process(x) {
+        const y = this.b0 * x + this.b1 * this.x1 + this.b2 * this.x2
+                - this.a1 * this.y1 - this.a2 * this.y2;
+        this.x2 = this.x1;
+        this.x1 = x;
+        this.y2 = this.y1;
+        this.y1 = y;
+        return y;
+    }
+}
+
+// ============================================================================
+// DATTORRO REVERB
+// ============================================================================
+class DattorroReverb {
+    constructor(sr) {
+        this.sr = sr;
+        const scale = sr / 29761;
+
+        // Allpass diffusers
+        this.ap1 = { buf: new Float32Array(Math.ceil(142 * scale)), idx: 0 };
+        this.ap2 = { buf: new Float32Array(Math.ceil(107 * scale)), idx: 0 };
+        this.ap3 = { buf: new Float32Array(Math.ceil(379 * scale)), idx: 0 };
+        this.ap4 = { buf: new Float32Array(Math.ceil(277 * scale)), idx: 0 };
+
+        // Tank delays
+        this.del1 = { buf: new Float32Array(Math.ceil(672 * scale)), idx: 0 };
+        this.del2 = { buf: new Float32Array(Math.ceil(1800 * scale)), idx: 0 };
+        this.del3 = { buf: new Float32Array(Math.ceil(908 * scale)), idx: 0 };
+        this.del4 = { buf: new Float32Array(Math.ceil(2656 * scale)), idx: 0 };
+
+        // Tank allpasses
+        this.tap1 = { buf: new Float32Array(Math.ceil(908 * scale)), idx: 0 };
+        this.tap2 = { buf: new Float32Array(Math.ceil(672 * scale)), idx: 0 };
+
+        this.decay = 0.44;
+        this.bandwidth = 0.5;
+        this.damping = 0.87;
+        this.wet = 0.2;
+        this.predelay = 38;
+
+        // Predelay buffer
+        this.pdBuf = new Float32Array(Math.ceil(sr * 0.1));
+        this.pdIdx = 0;
+
+        // DC blocker
+        this.dcX = 0;
+        this.dcY = 0;
+
+        // Damping filter
+        this.dampL = 0;
+        this.dampR = 0;
+
+        // Tank state
+        this.tankL = 0;
+        this.tankR = 0;
+    }
+
+    allpass(ap, x, g = 0.5) {
+        const delayed = ap.buf[ap.idx];
+        const out = -x * g + delayed;
+        ap.buf[ap.idx] = x + delayed * g;
+        ap.idx = (ap.idx + 1) % ap.buf.length;
+        return out;
+    }
+
+    delay(del, x) {
+        const out = del.buf[del.idx];
+        del.buf[del.idx] = x;
+        del.idx = (del.idx + 1) % del.buf.length;
+        return out;
+    }
+
+    process(inL, inR) {
+        const mono = (inL + inR) * 0.5;
+
+        // DC block
+        const dc = mono - this.dcX + 0.995 * this.dcY;
+        this.dcX = mono;
+        this.dcY = dc;
+
+        // Predelay
+        const pdSamples = Math.floor((this.predelay / 1000) * this.sr);
+        const pdOut = this.pdBuf[this.pdIdx];
+        this.pdBuf[this.pdIdx] = dc * this.bandwidth;
+        this.pdIdx = (this.pdIdx + 1) % Math.max(1, pdSamples);
+
+        // Input diffusion
+        let sig = this.allpass(this.ap1, pdOut, 0.75);
+        sig = this.allpass(this.ap2, sig, 0.75);
+        sig = this.allpass(this.ap3, sig, 0.625);
+        sig = this.allpass(this.ap4, sig, 0.625);
+
+        const feedback = this.decay * 0.5 + 0.4;
+
+        // Left tank
+        let l = sig + this.tankR * feedback;
+        l = this.allpass(this.tap1, l, -0.625);
+        l = this.delay(this.del1, l);
+        this.dampL = l * (1 - this.damping) + this.dampL * this.damping;
+        l = this.dampL * feedback;
+        l = this.delay(this.del2, l);
+        this.tankL = l;
+
+        // Right tank
+        let r = sig + this.tankL * feedback;
+        r = this.allpass(this.tap2, r, -0.625);
+        r = this.delay(this.del3, r);
+        this.dampR = r * (1 - this.damping) + this.dampR * this.damping;
+        r = this.dampR * feedback;
+        r = this.delay(this.del4, r);
+        this.tankR = r;
+
+        return [
+            inL * (1 - this.wet) + this.tankL * this.wet * 2,
+            inR * (1 - this.wet) + this.tankR * this.wet * 2
+        ];
+    }
+}
+
+// ============================================================================
+// COMPRESSOR (CPR)
+// ============================================================================
+class Compressor {
+    constructor(sr) {
+        this.envelope = 0;
+        this.attackCoeff = Math.exp(-1 / (0.001 * sr));
+        this.releaseCoeff = Math.exp(-1 / (0.05 * sr));
+        this.threshold = 0.43;
+        this.ratio = 4;
+    }
+
+    process(x) {
+        const level = Math.abs(x);
+        this.envelope = level > this.envelope
+            ? this.attackCoeff * this.envelope + (1 - this.attackCoeff) * level
+            : this.releaseCoeff * this.envelope + (1 - this.releaseCoeff) * level;
+
+        if (this.envelope > this.threshold) {
+            const dBOver = 20 * Math.log10(this.envelope / this.threshold);
+            const reduction = dBOver * (1 - 1/this.ratio);
+            return x * Math.pow(10, -reduction / 20);
+        }
+        return x;
+    }
+}
+
+// ============================================================================
+// TWISTED PROCESSOR
+// ============================================================================
+class TwistedProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+        this.playing = false;
+
+        // Wavetable oscillator
+        this.osc = new WavetableOsc(this.sr);
+
+        // LFO for scan modulation
+        this.lfoPhase = 0;
+        this.lfoOn = true;
+        this.lfoSync = false;
+
+        // Scan Macro LFO (modulates the Scan slider itself)
+        this.scanLfoPhase = 0;
+        this.scanLfoOn = false;
+
+        // Strike LPG
+        this.lpg = new StrikeLPG(this.sr);
+        this.lpgOn = false;
+        this.lpgSlew = new SlewLimiter(1, this.sr);
+
+        // Drive
+        this.drive = 4.07;
+
+        // Effects
+        this.delay = new SpreadDelay(this.sr);
+        this.filter = new BiqueFilter(this.sr);
+        this.reverb = new DattorroReverb(this.sr);
+        this.compL = new Compressor(this.sr);
+        this.compR = new Compressor(this.sr);
+
+        // MIDI
+        this.midiNote = -1;
+        this.midiFreq = 220;
+
+        // Parameters
+        this.params = {
+            scan: 0.51,
+            scanLfoRate: 0.5,
+            scanLfoDepth: 0.5,
+            lfoSpd: -0.1,
+            lfoDep: 0.5,
+            lfoF0: 0.14,
+            f0: 220,
+            phase: -0.65,
+            level: 1,
+            rise: 0,
+            fall: 0.29,
+            bend: 0,
+            height: 1,
+            drive: 4.07,
+            delay: 0.15,
+            spread: 0.5,
+            fb: 0.08,
+            dWet: 0.3,
+            fFreq: 22440,
+            fQ: 0.5,
+            rBw: 0.5,
+            rDecay: 0.44,
+            rDamp: 0.87,
+            rWet: 0.2,
+            vol: 0.89
+        };
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'start') this.playing = true;
+            if (e.data.type === 'stop') this.playing = false;
+            if (e.data.type === 'param') {
+                this.params[e.data.name] = e.data.value;
+            }
+            if (e.data.type === 'loadWavetables') {
+                this.osc.wavetables = e.data.tables;
+            }
+            if (e.data.type === 'lfoOn') this.lfoOn = e.data.value;
+            if (e.data.type === 'scanLfoOn') this.scanLfoOn = e.data.value;
+            if (e.data.type === 'lpgOn') {
+                this.lpgOn = e.data.value;
+                // When LPG is turned on and not looping, ensure we start silent
+                if (e.data.value && !this.lpg.loop) {
+                    this.lpg.stage = 0;
+                    this.lpg.value = 0;
+                    this.lpg.finished = true;
+                }
+            }
+            if (e.data.type === 'loop') {
+                this.lpg.loop = e.data.value;
+                // When loop is turned off while LPG is on, reset to silent
+                if (!e.data.value && this.lpgOn) {
+                    this.lpg.stage = 0;
+                    this.lpg.value = 0;
+                    this.lpg.finished = true;
+                }
+            }
+            if (e.data.type === 'noteOn') {
+                this.midiNote = e.data.note;
+                this.midiFreq = 440 * Math.pow(2, (e.data.note - 69) / 12);
+                this.lpg.trigger();
+            }
+            if (e.data.type === 'noteOff') {
+                if (e.data.note === this.midiNote) {
+                    // Don't reset midiNote - keep midiFreq for release tail
+                    // Release the LPG envelope (if not looping)
+                    if (!this.lpg.loop) {
+                        this.lpg.stage = 2; // Go to fall stage
+                        this.lpg.phase = 0;
+                    }
+                }
+            }
+            if (e.data.type === 'trigger') {
+                this.lpg.trigger();
+            }
+        };
+    }
+
+    process(inputs, outputs) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1];
+
+        if (!this.playing) {
+            outL.fill(0);
+            outR.fill(0);
+            return true;
+        }
+
+        // Update LPG params
+        this.lpg.rise = this.params.rise;
+        this.lpg.fall = this.params.fall;
+        this.lpg.bend = this.params.bend;
+        this.lpg.height = this.params.height;
+
+        // Update delay params
+        this.delay.delayTime = this.params.delay;
+        this.delay.spread = this.params.spread;
+        this.delay.feedback = this.params.fb;
+        this.delay.wet = this.params.dWet;
+
+        // Update filter
+        this.filter.freq = this.params.fFreq;
+        this.filter.q = this.params.fQ;
+        this.filter.updateCoeffs();
+
+        // Update reverb
+        this.reverb.bandwidth = this.params.rBw;
+        this.reverb.decay = this.params.rDecay;
+        this.reverb.damping = this.params.rDamp;
+        this.reverb.wet = this.params.rWet;
+
+        for (let i = 0; i < outL.length; i++) {
+            // Scan Macro LFO - modulates the base scan position
+            let scanBase = this.params.scan;
+            if (this.scanLfoOn) {
+                this.scanLfoPhase += this.params.scanLfoRate / this.sr;
+                if (this.scanLfoPhase >= 1) this.scanLfoPhase -= 1;
+                const scanLfoMod = Math.sin(this.scanLfoPhase * 2 * Math.PI) * this.params.scanLfoDepth * 0.5;
+                scanBase = Math.max(0, Math.min(1, scanBase + scanLfoMod));
+            }
+
+            // LFO for additional scan modulation
+            let scanMod = 0;
+            if (this.lfoOn) {
+                const lfoFreq = Math.pow(2, this.params.lfoSpd) * this.params.lfoF0;
+                this.lfoPhase += lfoFreq / this.sr;
+                if (this.lfoPhase >= 1) this.lfoPhase -= 1;
+                scanMod = Math.sin(this.lfoPhase * 2 * Math.PI) * this.params.lfoDep * 0.5;
+            }
+
+            // Set oscillator params - combine both LFOs
+            this.osc.scan = Math.max(0, Math.min(1, scanBase + scanMod));
+            // When LPG is on, use midiFreq (keeps pitch during release); otherwise use f0 slider
+            this.osc.freq = this.lpgOn ? this.midiFreq : this.params.f0;
+            this.osc.phaseOffset = this.params.phase;
+
+            // Generate oscillator
+            let sig = this.osc.process() * this.params.level;
+
+            // LPG envelope
+            const lpgVal = this.lpg.process();
+            // When LPG is ON: use envelope value (which is 0 when finished/not triggered)
+            // When LPG is OFF: always pass signal through (gain = 1)
+            const lpgTarget = this.lpgOn ? lpgVal : 1;
+            const lpgSmooth = this.lpgSlew.process(lpgTarget);
+            sig *= lpgSmooth;
+
+            // Drive/saturation
+            sig = Math.tanh(sig * this.params.drive) / Math.max(1, this.params.drive * 0.5);
+
+            // Filter
+            sig = this.filter.process(sig);
+
+            // Stereo spread
+            let sigL = sig;
+            let sigR = sig;
+
+            // Delay
+            [sigL, sigR] = this.delay.process(sigL, sigR);
+
+            // Reverb
+            [sigL, sigR] = this.reverb.process(sigL, sigR);
+
+            // Compression
+            sigL = this.compL.process(sigL);
+            sigR = this.compR.process(sigR);
+
+            // Output
+            sigL *= this.params.vol;
+            sigR *= this.params.vol;
+
+            outL[i] = Math.tanh(sigL);
+            outR[i] = Math.tanh(sigR);
+        }
+
+        // Send state
+        if (Math.random() < 0.1) {
+            const waveIdx = Math.floor(this.osc.scan * (this.osc.wavetables.length - 1)) + 1;
+            const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            const freq = this.lpgOn ? this.midiFreq : this.params.f0;
+            const midiNum = 69 + 12 * Math.log2(freq / 440);
+            const noteName = noteNames[Math.round(midiNum) % 12];
+            const octave = Math.floor(Math.round(midiNum) / 12) - 1;
+
+            this.port.postMessage({
+                type: 'state',
+                scan: this.osc.scan,
+                waveIdx: waveIdx,
+                totalWaves: this.osc.wavetables.length,
+                lpg: this.lpgSlew.value,
+                pitch: noteName + octave
+            });
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('twisted-processor', TwistedProcessor);
+`;
+
+        let audioContext, workletNode, pedalboard;
+        let isPlaying = false;
+        let wavetablesLoaded = 0;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const sampleInfo = document.getElementById('sampleInfo');
+
+        const sampleBasePath = 'samples/twisted/';
+
+        // Generate wavetable file list
+        const wavetableFiles = [];
+        for (let i = 1; i <= 104; i++) {
+            wavetableFiles.push('AKWF_hvoice_' + String(i).padStart(4, '0') + '.wav');
+        }
+
+        async function loadDefaultWavetables() {
+            try {
+                sampleInfo.textContent = 'Loading 104 voice wavetables...';
+                sampleInfo.className = 'sample-info loading';
+
+                const tables = [];
+
+                for (const filename of wavetableFiles) {
+                    try {
+                        const response = await fetch(sampleBasePath + filename);
+                        if (response.ok) {
+                            const buffer = await response.arrayBuffer();
+                            const audioBuffer = await audioContext.decodeAudioData(buffer);
+                            tables.push(audioBuffer.getChannelData(0));
+                        }
+                    } catch (e) {}
+                }
+
+                if (tables.length > 0) {
+                    workletNode.port.postMessage({
+                        type: 'loadWavetables',
+                        tables: tables
+                    });
+                    wavetablesLoaded = tables.length;
+                    sampleInfo.textContent = tables.length + ' voice wavetables loaded';
+                    sampleInfo.className = 'sample-info ready';
+                } else {
+                    sampleInfo.textContent = 'No wavetables found - import your own';
+                    sampleInfo.className = 'sample-info';
+                }
+            } catch (e) {
+                sampleInfo.textContent = 'Error loading wavetables';
+                sampleInfo.className = 'sample-info';
+            }
+        }
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext({ sampleRate: 48000 });
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'twisted-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboard = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'twisted-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-twisted'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-twisted');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-twisted',
+                    prefix: 'twisted',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Handle messages
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'state') {
+                    document.getElementById('scanDisplay').textContent = e.data.scan.toFixed(2);
+                    document.getElementById('waveDisplay').textContent = e.data.waveIdx + '/' + e.data.totalWaves;
+                    document.getElementById('lpgDisplay').textContent = e.data.lpg.toFixed(2);
+                    document.getElementById('pitchDisplay').textContent = e.data.pitch;
+                }
+            };
+
+            // Visualizer
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            fxNode.connect(analyser);
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            function draw() {
+                requestAnimationFrame(draw);
+                analyser.getByteTimeDomainData(dataArray);
+                ctx.fillStyle = '#0a0a14';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#9b59b6';
+                ctx.beginPath();
+                const sliceWidth = canvas.width / dataArray.length;
+                let x = 0;
+                for (let i = 0; i < dataArray.length; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * canvas.height / 2;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                    x += sliceWidth;
+                }
+                ctx.stroke();
+            }
+            draw();
+
+            await loadDefaultWavetables();
+            initMIDI();
+        }
+
+        // MIDI
+        const midiStatus = document.getElementById('midiStatus');
+
+        function handleMIDIMessage(event) {
+            const [status, note, velocity] = event.data;
+            const command = status & 0xf0;
+
+            if (command === 0x90 && velocity > 0) {
+                if (workletNode) workletNode.port.postMessage({ type: 'noteOn', note, velocity });
+            } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+                if (workletNode) workletNode.port.postMessage({ type: 'noteOff', note });
+            }
+        }
+
+        async function initMIDI() {
+            if (!navigator.requestMIDIAccess) return;
+            try {
+                const midiAccess = await navigator.requestMIDIAccess();
+                for (const input of midiAccess.inputs.values()) {
+                    input.onmidimessage = handleMIDIMessage;
+                    midiStatus.textContent = 'MIDI: Connected';
+                    midiStatus.classList.add('connected');
+                }
+                midiAccess.onstatechange = (e) => {
+                    if (e.port.type === 'input' && e.port.state === 'connected') {
+                        e.port.onmidimessage = handleMIDIMessage;
+                        midiStatus.textContent = 'MIDI: ' + e.port.name;
+                        midiStatus.classList.add('connected');
+                    }
+                };
+            } catch (err) {}
+        }
+
+        playBtn.onclick = async () => {
+            if (!audioContext) await initAudio();
+            if (audioContext.state === 'suspended') await audioContext.resume();
+
+            isPlaying = !isPlaying;
+            playBtn.textContent = isPlaying ? '\u23F9' : '\u25B6';
+            workletNode.port.postMessage({ type: isPlaying ? 'start' : 'stop' });
+
+            // Trigger LPG when starting
+            if (isPlaying) {
+                workletNode.port.postMessage({ type: 'trigger' });
+            }
+        };
+
+        // Toggle buttons
+        document.getElementById('lfoOnBtn').onclick = function() {
+            this.classList.toggle('active');
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'lfoOn', value: this.classList.contains('active') });
+            }
+        };
+
+        document.getElementById('lpgOnBtn').onclick = function() {
+            this.classList.toggle('active');
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'lpgOn', value: this.classList.contains('active') });
+            }
+        };
+
+        document.getElementById('loopBtn').onclick = function() {
+            this.classList.toggle('active');
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'loop', value: this.classList.contains('active') });
+            }
+        };
+
+        document.getElementById('scanLfoBtn').onclick = function() {
+            this.classList.toggle('active');
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'scanLfoOn', value: this.classList.contains('active') });
+            }
+        };
+
+        // Sample import
+        document.getElementById('sampleInput').onchange = async (e) => {
+            if (!audioContext) await initAudio();
+            const files = Array.from(e.target.files).sort((a, b) => a.name.localeCompare(b.name));
+            if (files.length > 0) {
+                try {
+                    const tables = [];
+                    for (const file of files) {
+                        const buffer = await file.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(buffer);
+                        tables.push(audioBuffer.getChannelData(0));
+                    }
+
+                    workletNode.port.postMessage({
+                        type: 'loadWavetables',
+                        tables: tables
+                    });
+
+                    wavetablesLoaded = tables.length;
+                    sampleInfo.textContent = tables.length + ' custom wavetables loaded';
+                    sampleInfo.className = 'sample-info ready';
+                } catch (err) {
+                    sampleInfo.textContent = 'Error loading files';
+                    sampleInfo.className = 'sample-info';
+                }
+            }
+        };
+
+        // Reset to default
+        document.getElementById('clearSamples').onclick = async () => {
+            if (audioContext) await loadDefaultWavetables();
+        };
+
+        // Parameter controls
+        const params = ['scan', 'scanLfoRate', 'scanLfoDepth',
+                        'lfoSpd', 'lfoDep', 'lfoF0', 'f0', 'phase', 'level',
+                        'rise', 'fall', 'bend', 'height', 'drive',
+                        'delay', 'spread', 'fb', 'dWet',
+                        'fFreq', 'fQ', 'rBw', 'rDecay', 'rDamp', 'rWet', 'vol'];
+
+        params.forEach(name => {
+            const input = document.getElementById(name);
+            const display = document.getElementById(name + 'Val');
+            if (input && display) {
+                input.oninput = () => {
+                    const val = parseFloat(input.value);
+                    if (name === 'f0') {
+                        display.textContent = val + ' Hz';
+                    } else if (name === 'lfoF0' || name === 'scanLfoRate') {
+                        display.textContent = val.toFixed(2) + ' Hz';
+                    } else if (name === 'fFreq') {
+                        display.textContent = (val / 1000).toFixed(1) + 'k Hz';
+                    } else if (name === 'rise' || name === 'fall' || name === 'delay') {
+                        display.textContent = val.toFixed(2) + ' s';
+                    } else {
+                        display.textContent = val.toFixed(2);
+                    }
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'param', name, value: val });
+                    }
+                };
+            }
+        });
+
+        // Info panel
+        if (typeof ER301InfoPanel !== 'undefined') {
+            new ER301InfoPanel(document.body, {
+                title: 'twisted',
+                author: 'mudlogger',
+                origin: 'ER-301 Hyperscale Units',
+                description: 'Wavetable synthesizer using 104 AKWF human voice single-cycle waveforms. Features a scan control to morph through the wavetables, LFO modulation for evolving textures, Strike LPG for organic dynamics, tanh drive/saturation, Spread Delay, Bique lowpass filter, and Dattorro plate reverb. Creates vocal, formant-rich timbres.',
+                controls: [
+                    { name: 'Scan', range: '0-1', description: 'Morphs through the 104 wavetables' },
+                    { name: 'Scan LFO Rate/Depth', description: 'Modulates the Scan slider position directly' },
+                    { name: 'LFO Speed/Depth/Freq', description: 'Additional scan modulation for evolving timbres' },
+                    { name: 'Freq', range: '20-2000 Hz', description: 'Base oscillator frequency' },
+                    { name: 'Phase', range: '-1 to 1', description: 'Phase offset of the oscillator' },
+                    { name: 'Rise/Fall', description: 'LPG envelope attack and decay times' },
+                    { name: 'Bend', range: '-1 to 1', description: 'Envelope curve shape (log/exp)' },
+                    { name: 'Drive', range: '0-10', description: 'Tanh saturation amount' },
+                    { name: 'Delay/Spread/FB', description: 'Spread Delay parameters' },
+                    { name: 'Filter Freq/Q', description: 'Bique lowpass filter' },
+                    { name: 'Reverb Size/Decay/Damp/Wet', description: 'Dattorro plate reverb' }
+                ],
+                tips: [
+                    'Use the Scan slider to find interesting vocal formants',
+                    'Enable Scan LFO for automatic wavetable scanning',
+                    'Enable LFO for additional slowly evolving textures',
+                    'LPG On creates plucky, organic dynamics - oscillator only sounds when triggered',
+                    'With LPG On and Loop Off, use MIDI to play notes',
+                    'Loop Env for sustained, looping sounds without MIDI',
+                    'Higher Drive values add harmonic distortion',
+                    'MIDI notes control pitch - great for playing melodies',
+                    'Import your own single-cycle waveforms for different timbres',
+                    'Voice wavetables work well for pad and lead sounds'
+                ]
+            });
+        }
+    </script>
+</body>
+</html>

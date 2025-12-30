@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barton - ER-301 Autogen301</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 100px;
+        }
+        .yin-yang-section {
+            background: linear-gradient(135deg, #0d0d18 50%, #18180d 50%);
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            padding: 1em;
+            margin-bottom: 1em;
+        }
+        .yin-yang-section h3 {
+            margin: 0 0 0.75em 0;
+            font-size: 0.9em;
+            background: linear-gradient(90deg, #6a6aff, #ffff6a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .noise-section {
+            background: #0d1010;
+            border: 1px solid #2a3a3a;
+            border-radius: 8px;
+            padding: 1em;
+            margin-bottom: 1em;
+        }
+        .noise-section h3 {
+            margin: 0 0 0.75em 0;
+            font-size: 0.9em;
+            color: #6a9a9a;
+        }
+        .noise-viz {
+            height: 30px;
+            background: #0a0a0a;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0.5em 0;
+            position: relative;
+        }
+        .noise-bar {
+            position: absolute;
+            bottom: 0;
+            width: 2px;
+            background: #6a9a9a;
+            transition: height 0.05s;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Barton</h1>
+                <p>Noise synthesizer with yin/yang filtering, wavefolding, and sample & hold</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Yin Yang Section -->
+            <div class="yin-yang-section">
+                <h3>Yin & Yang</h3>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Yin (Pitch)</label>
+                        <input type="range" id="yin" min="-24" max="24" value="0" step="0.1">
+                        <span class="param-value" id="yinVal">0 st</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Yang (Pitch)</label>
+                        <input type="range" id="yang" min="-24" max="24" value="0" step="0.1">
+                        <span class="param-value" id="yangVal">0 st</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Balance</label>
+                        <input type="range" id="balance" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="balanceVal">50%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Noise Sources -->
+            <div class="noise-section">
+                <h3>Noise Sources</h3>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>White</label>
+                        <input type="range" id="whiteLevel" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="whiteLevelVal">30%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Pink</label>
+                        <input type="range" id="pinkLevel" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="pinkLevelVal">50%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Velvet</label>
+                        <input type="range" id="velvetLevel" min="0" max="1" value="0.4" step="0.01">
+                        <span class="param-value" id="velvetLevelVal">40%</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Velvet Rate</label>
+                        <input type="range" id="velvetRate" min="10" max="1000" value="200" step="1">
+                        <span class="param-value" id="velvetRateVal">200 Hz</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sample & Hold -->
+            <span class="section-label">Sample & Hold</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Clock Rate</label>
+                        <input type="range" id="shClock" min="0.5" max="50" value="8" step="0.1">
+                        <span class="param-value" id="shClockVal">8.0 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Slew</label>
+                        <input type="range" id="shSlew" min="0" max="0.5" value="0.05" step="0.01">
+                        <span class="param-value" id="shSlewVal">0.05s</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Amount</label>
+                        <input type="range" id="shAmount" min="0" max="1" value="0.6" step="0.01">
+                        <span class="param-value" id="shAmountVal">60%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <span class="section-label">Ladder Filters</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>HPF Freq</label>
+                        <input type="range" id="hpfFreq" min="20" max="2000" value="100" step="1">
+                        <span class="param-value" id="hpfFreqVal">100 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>HPF Res</label>
+                        <input type="range" id="hpfRes" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="hpfResVal">30%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>LPF Freq</label>
+                        <input type="range" id="lpfFreq" min="100" max="10000" value="2000" step="1">
+                        <span class="param-value" id="lpfFreqVal">2000 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>LPF Res</label>
+                        <input type="range" id="lpfRes" min="0" max="1" value="0.4" step="0.01">
+                        <span class="param-value" id="lpfResVal">40%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wavefolder -->
+            <span class="section-label">Wavefolder</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Fold Amount</label>
+                        <input type="range" id="foldAmount" min="1" max="10" value="2" step="0.1">
+                        <span class="param-value" id="foldAmountVal">2.0x</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Symmetry</label>
+                        <input type="range" id="foldSymmetry" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="foldSymmetryVal">50%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EQ3 -->
+            <span class="section-label">EQ3</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Low</label>
+                        <input type="range" id="eqLow" min="-12" max="12" value="0" step="0.5">
+                        <span class="param-value" id="eqLowVal">0 dB</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mid</label>
+                        <input type="range" id="eqMid" min="-12" max="12" value="0" step="0.5">
+                        <span class="param-value" id="eqMidVal">0 dB</span>
+                    </div>
+                    <div class="param-group">
+                        <label>High</label>
+                        <input type="range" id="eqHigh" min="-12" max="12" value="0" step="0.5">
+                        <span class="param-value" id="eqHighVal">0 dB</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scale Quantizer -->
+            <span class="section-label">Scale Quantizer</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Scale</label>
+                        <select id="scale" class="scale-select" style="background:#1a1a2a;border:1px solid #333;color:#aaa;padding:0.5em;border-radius:4px;width:100%;">
+                            <option value="chromatic">Chromatic</option>
+                            <option value="major">Major</option>
+                            <option value="minor">Minor</option>
+                            <option value="pentatonic">Pentatonic</option>
+                            <option value="whole">Whole Tone</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Quantize</label>
+                        <input type="range" id="quantize" min="0" max="1" value="0" step="1">
+                        <span class="param-value" id="quantizeVal">Off</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Master -->
+            <span class="section-label">Master</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="volume" min="0" max="1" value="0.6" step="0.01">
+                        <span class="param-value" id="volumeVal">0.60</span>
+                    </div>
+                </div>
+            </div>
+
+            <pre class="code-block">
+// Barton - ER-301 Autogen301
+// Original by mudlogger
+//
+// Noise synthesizer featuring:
+// - Multiple noise sources (White, Pink, Velvet)
+// - Sample & Hold with slew limiting
+// - Ladder HPF and LPF filters
+// - Wavefolder for harmonic generation
+// - EQ3 for tone shaping
+// - Scale Quantizer for pitched noise
+//
+// Control Parameters:
+// - yin: Pitch offset (negative tendency)
+// - yang: Pitch offset (positive tendency)
+//
+// Inspired by noise synthesis techniques,
+// particularly Rob Barton's noise circuits</pre>
+
+            <div id="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        // Phonebook features
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        // Scales for quantization
+        const SCALES = {
+            chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+            major: [0, 2, 4, 5, 7, 9, 11],
+            minor: [0, 2, 3, 5, 7, 8, 10],
+            pentatonic: [0, 2, 4, 7, 9],
+            whole: [0, 2, 4, 6, 8, 10]
+        };
+
+        // Audio context and nodes
+        let audioContext;
+        let workletNode;
+        let analyser;
+        let pedalboardNode = null;
+        let pedalboardUI = null;
+        let isPlaying = false;
+
+        // Noise sources
+        let whiteNoise, pinkNoise, velvetNoise;
+        let shHoldValue = 0;
+        let shPhase = 0;
+
+        // Create white noise buffer
+        function createWhiteNoiseBuffer(ctx, duration) {
+            const sampleRate = ctx.sampleRate;
+            const length = sampleRate * duration;
+            const buffer = ctx.createBuffer(1, length, sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < length; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            return buffer;
+        }
+
+        // Create pink noise processor
+        function createPinkNoise(ctx) {
+            const bufferSize = 4096;
+            const processor = ctx.createScriptProcessor(bufferSize, 1, 1);
+            let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+
+            processor.onaudioprocess = (e) => {
+                const output = e.outputBuffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    const white = Math.random() * 2 - 1;
+                    b0 = 0.99886 * b0 + white * 0.0555179;
+                    b1 = 0.99332 * b1 + white * 0.0750759;
+                    b2 = 0.96900 * b2 + white * 0.1538520;
+                    b3 = 0.86650 * b3 + white * 0.3104856;
+                    b4 = 0.55000 * b4 + white * 0.5329522;
+                    b5 = -0.7616 * b5 - white * 0.0168980;
+                    output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+                    b6 = white * 0.115926;
+                }
+            };
+            return processor;
+        }
+
+        // Create velvet noise processor
+        function createVelvetNoise(ctx, rate) {
+            const bufferSize = 2048;
+            const processor = ctx.createScriptProcessor(bufferSize, 0, 1);
+
+            processor.onaudioprocess = (e) => {
+                const output = e.outputBuffer.getChannelData(0);
+                const velvetRate = parseFloat(document.getElementById('velvetRate').value);
+                const avgSpacing = ctx.sampleRate / velvetRate;
+
+                for (let i = 0; i < bufferSize; i++) {
+                    if (Math.random() < (1 / avgSpacing)) {
+                        output[i] = Math.random() > 0.5 ? 1 : -1;
+                    } else {
+                        output[i] = 0;
+                    }
+                }
+            };
+            return processor;
+        }
+
+        // Wavefolder function
+        function fold(x, amount) {
+            x *= amount;
+            // Triangle wave folding
+            while (x > 1 || x < -1) {
+                if (x > 1) x = 2 - x;
+                if (x < -1) x = -2 - x;
+            }
+            return x;
+        }
+
+        // Initialize audio
+        async function initAudio() {
+            try {
+                await featuresLoaded;
+
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+                // Create analyser
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+
+                // Create master gain
+                const masterGain = audioContext.createGain();
+                masterGain.gain.value = parseFloat(document.getElementById('volume').value);
+
+                // Create noise source gains
+                const whiteGain = audioContext.createGain();
+                const pinkGain = audioContext.createGain();
+                const velvetGain = audioContext.createGain();
+
+                whiteGain.gain.value = parseFloat(document.getElementById('whiteLevel').value);
+                pinkGain.gain.value = parseFloat(document.getElementById('pinkLevel').value);
+                velvetGain.gain.value = parseFloat(document.getElementById('velvetLevel').value);
+
+                // Create white noise source
+                const whiteBuffer = createWhiteNoiseBuffer(audioContext, 2);
+                whiteNoise = audioContext.createBufferSource();
+                whiteNoise.buffer = whiteBuffer;
+                whiteNoise.loop = true;
+
+                // Create pink noise
+                pinkNoise = createPinkNoise(audioContext);
+
+                // Create velvet noise
+                velvetNoise = createVelvetNoise(audioContext, 200);
+
+                // Create HPF (Ladder style approximation)
+                const hpf = audioContext.createBiquadFilter();
+                hpf.type = 'highpass';
+                hpf.frequency.value = parseFloat(document.getElementById('hpfFreq').value);
+                hpf.Q.value = parseFloat(document.getElementById('hpfRes').value) * 20;
+
+                // Create LPF (Ladder style approximation)
+                const lpf = audioContext.createBiquadFilter();
+                lpf.type = 'lowpass';
+                lpf.frequency.value = parseFloat(document.getElementById('lpfFreq').value);
+                lpf.Q.value = parseFloat(document.getElementById('lpfRes').value) * 20;
+
+                // Create EQ bands
+                const eqLow = audioContext.createBiquadFilter();
+                eqLow.type = 'lowshelf';
+                eqLow.frequency.value = 320;
+                eqLow.gain.value = parseFloat(document.getElementById('eqLow').value);
+
+                const eqMid = audioContext.createBiquadFilter();
+                eqMid.type = 'peaking';
+                eqMid.frequency.value = 1000;
+                eqMid.Q.value = 1;
+                eqMid.gain.value = parseFloat(document.getElementById('eqMid').value);
+
+                const eqHigh = audioContext.createBiquadFilter();
+                eqHigh.type = 'highshelf';
+                eqHigh.frequency.value = 3200;
+                eqHigh.gain.value = parseFloat(document.getElementById('eqHigh').value);
+
+                // Create waveshaper for folding
+                const waveshaper = audioContext.createWaveShaper();
+                updateFoldCurve(waveshaper);
+
+                // Noise mixer
+                const noiseMixer = audioContext.createGain();
+                noiseMixer.gain.value = 0.5;
+
+                // Connect noise sources
+                whiteNoise.connect(whiteGain);
+                pinkNoise.connect(pinkGain);
+                velvetNoise.connect(velvetGain);
+
+                whiteGain.connect(noiseMixer);
+                pinkGain.connect(noiseMixer);
+                velvetGain.connect(noiseMixer);
+
+                // Connect processing chain
+                noiseMixer.connect(hpf);
+                hpf.connect(lpf);
+                lpf.connect(waveshaper);
+                waveshaper.connect(eqLow);
+                eqLow.connect(eqMid);
+                eqMid.connect(eqHigh);
+                eqHigh.connect(masterGain);
+
+                // Store nodes
+                workletNode = {
+                    whiteGain,
+                    pinkGain,
+                    velvetGain,
+                    noiseMixer,
+                    hpf,
+                    lpf,
+                    waveshaper,
+                    eqLow,
+                    eqMid,
+                    eqHigh,
+                    masterGain,
+                    connect: (dest) => masterGain.connect(dest),
+                    disconnect: () => masterGain.disconnect()
+                };
+
+                // Initialize pedalboard
+                const pedalboardContainer = document.getElementById('pedalboard-container');
+                if (typeof PedalboardUI !== 'undefined' && pedalboardContainer) {
+                    pedalboardUI = new PedalboardUI(pedalboardContainer, audioContext, {
+                        patchId: 'er-301-patches-autogen301-barton'
+                    });
+                    pedalboardNode = await pedalboardUI.init();
+                    pedalboardUI.connect(masterGain);
+                    pedalboardNode.connect(audioContext.destination);
+                    pedalboardNode.connect(analyser);
+                } else {
+                    masterGain.connect(analyser);
+                    analyser.connect(audioContext.destination);
+                }
+
+                // Initialize phonebook features
+                const outputNode = pedalboardNode || analyser;
+                if (typeof StickyHeader !== 'undefined') {
+                    stickyHeader = new StickyHeader({
+                        patchName: 'barton-er-301-autogen301',
+                        patchId: 'er-301-patches-autogen301-barton'
+                    });
+                    await stickyHeader.init();
+                    await stickyHeader.initRecorder(audioContext, outputNode, audioContext.destination);
+                }
+
+                if (typeof getMidiLearn !== 'undefined') {
+                    midiLearn = await getMidiLearn('er-301-patches-autogen301-barton');
+                }
+
+                if (typeof getModulationMatrix !== 'undefined') {
+                    modMatrix = getModulationMatrix();
+                    modMatrixUI = new ModMatrixUI(
+                        document.querySelector('.patch-content') || document.body,
+                        { modMatrix: modMatrix }
+                    );
+                    modMatrixUI.init();
+                }
+
+                // Auto-register all sliders for MIDI Learn and Mod Matrix
+                if (typeof autoRegisterControls !== 'undefined') {
+                    await autoRegisterControls({
+                        patchId: 'er-301-patches-autogen301-barton',
+                        prefix: 'barton',
+                        modMatrixUI: modMatrixUI
+                    });
+                }
+
+                document.getElementById('playBtn').disabled = false;
+
+            } catch (err) {
+                console.error('Audio init error:', err);
+            }
+        }
+
+        // Update wavefolder curve
+        function updateFoldCurve(waveshaper) {
+            const amount = parseFloat(document.getElementById('foldAmount').value);
+            const samples = 8192;
+            const curve = new Float32Array(samples);
+
+            for (let i = 0; i < samples; i++) {
+                let x = (i / samples) * 2 - 1;
+                curve[i] = fold(x, amount);
+            }
+
+            waveshaper.curve = curve;
+        }
+
+        // Sample & Hold processing
+        function processSampleHold() {
+            if (!isPlaying) return;
+
+            const rate = parseFloat(document.getElementById('shClock').value);
+            const slew = parseFloat(document.getElementById('shSlew').value);
+            const amount = parseFloat(document.getElementById('shAmount').value);
+
+            shPhase += rate / 60;
+            if (shPhase >= 1) {
+                shPhase = 0;
+                // Sample new random value
+                const newValue = Math.random() * 2 - 1;
+                shHoldValue = shHoldValue + (newValue - shHoldValue) * (1 - slew);
+            }
+
+            // Apply to filter frequencies
+            const yin = parseFloat(document.getElementById('yin').value);
+            const yang = parseFloat(document.getElementById('yang').value);
+
+            const hpfBase = parseFloat(document.getElementById('hpfFreq').value);
+            const lpfBase = parseFloat(document.getElementById('lpfFreq').value);
+
+            if (workletNode) {
+                const modAmount = shHoldValue * amount * 1000;
+                workletNode.hpf.frequency.value = Math.max(20, hpfBase + modAmount * Math.pow(2, yin / 12));
+                workletNode.lpf.frequency.value = Math.min(20000, lpfBase + modAmount * Math.pow(2, yang / 12));
+            }
+
+            requestAnimationFrame(processSampleHold);
+        }
+
+        // Visualization
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width = canvas.offsetWidth * 2;
+            const height = canvas.height = canvas.offsetHeight * 2;
+
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            function draw() {
+                if (!isPlaying) {
+                    ctx.fillStyle = '#0a0a0a';
+                    ctx.fillRect(0, 0, width, height);
+                    return;
+                }
+
+                requestAnimationFrame(draw);
+                analyser.getByteFrequencyData(dataArray);
+
+                ctx.fillStyle = 'rgba(10, 12, 12, 0.15)';
+                ctx.fillRect(0, 0, width, height);
+
+                // Draw noise spectrum
+                const barCount = 128;
+                const barWidth = width / barCount;
+
+                for (let i = 0; i < barCount; i++) {
+                    const dataIndex = Math.floor(i * (dataArray.length / barCount));
+                    const barHeight = (dataArray[dataIndex] / 255) * height * 0.8;
+
+                    // Gradient from teal to yellow (yin-yang colors)
+                    const t = i / barCount;
+                    const r = Math.floor(106 + t * 149);
+                    const g = Math.floor(154 - t * 54);
+                    const b = Math.floor(154 - t * 48);
+
+                    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                    ctx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
+                }
+
+                // Draw S&H indicator
+                const shY = height * 0.1;
+                const shX = width * 0.5 + shHoldValue * width * 0.3;
+                ctx.beginPath();
+                ctx.arc(shX, shY, 6, 0, Math.PI * 2);
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+            }
+
+            draw();
+        }
+
+        // Toggle playback
+        async function togglePlay() {
+            if (!audioContext) {
+                await initAudio();
+            }
+
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            isPlaying = !isPlaying;
+            const btn = document.getElementById('playBtn');
+            btn.innerHTML = isPlaying ? '&#9632;' : '&#9654;';
+            btn.classList.toggle('playing', isPlaying);
+
+            if (isPlaying) {
+                if (modMatrix) modMatrix.start();
+                whiteNoise.start();
+                processSampleHold();
+                drawVisualizer();
+            } else {
+                if (modMatrix) modMatrix.stop();
+                try { whiteNoise.stop(); } catch(e) {}
+            }
+        }
+
+        // Parameter handlers
+        function setupParameterHandlers() {
+            // Yin Yang
+            document.getElementById('yin').addEventListener('input', (e) => {
+                document.getElementById('yinVal').textContent = parseFloat(e.target.value).toFixed(1) + ' st';
+            });
+
+            document.getElementById('yang').addEventListener('input', (e) => {
+                document.getElementById('yangVal').textContent = parseFloat(e.target.value).toFixed(1) + ' st';
+            });
+
+            document.getElementById('balance').addEventListener('input', (e) => {
+                document.getElementById('balanceVal').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            // Noise sources
+            document.getElementById('whiteLevel').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('whiteLevelVal').textContent = Math.round(val * 100) + '%';
+                if (workletNode) workletNode.whiteGain.gain.value = val;
+            });
+
+            document.getElementById('pinkLevel').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('pinkLevelVal').textContent = Math.round(val * 100) + '%';
+                if (workletNode) workletNode.pinkGain.gain.value = val;
+            });
+
+            document.getElementById('velvetLevel').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('velvetLevelVal').textContent = Math.round(val * 100) + '%';
+                if (workletNode) workletNode.velvetGain.gain.value = val;
+            });
+
+            document.getElementById('velvetRate').addEventListener('input', (e) => {
+                document.getElementById('velvetRateVal').textContent = e.target.value + ' Hz';
+            });
+
+            // S&H
+            document.getElementById('shClock').addEventListener('input', (e) => {
+                document.getElementById('shClockVal').textContent = parseFloat(e.target.value).toFixed(1) + ' Hz';
+            });
+
+            document.getElementById('shSlew').addEventListener('input', (e) => {
+                document.getElementById('shSlewVal').textContent = parseFloat(e.target.value).toFixed(2) + 's';
+            });
+
+            document.getElementById('shAmount').addEventListener('input', (e) => {
+                document.getElementById('shAmountVal').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            // Filters
+            document.getElementById('hpfFreq').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('hpfFreqVal').textContent = val + ' Hz';
+                if (workletNode) workletNode.hpf.frequency.value = val;
+            });
+
+            document.getElementById('hpfRes').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('hpfResVal').textContent = Math.round(val * 100) + '%';
+                if (workletNode) workletNode.hpf.Q.value = val * 20;
+            });
+
+            document.getElementById('lpfFreq').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('lpfFreqVal').textContent = val + ' Hz';
+                if (workletNode) workletNode.lpf.frequency.value = val;
+            });
+
+            document.getElementById('lpfRes').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('lpfResVal').textContent = Math.round(val * 100) + '%';
+                if (workletNode) workletNode.lpf.Q.value = val * 20;
+            });
+
+            // Wavefolder
+            document.getElementById('foldAmount').addEventListener('input', (e) => {
+                document.getElementById('foldAmountVal').textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+                if (workletNode) updateFoldCurve(workletNode.waveshaper);
+            });
+
+            document.getElementById('foldSymmetry').addEventListener('input', (e) => {
+                document.getElementById('foldSymmetryVal').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            // EQ
+            document.getElementById('eqLow').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('eqLowVal').textContent = val.toFixed(1) + ' dB';
+                if (workletNode) workletNode.eqLow.gain.value = val;
+            });
+
+            document.getElementById('eqMid').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('eqMidVal').textContent = val.toFixed(1) + ' dB';
+                if (workletNode) workletNode.eqMid.gain.value = val;
+            });
+
+            document.getElementById('eqHigh').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('eqHighVal').textContent = val.toFixed(1) + ' dB';
+                if (workletNode) workletNode.eqHigh.gain.value = val;
+            });
+
+            // Scale
+            document.getElementById('quantize').addEventListener('input', (e) => {
+                document.getElementById('quantizeVal').textContent = e.target.value === '1' ? 'On' : 'Off';
+            });
+
+            // Master
+            document.getElementById('volume').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('volumeVal').textContent = val.toFixed(2);
+                if (workletNode) workletNode.masterGain.gain.value = val;
+            });
+        }
+
+        // Initialize info panel
+        function initInfoPanel() {
+            if (typeof ER301InfoPanel !== 'undefined') {
+                ER301InfoPanel.create({
+                    title: 'Barton',
+                    sections: [
+                        {
+                            title: 'Overview',
+                            content: 'Noise synthesizer with multiple noise sources (White, Pink, Velvet), Sample & Hold modulation, Ladder-style HPF and LPF filters, wavefolder for harmonic generation, and EQ3 for tone shaping. The yin/yang parameters provide complementary pitch offsets.'
+                        },
+                        {
+                            title: 'Controls',
+                            content: 'Yin: Pitch offset with negative tendency<br>Yang: Pitch offset with positive tendency<br>S&H Clock: Sample & Hold trigger rate<br>Fold Amount: Wavefolder intensity for harmonics'
+                        },
+                        {
+                            title: 'Signal Flow',
+                            content: 'White + Pink + Velvet Noise → HPF → LPF → Wavefolder → EQ3 → Output'
+                        },
+                        {
+                            title: 'Notes',
+                            content: 'Adjust the noise source mix and filter frequencies to sculpt the noise character. The Sample & Hold modulates the filter frequencies for evolving textures. Increase fold amount for more harmonic content.'
+                        }
+                    ]
+                });
+            }
+        }
+
+        // Main initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            setupParameterHandlers();
+            initInfoPanel();
+            document.getElementById('playBtn').addEventListener('click', togglePlay);
+        });
+    </script>
+</body>
+</html>

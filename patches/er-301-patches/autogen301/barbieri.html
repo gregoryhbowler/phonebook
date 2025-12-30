@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barbieri - ER-301 Autogen301</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 100px;
+        }
+        .osc-section {
+            background: #0d1018;
+            border: 1px solid #2a3a5a;
+            border-radius: 8px;
+            padding: 1em;
+            margin-bottom: 1em;
+        }
+        .osc-section h3 {
+            margin: 0 0 0.75em 0;
+            font-size: 0.9em;
+            color: #6a8aff;
+        }
+        .osc-section.osc2 {
+            background: #18100d;
+            border-color: #5a3a2a;
+        }
+        .osc-section.osc2 h3 {
+            color: #ff8a6a;
+        }
+        .scale-select {
+            background: #1a1a2a;
+            border: 1px solid #333;
+            color: #aaa;
+            padding: 0.5em;
+            border-radius: 4px;
+            width: 100%;
+        }
+        .note-display {
+            font-family: monospace;
+            font-size: 1.2em;
+            color: #6a8aff;
+            text-align: center;
+            padding: 0.4em;
+            background: #0a0a15;
+            border-radius: 4px;
+            margin: 0.5em 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Barbieri</h1>
+                <p>Dual aliasing oscillator synth with scale quantization and clocked random</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Main Controls -->
+            <span class="section-label">Expression Controls</span>
+            <div class="param-controls">
+                <div class="note-display" id="noteDisplay">C4</div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Ecstatic</label>
+                        <input type="range" id="ecstatic" min="0" max="1" value="0.59" step="0.01">
+                        <span class="param-value" id="ecstaticVal">59%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Computation</label>
+                        <input type="range" id="computation" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="computationVal">50%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Octave</label>
+                        <input type="range" id="octave" min="-2" max="2" value="0" step="1">
+                        <span class="param-value" id="octaveVal">0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Melody</label>
+                        <input type="range" id="melody" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="melodyVal">50%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scale Quantizer -->
+            <span class="section-label">Scale Quantizer</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Scale</label>
+                        <select id="scale" class="scale-select">
+                            <option value="major">Major</option>
+                            <option value="minor">Natural Minor</option>
+                            <option value="harmonic">Harmonic Minor</option>
+                            <option value="dorian">Dorian</option>
+                            <option value="phrygian">Phrygian</option>
+                            <option value="lydian">Lydian</option>
+                            <option value="mixolydian">Mixolydian</option>
+                            <option value="pentatonic">Pentatonic</option>
+                            <option value="blues">Blues</option>
+                            <option value="chromatic">Chromatic</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Root</label>
+                        <select id="rootNote" class="scale-select">
+                            <option value="0">C</option>
+                            <option value="1">C#</option>
+                            <option value="2">D</option>
+                            <option value="3">D#</option>
+                            <option value="4">E</option>
+                            <option value="5">F</option>
+                            <option value="6">F#</option>
+                            <option value="7">G</option>
+                            <option value="8">G#</option>
+                            <option value="9">A</option>
+                            <option value="10">A#</option>
+                            <option value="11">B</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Oscillator 1: Aliasing Saw -->
+            <div class="osc-section">
+                <h3>Oscillator 1: Aliasing Saw</h3>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Level</label>
+                        <input type="range" id="osc1Level" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="osc1LevelVal">70%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Detune</label>
+                        <input type="range" id="osc1Detune" min="-50" max="50" value="0" step="1">
+                        <span class="param-value" id="osc1DetuneVal">0 ct</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Slew</label>
+                        <input type="range" id="osc1Slew" min="0" max="0.5" value="0.05" step="0.01">
+                        <span class="param-value" id="osc1SlewVal">0.05s</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Oscillator 2: Aliasing Pulse -->
+            <div class="osc-section osc2">
+                <h3>Oscillator 2: Aliasing Pulse</h3>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Level</label>
+                        <input type="range" id="osc2Level" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="osc2LevelVal">50%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Detune</label>
+                        <input type="range" id="osc2Detune" min="-50" max="50" value="7" step="1">
+                        <span class="param-value" id="osc2DetuneVal">7 ct</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Pulse Width</label>
+                        <input type="range" id="pulseWidth" min="0.1" max="0.9" value="0.5" step="0.01">
+                        <span class="param-value" id="pulseWidthVal">50%</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Micro Delay</label>
+                        <input type="range" id="microDelay" min="0" max="0.05" value="0.02" step="0.001">
+                        <span class="param-value" id="microDelayVal">20 ms</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Slew</label>
+                        <input type="range" id="osc2Slew" min="0" max="0.5" value="0.08" step="0.01">
+                        <span class="param-value" id="osc2SlewVal">0.08s</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Envelope -->
+            <span class="section-label">ADSR Envelope</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Attack</label>
+                        <input type="range" id="attack" min="0.001" max="2" value="0.01" step="0.001">
+                        <span class="param-value" id="attackVal">0.01s</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Decay</label>
+                        <input type="range" id="decay" min="0.01" max="2" value="0.2" step="0.01">
+                        <span class="param-value" id="decayVal">0.20s</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Sustain</label>
+                        <input type="range" id="sustain" min="0" max="1" value="0.4" step="0.01">
+                        <span class="param-value" id="sustainVal">0.40</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Release</label>
+                        <input type="range" id="release" min="0.01" max="4" value="0.5" step="0.01">
+                        <span class="param-value" id="releaseVal">0.50s</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clock/Random -->
+            <span class="section-label">Clocked Random</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Tempo</label>
+                        <input type="range" id="tempo" min="40" max="240" value="120" step="1">
+                        <span class="param-value" id="tempoVal">120 BPM</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Gate Prob</label>
+                        <input type="range" id="gateProb" min="0" max="1" value="0.6" step="0.01">
+                        <span class="param-value" id="gateProbVal">60%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Note Range</label>
+                        <input type="range" id="noteRange" min="0.1" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="noteRangeVal">50%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Master -->
+            <span class="section-label">Master</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="volume" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="volumeVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <pre class="code-block">
+// Barbieri - ER-301 Autogen301
+// Original by mudlogger
+//
+// Dual aliasing oscillator synth featuring:
+// - Aliasing Saw oscillator (osc #1)
+// - Aliasing Pulse oscillator (osc #2) with micro delay
+// - Scale Quantizer for musical note selection
+// - Octave CV Shifter for range control
+// - ADSR envelope for amplitude shaping
+// - Clocked Random Gate for sequencing
+// - Pingable Scaled Random for note selection
+// - Slew Limiters for pitch smoothing
+//
+// Control Parameters:
+// - ecstatic: Intensity/modulation depth
+// - computation: Processing parameter
+// - octave: Octave shift (-2 to +2)
+// - melody: Melodic variation amount
+//
+// Named after the Italian composer tradition</pre>
+
+            <div id="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        // Phonebook features
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        // Scales
+        const SCALES = {
+            major: [0, 2, 4, 5, 7, 9, 11],
+            minor: [0, 2, 3, 5, 7, 8, 10],
+            harmonic: [0, 2, 3, 5, 7, 8, 11],
+            dorian: [0, 2, 3, 5, 7, 9, 10],
+            phrygian: [0, 1, 3, 5, 7, 8, 10],
+            lydian: [0, 2, 4, 6, 7, 9, 11],
+            mixolydian: [0, 2, 4, 5, 7, 9, 10],
+            pentatonic: [0, 2, 4, 7, 9],
+            blues: [0, 3, 5, 6, 7, 10],
+            chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        };
+
+        const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+        // Audio context and nodes
+        let audioContext;
+        let workletNode;
+        let analyser;
+        let pedalboardNode = null;
+        let pedalboardUI = null;
+        let isPlaying = false;
+
+        // Oscillators
+        let osc1 = null;
+        let osc2 = null;
+        let currentNote = 60;
+        let targetFreq1 = 261.63;
+        let targetFreq2 = 261.63;
+        let currentFreq1 = 261.63;
+        let currentFreq2 = 261.63;
+
+        // Sequencer state
+        let nextTrigTime = 0;
+
+        // MIDI to frequency
+        function midiToFreq(midi) {
+            return 440 * Math.pow(2, (midi - 69) / 12);
+        }
+
+        // MIDI to name
+        function midiToName(midi) {
+            return NOTE_NAMES[midi % 12] + Math.floor(midi / 12 - 1);
+        }
+
+        // Quantize to scale
+        function quantizeToScale(noteValue) {
+            const scale = SCALES[document.getElementById('scale').value];
+            const root = parseInt(document.getElementById('rootNote').value);
+            const octave = parseInt(document.getElementById('octave').value);
+            const noteRange = parseFloat(document.getElementById('noteRange').value);
+
+            // Map value to scale notes
+            const scaledValue = noteValue * noteRange;
+            const noteIndex = Math.floor(scaledValue * scale.length * 2);
+            const octaveOffset = Math.floor(noteIndex / scale.length);
+            const scaleIndex = noteIndex % scale.length;
+
+            return 48 + root + (octave * 12) + (octaveOffset * 12) + scale[scaleIndex];
+        }
+
+        // Create aliasing saw wave
+        function createAliasingSaw(ctx, freq) {
+            const osc = ctx.createOscillator();
+            osc.type = 'sawtooth';
+            osc.frequency.value = freq;
+            return osc;
+        }
+
+        // Create aliasing pulse wave
+        function createAliasingPulse(ctx, freq, pulseWidth) {
+            // Create two sawtooth oscillators phase-shifted
+            const osc1 = ctx.createOscillator();
+            const osc2 = ctx.createOscillator();
+            const gain1 = ctx.createGain();
+            const gain2 = ctx.createGain();
+            const output = ctx.createGain();
+
+            osc1.type = 'sawtooth';
+            osc2.type = 'sawtooth';
+            osc1.frequency.value = freq;
+            osc2.frequency.value = freq;
+
+            gain1.gain.value = 1;
+            gain2.gain.value = -1;
+
+            // Phase offset for pulse width
+            const phaseDelay = ctx.createDelay(1);
+            phaseDelay.delayTime.value = pulseWidth / freq;
+
+            osc1.connect(gain1);
+            osc2.connect(phaseDelay);
+            phaseDelay.connect(gain2);
+            gain1.connect(output);
+            gain2.connect(output);
+
+            return {
+                osc1, osc2, output,
+                start: (time) => {
+                    osc1.start(time);
+                    osc2.start(time);
+                },
+                stop: (time) => {
+                    osc1.stop(time);
+                    osc2.stop(time);
+                },
+                setFrequency: (f) => {
+                    osc1.frequency.value = f;
+                    osc2.frequency.value = f;
+                }
+            };
+        }
+
+        // Initialize audio
+        async function initAudio() {
+            try {
+                await featuresLoaded;
+
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+                // Create analyser
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+
+                // Create master gain
+                const masterGain = audioContext.createGain();
+                masterGain.gain.value = parseFloat(document.getElementById('volume').value);
+
+                // Create oscillator gains
+                const osc1Gain = audioContext.createGain();
+                const osc2Gain = audioContext.createGain();
+                osc1Gain.gain.value = 0;
+                osc2Gain.gain.value = 0;
+
+                // Create envelope gains
+                const envGain = audioContext.createGain();
+                envGain.gain.value = 0;
+
+                // Create micro delay for osc2
+                const microDelay = audioContext.createDelay(0.1);
+                microDelay.delayTime.value = parseFloat(document.getElementById('microDelay').value);
+
+                // Create slew filters (lowpass for smoothing)
+                const slew1 = audioContext.createBiquadFilter();
+                slew1.type = 'lowpass';
+                slew1.frequency.value = 20;
+
+                const slew2 = audioContext.createBiquadFilter();
+                slew2.type = 'lowpass';
+                slew2.frequency.value = 12;
+
+                // Create mixer
+                const mixer = audioContext.createGain();
+                mixer.gain.value = 0.5;
+
+                // Store nodes
+                workletNode = {
+                    osc1Gain,
+                    osc2Gain,
+                    envGain,
+                    microDelay,
+                    slew1,
+                    slew2,
+                    mixer,
+                    masterGain,
+                    connect: (dest) => masterGain.connect(dest),
+                    disconnect: () => masterGain.disconnect()
+                };
+
+                // Connect chain
+                osc1Gain.connect(mixer);
+                osc2Gain.connect(microDelay);
+                microDelay.connect(mixer);
+                mixer.connect(envGain);
+                envGain.connect(masterGain);
+
+                // Initialize pedalboard
+                const pedalboardContainer = document.getElementById('pedalboard-container');
+                if (typeof PedalboardUI !== 'undefined' && pedalboardContainer) {
+                    pedalboardUI = new PedalboardUI(pedalboardContainer, audioContext, {
+                        patchId: 'er-301-patches-autogen301-barbieri'
+                    });
+                    pedalboardNode = await pedalboardUI.init();
+                    pedalboardUI.connect(masterGain);
+                    pedalboardNode.connect(audioContext.destination);
+                    pedalboardNode.connect(analyser);
+                } else {
+                    masterGain.connect(analyser);
+                    analyser.connect(audioContext.destination);
+                }
+
+                // Initialize phonebook features
+                const outputNode = pedalboardNode || analyser;
+                if (typeof StickyHeader !== 'undefined') {
+                    stickyHeader = new StickyHeader({
+                        patchName: 'barbieri-er-301-autogen301',
+                        patchId: 'er-301-patches-autogen301-barbieri'
+                    });
+                    await stickyHeader.init();
+                    await stickyHeader.initRecorder(audioContext, outputNode, audioContext.destination);
+                }
+
+                if (typeof getMidiLearn !== 'undefined') {
+                    midiLearn = await getMidiLearn('er-301-patches-autogen301-barbieri');
+                }
+
+                if (typeof getModulationMatrix !== 'undefined') {
+                    modMatrix = getModulationMatrix();
+                    modMatrixUI = new ModMatrixUI(
+                        document.querySelector('.patch-content') || document.body,
+                        { modMatrix: modMatrix }
+                    );
+                    modMatrixUI.init();
+                }
+
+                // Auto-register all sliders for MIDI Learn and Mod Matrix
+                if (typeof autoRegisterControls !== 'undefined') {
+                    await autoRegisterControls({
+                        patchId: 'er-301-patches-autogen301-barbieri',
+                        prefix: 'barbieri',
+                        modMatrixUI: modMatrixUI
+                    });
+                }
+
+                document.getElementById('playBtn').disabled = false;
+
+            } catch (err) {
+                console.error('Audio init error:', err);
+            }
+        }
+
+        // Trigger a note
+        function triggerNote() {
+            if (!audioContext) return;
+
+            const melody = parseFloat(document.getElementById('melody').value);
+            const ecstatic = parseFloat(document.getElementById('ecstatic').value);
+
+            // Random note selection
+            const randomValue = Math.random() * melody + (1 - melody) * 0.5;
+            currentNote = quantizeToScale(randomValue);
+
+            // Update display
+            document.getElementById('noteDisplay').textContent = midiToName(currentNote);
+
+            // Calculate frequencies
+            const baseFreq = midiToFreq(currentNote);
+            const osc1Detune = parseFloat(document.getElementById('osc1Detune').value);
+            const osc2Detune = parseFloat(document.getElementById('osc2Detune').value);
+
+            targetFreq1 = baseFreq * Math.pow(2, osc1Detune / 1200);
+            targetFreq2 = baseFreq * Math.pow(2, osc2Detune / 1200);
+
+            // Stop old oscillators
+            if (osc1) {
+                try { osc1.stop(); } catch(e) {}
+            }
+            if (osc2) {
+                try {
+                    if (osc2.stop) osc2.stop();
+                    else {
+                        osc2.osc1.stop();
+                        osc2.osc2.stop();
+                    }
+                } catch(e) {}
+            }
+
+            // Create new oscillators
+            osc1 = audioContext.createOscillator();
+            osc1.type = 'sawtooth';
+            osc1.frequency.value = targetFreq1;
+
+            const pulseWidth = parseFloat(document.getElementById('pulseWidth').value);
+            osc2 = audioContext.createOscillator();
+            osc2.type = 'square';
+            osc2.frequency.value = targetFreq2;
+
+            // Set levels
+            const osc1Level = parseFloat(document.getElementById('osc1Level').value);
+            const osc2Level = parseFloat(document.getElementById('osc2Level').value);
+            workletNode.osc1Gain.gain.value = osc1Level;
+            workletNode.osc2Gain.gain.value = osc2Level;
+
+            // Connect oscillators
+            osc1.connect(workletNode.osc1Gain);
+            osc2.connect(workletNode.osc2Gain);
+
+            // Start oscillators
+            const now = audioContext.currentTime;
+            osc1.start(now);
+            osc2.start(now);
+
+            // Trigger envelope
+            const attack = parseFloat(document.getElementById('attack').value);
+            const decay = parseFloat(document.getElementById('decay').value);
+            const sustain = parseFloat(document.getElementById('sustain').value);
+            const release = parseFloat(document.getElementById('release').value);
+
+            const env = workletNode.envGain.gain;
+            env.cancelScheduledValues(now);
+            env.setValueAtTime(0, now);
+            env.linearRampToValueAtTime(1 * ecstatic, now + attack);
+            env.linearRampToValueAtTime(sustain * ecstatic, now + attack + decay);
+            env.linearRampToValueAtTime(0, now + attack + decay + release);
+
+            // Stop oscillators after envelope
+            const stopTime = now + attack + decay + release + 0.1;
+            osc1.stop(stopTime);
+            osc2.stop(stopTime);
+        }
+
+        // Sequencer tick
+        function sequencerTick() {
+            if (!isPlaying || !audioContext) return;
+
+            const now = audioContext.currentTime;
+            const tempo = parseFloat(document.getElementById('tempo').value);
+            const gateProb = parseFloat(document.getElementById('gateProb').value);
+
+            const beatInterval = 60 / tempo;
+
+            if (now >= nextTrigTime) {
+                if (Math.random() < gateProb) {
+                    triggerNote();
+                }
+                nextTrigTime = now + beatInterval;
+            }
+
+            requestAnimationFrame(sequencerTick);
+        }
+
+        // Visualization
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width = canvas.offsetWidth * 2;
+            const height = canvas.height = canvas.offsetHeight * 2;
+
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            function draw() {
+                if (!isPlaying) {
+                    ctx.fillStyle = '#0a0a0a';
+                    ctx.fillRect(0, 0, width, height);
+                    return;
+                }
+
+                requestAnimationFrame(draw);
+                analyser.getByteFrequencyData(dataArray);
+
+                ctx.fillStyle = 'rgba(10, 10, 20, 0.15)';
+                ctx.fillRect(0, 0, width, height);
+
+                // Draw spectrum with aliasing-style harsh lines
+                const barCount = 64;
+                const barWidth = width / barCount;
+
+                for (let i = 0; i < barCount; i++) {
+                    const dataIndex = Math.floor(i * (dataArray.length / barCount));
+                    const barHeight = (dataArray[dataIndex] / 255) * height * 0.8;
+
+                    // Blue for osc1, orange for osc2
+                    const hue = i < barCount / 2 ? 220 : 30;
+                    ctx.fillStyle = `hsl(${hue}, 70%, 50%)`;
+                    ctx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
+                }
+
+                // Draw note indicator
+                const noteY = height * 0.1;
+                const noteX = ((currentNote - 36) / 48) * width;
+                ctx.beginPath();
+                ctx.arc(noteX, noteY, 6, 0, Math.PI * 2);
+                ctx.fillStyle = '#6a8aff';
+                ctx.fill();
+            }
+
+            draw();
+        }
+
+        // Toggle playback
+        async function togglePlay() {
+            if (!audioContext) {
+                await initAudio();
+            }
+
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            isPlaying = !isPlaying;
+            const btn = document.getElementById('playBtn');
+            btn.innerHTML = isPlaying ? '&#9632;' : '&#9654;';
+            btn.classList.toggle('playing', isPlaying);
+
+            if (isPlaying) {
+                if (modMatrix) modMatrix.start();
+                nextTrigTime = audioContext.currentTime;
+                sequencerTick();
+                drawVisualizer();
+            } else {
+                if (modMatrix) modMatrix.stop();
+            }
+        }
+
+        // Parameter handlers
+        function setupParameterHandlers() {
+            // Expression controls
+            document.getElementById('ecstatic').addEventListener('input', (e) => {
+                document.getElementById('ecstaticVal').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            document.getElementById('computation').addEventListener('input', (e) => {
+                document.getElementById('computationVal').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            document.getElementById('octave').addEventListener('input', (e) => {
+                document.getElementById('octaveVal').textContent = e.target.value;
+            });
+
+            document.getElementById('melody').addEventListener('input', (e) => {
+                document.getElementById('melodyVal').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            // Osc1
+            document.getElementById('osc1Level').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('osc1LevelVal').textContent = Math.round(val * 100) + '%';
+                if (workletNode) workletNode.osc1Gain.gain.value = val;
+            });
+
+            document.getElementById('osc1Detune').addEventListener('input', (e) => {
+                document.getElementById('osc1DetuneVal').textContent = e.target.value + ' ct';
+            });
+
+            document.getElementById('osc1Slew').addEventListener('input', (e) => {
+                document.getElementById('osc1SlewVal').textContent = parseFloat(e.target.value).toFixed(2) + 's';
+            });
+
+            // Osc2
+            document.getElementById('osc2Level').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('osc2LevelVal').textContent = Math.round(val * 100) + '%';
+                if (workletNode) workletNode.osc2Gain.gain.value = val;
+            });
+
+            document.getElementById('osc2Detune').addEventListener('input', (e) => {
+                document.getElementById('osc2DetuneVal').textContent = e.target.value + ' ct';
+            });
+
+            document.getElementById('pulseWidth').addEventListener('input', (e) => {
+                document.getElementById('pulseWidthVal').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            document.getElementById('microDelay').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('microDelayVal').textContent = Math.round(val * 1000) + ' ms';
+                if (workletNode) workletNode.microDelay.delayTime.value = val;
+            });
+
+            document.getElementById('osc2Slew').addEventListener('input', (e) => {
+                document.getElementById('osc2SlewVal').textContent = parseFloat(e.target.value).toFixed(2) + 's';
+            });
+
+            // Envelope
+            document.getElementById('attack').addEventListener('input', (e) => {
+                document.getElementById('attackVal').textContent = parseFloat(e.target.value).toFixed(2) + 's';
+            });
+
+            document.getElementById('decay').addEventListener('input', (e) => {
+                document.getElementById('decayVal').textContent = parseFloat(e.target.value).toFixed(2) + 's';
+            });
+
+            document.getElementById('sustain').addEventListener('input', (e) => {
+                document.getElementById('sustainVal').textContent = parseFloat(e.target.value).toFixed(2);
+            });
+
+            document.getElementById('release').addEventListener('input', (e) => {
+                document.getElementById('releaseVal').textContent = parseFloat(e.target.value).toFixed(2) + 's';
+            });
+
+            // Clock
+            document.getElementById('tempo').addEventListener('input', (e) => {
+                document.getElementById('tempoVal').textContent = e.target.value + ' BPM';
+            });
+
+            document.getElementById('gateProb').addEventListener('input', (e) => {
+                document.getElementById('gateProbVal').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            document.getElementById('noteRange').addEventListener('input', (e) => {
+                document.getElementById('noteRangeVal').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            // Master
+            document.getElementById('volume').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('volumeVal').textContent = val.toFixed(2);
+                if (workletNode) workletNode.masterGain.gain.value = val;
+            });
+        }
+
+        // Initialize info panel
+        function initInfoPanel() {
+            if (typeof ER301InfoPanel !== 'undefined') {
+                ER301InfoPanel.create({
+                    title: 'Barbieri',
+                    sections: [
+                        {
+                            title: 'Overview',
+                            content: 'Dual aliasing oscillator synthesizer with scale quantization. Features an Aliasing Saw and Aliasing Pulse oscillator with independent detune and level controls, micro delay for phase effects, ADSR envelope, and clocked random note generation.'
+                        },
+                        {
+                            title: 'Controls',
+                            content: 'Ecstatic: Overall intensity and envelope depth<br>Computation: Processing/modulation parameter<br>Octave: Octave shift for pitch range<br>Melody: Random note variation amount'
+                        },
+                        {
+                            title: 'Signal Flow',
+                            content: 'Clock → Clocked Random Gate → Scale Quantizer → Aliasing Saw + Aliasing Pulse → Micro Delay → ADSR VCA → Output'
+                        },
+                        {
+                            title: 'Notes',
+                            content: 'Aliasing oscillators produce harsh, digital harmonics characteristic of early digital synths. Use detune between oscillators for thickness, and adjust the micro delay for chorus-like effects.'
+                        }
+                    ]
+                });
+            }
+        }
+
+        // Main initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            setupParameterHandlers();
+            initInfoPanel();
+            document.getElementById('playBtn').addEventListener('click', togglePlay);
+        });
+    </script>
+</body>
+</html>

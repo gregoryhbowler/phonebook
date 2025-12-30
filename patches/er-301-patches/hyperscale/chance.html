@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chance - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 100px;
+        }
+        .gate-btn {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #888;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .gate-btn:hover {
+            border-color: #4a90d9;
+        }
+        .gate-btn.active {
+            background: #4a90d9;
+            border-color: #4a90d9;
+            color: white;
+        }
+        .sample-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1em;
+        }
+        .import-btn {
+            background: #2a2a4e;
+            border: 1px solid #4a90d9;
+            color: #4a90d9;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+        .import-btn:hover {
+            background: #4a90d9;
+            color: white;
+        }
+        .sample-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 4px;
+            margin-top: 0.75em;
+            padding: 0.75em;
+            background: #0a0a14;
+            border-radius: 6px;
+            border: 1px solid #222;
+            max-height: 140px;
+            overflow-y: auto;
+        }
+        .sample-slot {
+            width: 100%;
+            aspect-ratio: 1;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6em;
+            color: #666;
+            transition: all 0.1s;
+            cursor: default;
+        }
+        .sample-slot.loaded {
+            border-color: #4a90d944;
+            color: #888;
+        }
+        .sample-slot.kit1 {
+            background: #2a1a3e;
+            border-color: #9a4ad9;
+        }
+        .sample-slot.kit2 {
+            background: #1a2e3e;
+            border-color: #4a90d9;
+        }
+        .sample-slot.kit3 {
+            background: #2e3e1a;
+            border-color: #90d94a;
+        }
+        .sample-slot.playing {
+            background: #4a90d9;
+            border-color: #4a90d9;
+            color: white;
+            box-shadow: 0 0 10px #4a90d966;
+            transform: scale(1.1);
+            z-index: 1;
+        }
+        .sample-slot.clickable {
+            cursor: pointer;
+        }
+        .sample-slot.clickable:hover {
+            transform: scale(1.05);
+        }
+        .now-playing {
+            margin-top: 0.5em;
+            padding: 8px 12px;
+            background: linear-gradient(90deg, #1a1a2e, #2a2a4e);
+            border-radius: 4px;
+            font-size: 0.85em;
+            color: #4a90d9;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .now-playing .indicator {
+            width: 8px;
+            height: 8px;
+            background: #4a90d9;
+            border-radius: 50%;
+            animation: pulse-glow 0.5s ease-in-out infinite;
+        }
+        .now-playing.idle .indicator {
+            background: #333;
+            animation: none;
+        }
+        .now-playing.idle {
+            color: #666;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 1; box-shadow: 0 0 5px #4a90d9; }
+            50% { opacity: 0.5; box-shadow: 0 0 10px #4a90d9; }
+        }
+        .kit-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 1em;
+        }
+        .kit-btn {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #888;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-size: 0.8em;
+        }
+        .kit-btn:hover {
+            border-color: #666;
+        }
+        .kit-btn.kit1 {
+            border-color: #9a4ad9;
+            color: #9a4ad9;
+        }
+        .kit-btn.kit1.active {
+            background: #9a4ad9;
+            color: white;
+        }
+        .kit-btn.kit2 {
+            border-color: #4a90d9;
+            color: #4a90d9;
+        }
+        .kit-btn.kit2.active {
+            background: #4a90d9;
+            color: white;
+        }
+        .kit-btn.kit3 {
+            border-color: #90d94a;
+            color: #90d94a;
+        }
+        .kit-btn.kit3.active {
+            background: #90d94a;
+            color: white;
+        }
+        .chance-display {
+            display: flex;
+            gap: 6px;
+            padding: 10px;
+            background: #0a0a14;
+            border-radius: 4px;
+            margin-top: 0.5em;
+            align-items: center;
+            justify-content: center;
+        }
+        .chance-gate {
+            width: 24px;
+            height: 24px;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 4px;
+            transition: all 0.1s;
+        }
+        .chance-gate.kit1 {
+            border-color: #9a4ad9;
+        }
+        .chance-gate.kit2 {
+            border-color: #4a90d9;
+        }
+        .chance-gate.kit3 {
+            border-color: #90d94a;
+        }
+        .chance-gate.kit1.triggered {
+            background: #9a4ad9;
+            box-shadow: 0 0 10px #9a4ad966;
+        }
+        .chance-gate.kit2.triggered {
+            background: #4a90d9;
+            box-shadow: 0 0 10px #4a90d966;
+        }
+        .chance-gate.kit3.triggered {
+            background: #90d94a;
+            box-shadow: 0 0 10px #90d94a66;
+        }
+        .chance-gate.blocked {
+            opacity: 0.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Chance</h1>
+                <p>Probabilistic sampler with 3 kits, ring mod and clocked delays</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Sample Section -->
+            <span class="section-label">Samples (57 Wave Alchemy Drum Tools)</span>
+            <div class="param-controls">
+                <div class="sample-controls">
+                    <span class="sample-status" id="sampleStatus">Loading samples...</span>
+                    <input type="file" id="sampleImport" multiple accept="audio/*" style="display:none">
+                    <button class="import-btn" onclick="document.getElementById('sampleImport').click()">Import Samples</button>
+                    <button class="import-btn" id="clearSamplesBtn" style="border-color: #d94a4a; color: #d94a4a;">Clear All</button>
+                </div>
+                <div class="kit-selector">
+                    <span style="color: #666; font-size: 0.8em; align-self: center;">Assign to:</span>
+                    <button class="kit-btn kit1 active" id="kitBtn1" data-kit="1">Kit 1</button>
+                    <button class="kit-btn kit2" id="kitBtn2" data-kit="2">Kit 2</button>
+                    <button class="kit-btn kit3" id="kitBtn3" data-kit="3">Kit 3</button>
+                    <span style="color: #555; font-size: 0.7em; align-self: center; margin-left: 1em;">Click samples to assign</span>
+                </div>
+                <div class="now-playing idle" id="nowPlaying">
+                    <span class="indicator"></span>
+                    <span id="nowPlayingText">No sample playing</span>
+                </div>
+                <div class="sample-grid" id="sampleGrid"></div>
+            </div>
+
+            <!-- Chance Gates Section -->
+            <span class="section-label">Chance Gates (3 Kits)</span>
+            <div class="param-controls">
+                <div class="chance-display" id="chanceDisplay">
+                    <div class="chance-gate kit1" id="gate1" title="Kit 1"></div>
+                    <div class="chance-gate kit2" id="gate2" title="Kit 2"></div>
+                    <div class="chance-gate kit3" id="gate3" title="Kit 3"></div>
+                </div>
+                <div class="param-row" style="margin-top: 1em;">
+                    <div class="param-group">
+                        <label>BPM</label>
+                        <input type="range" id="bpm" min="30" max="200" value="95" step="1">
+                        <span class="param-value" id="bpmVal">95</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Chance</label>
+                        <input type="range" id="chance" min="0" max="1" value="0.65" step="0.01">
+                        <span class="param-value" id="chanceVal">0.65</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Kit 1 Prob</label>
+                        <input type="range" id="kit1Prob" min="0" max="1" value="0.53" step="0.01">
+                        <span class="param-value" id="kit1ProbVal">0.53</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Kit 2 Prob</label>
+                        <input type="range" id="kit2Prob" min="0" max="1" value="0.63" step="0.01">
+                        <span class="param-value" id="kit2ProbVal">0.63</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Kit 3 Prob</label>
+                        <input type="range" id="kit3Prob" min="0" max="1" value="0.74" step="0.01">
+                        <span class="param-value" id="kit3ProbVal">0.74</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pitch Section -->
+            <span class="section-label">Pitch</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Rnd Pitch</label>
+                        <button class="gate-btn active" id="rndPitchBtn">ON</button>
+                    </div>
+                    <div class="param-group">
+                        <label>Pitch Range</label>
+                        <input type="range" id="pitchRange" min="0" max="0.5" value="0.15" step="0.01">
+                        <span class="param-value" id="pitchRangeVal">0.15</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ring Mod Section -->
+            <span class="section-label">Ring Modulator</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Ring Mod</label>
+                        <button class="gate-btn" id="ringModBtn">OFF</button>
+                    </div>
+                    <div class="param-group">
+                        <label>Ring Freq</label>
+                        <input type="range" id="ringFreq" min="20" max="2000" value="440" step="1">
+                        <span class="param-value" id="ringFreqVal">440</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Ring Mix</label>
+                        <input type="range" id="ringMix" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="ringMixVal">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delay Section -->
+            <span class="section-label">Clocked Delay</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Delay Time</label>
+                        <input type="range" id="delayTime" min="0.01" max="0.5" value="0.2" step="0.01">
+                        <span class="param-value" id="delayTimeVal">0.20</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="feedback" min="0" max="0.9" value="0.35" step="0.01">
+                        <span class="param-value" id="feedbackVal">0.35</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Delay Mix</label>
+                        <input type="range" id="delayMix" min="0" max="1" value="0.25" step="0.01">
+                        <span class="param-value" id="delayMixVal">0.25</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="vol" min="0" max="1.5" value="1.0" step="0.01">
+                        <span class="param-value" id="volVal">1.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <pre class="code-block">
+// Chance - ER-301 Hyperscale Unit
+// Original by mudlogger
+//
+// Signal flow:
+// 3 Kits with Variable Speed Players
+//   -> Chance Gates (probabilistic) -> Ring Mod
+//   -> Clocked Delay -> CPR -> Output
+//
+// Features:
+// - 3 independent sample kits with per-kit probability
+// - Global chance gate for all triggers
+// - Clocked random gates for rhythmic variation
+// - Ring modulator for metallic textures
+// - Synced delays
+            </pre>
+
+            <p class="status" id="status">Click play to start</p>
+
+            <div id="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        // AudioWorklet Processor Code
+        const processorCode = `
+// ============================================================================
+// DELAY LINE
+// ============================================================================
+class DelayLine {
+    constructor(maxDelay) {
+        this.buffer = new Float32Array(maxDelay);
+        this.maxDelay = maxDelay;
+        this.writeIndex = 0;
+    }
+
+    write(sample) {
+        this.buffer[this.writeIndex] = sample;
+        this.writeIndex = (this.writeIndex + 1) % this.maxDelay;
+    }
+
+    readLinear(delaySamples) {
+        const delay = Math.max(0, Math.min(delaySamples, this.maxDelay - 1));
+        const intDelay = Math.floor(delay);
+        const frac = delay - intDelay;
+        let idx0 = this.writeIndex - intDelay - 1;
+        let idx1 = this.writeIndex - intDelay;
+        if (idx0 < 0) idx0 += this.maxDelay;
+        if (idx1 < 0) idx1 += this.maxDelay;
+        return this.buffer[idx1] + frac * (this.buffer[idx0] - this.buffer[idx1]);
+    }
+
+    read(delaySamples) {
+        let idx = this.writeIndex - Math.floor(delaySamples) - 1;
+        if (idx < 0) idx += this.maxDelay;
+        return this.buffer[idx];
+    }
+}
+
+// ============================================================================
+// ONE POLE FILTER
+// ============================================================================
+class OnePole {
+    constructor(coeff = 0.5) {
+        this.coeff = coeff;
+        this.z1 = 0;
+    }
+    process(x) {
+        this.z1 = x * (1 - this.coeff) + this.z1 * this.coeff;
+        return this.z1;
+    }
+}
+
+// ============================================================================
+// DC BLOCKER
+// ============================================================================
+class DCBlocker {
+    constructor() {
+        this.x1 = 0;
+        this.y1 = 0;
+    }
+    process(x) {
+        const y = x - this.x1 + 0.995 * this.y1;
+        this.x1 = x;
+        this.y1 = y;
+        return y;
+    }
+}
+
+// ============================================================================
+// CPR COMPRESSOR
+// ============================================================================
+class CPR {
+    constructor(sr) {
+        this.sr = sr;
+        this.envelope = 0;
+        this.ratio = 3.0;
+        this.threshold = -12;
+        this.attack = 0.001;
+        this.release = 0.05;
+        this.makeupGain = 1.0;
+    }
+
+    process(inputL, inputR) {
+        const inputLevel = Math.max(Math.abs(inputL), Math.abs(inputR));
+        const inputDb = 20 * Math.log10(inputLevel + 1e-10);
+
+        const attackCoeff = Math.exp(-1 / (this.attack * this.sr));
+        const releaseCoeff = Math.exp(-1 / (this.release * this.sr));
+
+        if (inputDb > this.envelope) {
+            this.envelope = attackCoeff * this.envelope + (1 - attackCoeff) * inputDb;
+        } else {
+            this.envelope = releaseCoeff * this.envelope + (1 - releaseCoeff) * inputDb;
+        }
+
+        let gainReduction = 0;
+        if (this.envelope > this.threshold) {
+            gainReduction = (this.envelope - this.threshold) * (1 - 1/this.ratio);
+        }
+
+        const gain = Math.pow(10, -gainReduction / 20) * this.makeupGain;
+        return [inputL * gain, inputR * gain];
+    }
+}
+
+// ============================================================================
+// STEREO DELAY
+// ============================================================================
+class StereoDelay {
+    constructor(sr) {
+        this.sr = sr;
+        const maxDelay = Math.floor(sr * 1);
+        this.delayL = new DelayLine(maxDelay);
+        this.delayR = new DelayLine(maxDelay);
+        this.dampL = new OnePole(0.3);
+        this.dampR = new OnePole(0.3);
+    }
+
+    process(inputL, inputR, delayTime, feedback, wet) {
+        const delaySamples = delayTime * this.sr;
+        const spreadSamples = 0.02 * this.sr; // 20ms spread
+
+        const wetL = this.dampL.process(this.delayL.readLinear(delaySamples - spreadSamples * 0.5));
+        const wetR = this.dampR.process(this.delayR.readLinear(delaySamples + spreadSamples * 0.5));
+
+        this.delayL.write(inputL + wetR * feedback);
+        this.delayR.write(inputR + wetL * feedback);
+
+        return [
+            inputL * (1 - wet) + wetL * wet,
+            inputR * (1 - wet) + wetR * wet
+        ];
+    }
+}
+
+// ============================================================================
+// VOICE (Sample Player)
+// ============================================================================
+class Voice {
+    constructor() {
+        this.sampleIndex = -1;
+        this.samplePosition = 0;
+        this.sampleSpeed = 1.0;
+        this.active = false;
+    }
+
+    trigger(sampleIndex, speed) {
+        this.sampleIndex = sampleIndex;
+        this.samplePosition = 0;
+        this.sampleSpeed = speed;
+        this.active = true;
+    }
+
+    process(samples) {
+        if (!this.active || this.sampleIndex < 0) return 0;
+
+        const sample = samples[this.sampleIndex];
+        if (!sample || !sample.data) {
+            this.active = false;
+            return 0;
+        }
+
+        const pos = Math.floor(this.samplePosition);
+        if (pos >= sample.data.length) {
+            this.active = false;
+            return 0;
+        }
+
+        // Linear interpolation
+        const frac = this.samplePosition - pos;
+        const s0 = sample.data[pos] || 0;
+        const s1 = sample.data[pos + 1] || 0;
+        const out = s0 + frac * (s1 - s0);
+
+        this.samplePosition += this.sampleSpeed;
+        return out;
+    }
+}
+
+// ============================================================================
+// CHANCE PROCESSOR
+// ============================================================================
+class ChanceProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+        this.samples = [];
+        this.params = {
+            bpm: 95,
+            chance: 0.65,
+            kit1Prob: 0.53,
+            kit2Prob: 0.63,
+            kit3Prob: 0.74,
+            rndPitch: true,
+            pitchRange: 0.15,
+            ringMod: false,
+            ringFreq: 440,
+            ringMix: 0.3,
+            delayTime: 0.2,
+            feedback: 0.35,
+            delayMix: 0.25,
+            vol: 1.0
+        };
+
+        // 3 kits with 2 voices each
+        this.voices = [
+            new Voice(), new Voice(), // Kit 1
+            new Voice(), new Voice(), // Kit 2
+            new Voice(), new Voice()  // Kit 3
+        ];
+
+        // Clock and triggers
+        this.clockPhase = 0;
+        this.lastTrigger = [0, 0, 0];
+        this.gateStates = [false, false, false];
+
+        // Ring modulator
+        this.ringPhase = 0;
+
+        // DSP
+        this.delay = new StereoDelay(this.sr);
+        this.cpr = new CPR(this.sr);
+        this.dcL = new DCBlocker();
+        this.dcR = new DCBlocker();
+
+        // Kit assignments: which kit each sample belongs to (1, 2, or 3)
+        this.kitAssignments = [];
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'samples') {
+                this.samples = e.data.samples;
+            } else if (e.data.type === 'params') {
+                Object.assign(this.params, e.data.params);
+            } else if (e.data.type === 'kitAssignments') {
+                this.kitAssignments = e.data.assignments;
+            }
+        };
+    }
+
+    triggerKit(kitIndex) {
+        if (this.samples.length === 0) return false;
+
+        // Get samples assigned to this kit (kitIndex is 0-based, kit numbers are 1-based)
+        const kitNum = kitIndex + 1;
+        const kitSampleIndices = [];
+        for (let i = 0; i < this.samples.length; i++) {
+            // Default to kit 1 if no assignment
+            const assignment = this.kitAssignments[i] || 1;
+            if (assignment === kitNum) {
+                kitSampleIndices.push(i);
+            }
+        }
+
+        // If no samples assigned to this kit, skip
+        if (kitSampleIndices.length === 0) return false;
+
+        // Global chance gate
+        if (Math.random() > this.params.chance) {
+            return false;
+        }
+
+        // Per-kit probability
+        const kitProbs = [this.params.kit1Prob, this.params.kit2Prob, this.params.kit3Prob];
+        if (Math.random() > kitProbs[kitIndex]) {
+            return false;
+        }
+
+        // Pick random sample from this kit's samples
+        const randomKitIdx = Math.floor(Math.random() * kitSampleIndices.length);
+        const sampleIdx = kitSampleIndices[randomKitIdx];
+
+        // Calculate pitch
+        let speed = 1.0;
+        if (this.params.rndPitch) {
+            const pitchMod = (Math.random() - 0.5) * 2 * this.params.pitchRange;
+            speed = Math.pow(2, pitchMod);
+        }
+
+        // Find free voice for this kit
+        const voiceOffset = kitIndex * 2;
+        let voice = this.voices[voiceOffset];
+        if (voice.active) {
+            voice = this.voices[voiceOffset + 1];
+        }
+
+        voice.trigger(sampleIdx, speed);
+        return true;
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1];
+
+        if (!outL || !outR) return true;
+
+        const samplesPerBeat = (60 / this.params.bpm) * this.sr;
+        const samplesPerStep = samplesPerBeat / 4; // 16th notes
+
+        for (let i = 0; i < outL.length; i++) {
+            this.clockPhase++;
+
+            // Trigger each kit on different subdivisions
+            for (let kit = 0; kit < 3; kit++) {
+                const offset = kit * (samplesPerStep / 3); // Stagger kits
+                if (this.clockPhase - this.lastTrigger[kit] >= samplesPerStep) {
+                    this.lastTrigger[kit] = this.clockPhase;
+                    this.gateStates[kit] = this.triggerKit(kit);
+                }
+            }
+
+            // Mix all voices
+            let mixL = 0;
+            let mixR = 0;
+
+            for (let v = 0; v < this.voices.length; v++) {
+                const voiceOut = this.voices[v].process(this.samples);
+                // Pan based on kit
+                const kit = Math.floor(v / 2);
+                const pan = (kit - 1) * 0.3; // Kit 0 = left, Kit 1 = center, Kit 2 = right
+                mixL += voiceOut * (1 - pan) * 0.5;
+                mixR += voiceOut * (1 + pan) * 0.5;
+            }
+
+            // Ring modulator
+            if (this.params.ringMod) {
+                this.ringPhase += (2 * Math.PI * this.params.ringFreq) / this.sr;
+                if (this.ringPhase > 2 * Math.PI) this.ringPhase -= 2 * Math.PI;
+                const ringCarrier = Math.sin(this.ringPhase);
+                const ringL = mixL * ringCarrier;
+                const ringR = mixR * ringCarrier;
+                mixL = mixL * (1 - this.params.ringMix) + ringL * this.params.ringMix;
+                mixR = mixR * (1 - this.params.ringMix) + ringR * this.params.ringMix;
+            }
+
+            // Delay
+            [mixL, mixR] = this.delay.process(
+                mixL, mixR,
+                this.params.delayTime,
+                this.params.feedback,
+                this.params.delayMix
+            );
+
+            // CPR
+            [mixL, mixR] = this.cpr.process(mixL, mixR);
+
+            // DC blocking
+            mixL = this.dcL.process(mixL);
+            mixR = this.dcR.process(mixR);
+
+            // Soft limiting
+            mixL = Math.tanh(mixL * this.params.vol);
+            mixR = Math.tanh(mixR * this.params.vol);
+
+            outL[i] = mixL;
+            outR[i] = mixR;
+        }
+
+        // Report state
+        const playingIndices = [];
+        for (const voice of this.voices) {
+            if (voice.active && voice.sampleIndex >= 0) {
+                playingIndices.push(voice.sampleIndex);
+            }
+        }
+
+        this.port.postMessage({
+            type: 'state',
+            playingIndices,
+            gateStates: this.gateStates
+        });
+
+        return true;
+    }
+}
+
+registerProcessor('chance-processor', ChanceProcessor);
+`;
+
+        // Expected sample names (57 samples from Wave Alchemy Drum Tools)
+        const expectedSamples = [
+            'dt01_kits_drivendigital_80stom', 'dt01_kits_drivendigital_bellharp',
+            'dt01_kits_drivendigital_boneclap', 'dt01_kits_drivendigital_clavebell',
+            'dt01_kits_drivendigital_cliphat', 'dt01_kits_drivendigital_clipper',
+            'dt01_kits_drivendigital_digitalsnare', 'dt01_kits_drivendigital_downtom',
+            'dt01_kits_drivendigital_electroglitch', 'dt01_kits_drivendigital_elektrontom',
+            'dt01_kits_drivendigital_fmhat', 'dt01_kits_drivendigital_glitch',
+            'dt01_kits_drivendigital_harmonicpulse', 'dt01_kits_drivendigital_hattone',
+            'dt01_kits_drivendigital_lowtom', 'dt01_kits_drivendigital_metallix',
+            'dt01_kits_drivendigital_nordblip', 'dt01_kits_drivendigital_piercebell',
+            'dt01_kits_drivendigital_popsticle', 'dt01_kits_drivendigital_pulse',
+            'dt01_kits_drivendigital_sinepop', 'dt01_kits_drivendigital_spankhat',
+            'dt01_kits_drivendigital_spike', 'dt01_kits_drivendigital_tomsulk',
+            'dt01_kits_drivendigital_tubeclave',
+            'dt01_kits_synthperc_basskontakt', 'dt01_kits_synthperc_bigbell',
+            'dt01_kits_synthperc_bongod', 'dt01_kits_synthperc_cellulite',
+            'dt01_kits_synthperc_closedhat', 'dt01_kits_synthperc_dirtysiren',
+            'dt01_kits_synthperc_dirtytom', 'dt01_kits_synthperc_fxnoise',
+            'dt01_kits_synthperc_fxsweep', 'dt01_kits_synthperc_glassbell',
+            'dt01_kits_synthperc_hardfm', 'dt01_kits_synthperc_hipkick',
+            'dt01_kits_synthperc_klonk', 'dt01_kits_synthperc_longkick',
+            'dt01_kits_synthperc_longmod', 'dt01_kits_synthperc_metalmouth',
+            'dt01_kits_synthperc_microclip', 'dt01_kits_synthperc_piercebell',
+            'dt01_kits_synthperc_poptom', 'dt01_kits_synthperc_ripper',
+            'dt01_kits_synthperc_scaper', 'dt01_kits_synthperc_selfosc',
+            'dt01_kits_synthperc_sineclick', 'dt01_kits_synthperc_splurge',
+            'dt01_kits_synthperc_thicksnare', 'dt01_kits_synthperc_tombrain',
+            'dt01_kits_synthperc_toughlead', 'dt01_kits_synthperc_ubahn',
+            'dt01_kits_synthperc_upbent', 'dt01_kits_synthperc_weirdtom',
+            'dt01_kits_synthperc_weirdtom02', 'dt01_kits_synthperc_zapper'
+        ];
+
+        let audioContext, workletNode, analyser, dataArray;
+        let pedalboard = null;
+        let isPlaying = false;
+        let samples = [];
+        let playingIndices = new Set();
+        let kitAssignments = []; // Kit number (1, 2, or 3) for each sample
+        let selectedKit = 1; // Currently selected kit for assignment
+
+        function setupUI() {
+            // Create sample grid
+            const grid = document.getElementById('sampleGrid');
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+            grid.innerHTML = '';
+            for (let i = 0; i < 57; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'sample-slot';
+                slot.innerHTML = `<span class="slot-index">${i + 1}</span>`;
+                slot.id = `slot-${i}`;
+                grid.appendChild(slot);
+            }
+
+            // Kit selector buttons
+            document.querySelectorAll('.kit-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.kit-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    selectedKit = parseInt(this.dataset.kit);
+                });
+            });
+
+            // Toggle buttons
+            document.getElementById('rndPitchBtn').addEventListener('click', function() {
+                this.classList.toggle('active');
+                this.textContent = this.classList.contains('active') ? 'ON' : 'OFF';
+                updateParams();
+            });
+
+            document.getElementById('ringModBtn').addEventListener('click', function() {
+                this.classList.toggle('active');
+                this.textContent = this.classList.contains('active') ? 'ON' : 'OFF';
+                updateParams();
+            });
+
+            // Sliders
+            const sliderConfigs = [
+                { id: 'bpm', decimals: 0 },
+                { id: 'chance', decimals: 2 },
+                { id: 'kit1Prob', decimals: 2 },
+                { id: 'kit2Prob', decimals: 2 },
+                { id: 'kit3Prob', decimals: 2 },
+                { id: 'pitchRange', decimals: 2 },
+                { id: 'ringFreq', decimals: 0 },
+                { id: 'ringMix', decimals: 2 },
+                { id: 'delayTime', decimals: 2 },
+                { id: 'feedback', decimals: 2 },
+                { id: 'delayMix', decimals: 2 },
+                { id: 'vol', decimals: 2 }
+            ];
+
+            sliderConfigs.forEach(config => {
+                const slider = document.getElementById(config.id);
+                const display = document.getElementById(config.id + 'Val');
+                if (slider && display) {
+                    slider.addEventListener('input', () => {
+                        const val = parseFloat(slider.value);
+                        display.textContent = config.decimals ? val.toFixed(config.decimals) : val;
+                        updateParams();
+                    });
+                }
+            });
+        }
+
+        function updateParams() {
+            if (!workletNode) return;
+
+            workletNode.port.postMessage({
+                type: 'params',
+                params: {
+                    bpm: parseFloat(document.getElementById('bpm').value),
+                    chance: parseFloat(document.getElementById('chance').value),
+                    kit1Prob: parseFloat(document.getElementById('kit1Prob').value),
+                    kit2Prob: parseFloat(document.getElementById('kit2Prob').value),
+                    kit3Prob: parseFloat(document.getElementById('kit3Prob').value),
+                    rndPitch: document.getElementById('rndPitchBtn').classList.contains('active'),
+                    pitchRange: parseFloat(document.getElementById('pitchRange').value),
+                    ringMod: document.getElementById('ringModBtn').classList.contains('active'),
+                    ringFreq: parseFloat(document.getElementById('ringFreq').value),
+                    ringMix: parseFloat(document.getElementById('ringMix').value),
+                    delayTime: parseFloat(document.getElementById('delayTime').value),
+                    feedback: parseFloat(document.getElementById('feedback').value),
+                    delayMix: parseFloat(document.getElementById('delayMix').value),
+                    vol: parseFloat(document.getElementById('vol').value)
+                }
+            });
+        }
+
+        function updateKitAssignments() {
+            if (workletNode) {
+                // Filter to only include assignments for valid samples
+                const validAssignments = [];
+                for (let i = 0; i < samples.length; i++) {
+                    if (samples[i].data) {
+                        validAssignments.push(kitAssignments[i] || 1);
+                    }
+                }
+                workletNode.port.postMessage({ type: 'kitAssignments', assignments: validAssignments });
+            }
+        }
+
+        function assignSampleToKit(sampleIndex, kit) {
+            kitAssignments[sampleIndex] = kit;
+            const slot = document.getElementById(`slot-${sampleIndex}`);
+            if (slot) {
+                slot.classList.remove('kit1', 'kit2', 'kit3');
+                slot.classList.add(`kit${kit}`);
+            }
+            updateKitAssignments();
+        }
+
+        function rebuildSampleGrid() {
+            const grid = document.getElementById('sampleGrid');
+            grid.innerHTML = '';
+            for (let i = 0; i < samples.length; i++) {
+                const slot = document.createElement('div');
+                const kit = kitAssignments[i] || 1;
+                slot.className = 'sample-slot clickable' + (samples[i].data ? ` loaded kit${kit}` : '');
+                slot.innerHTML = `<span class="slot-index">${i + 1}</span>`;
+                slot.id = `slot-${i}`;
+                slot.title = samples[i].name;
+                slot.addEventListener('click', () => {
+                    if (samples[i].data) {
+                        assignSampleToKit(i, selectedKit);
+                    }
+                });
+                grid.appendChild(slot);
+            }
+        }
+
+        function updateSampleGrid(indices, gateStates) {
+            document.querySelectorAll('.sample-slot.playing').forEach(slot => {
+                slot.classList.remove('playing');
+            });
+
+            indices.forEach(idx => {
+                const slot = document.getElementById(`slot-${idx}`);
+                if (slot) slot.classList.add('playing');
+            });
+
+            // Update gate indicators
+            for (let i = 0; i < 3; i++) {
+                const gate = document.getElementById(`gate${i + 1}`);
+                if (gate) {
+                    gate.classList.toggle('triggered', gateStates[i]);
+                    gate.classList.toggle('blocked', !gateStates[i]);
+                }
+            }
+
+            const nowPlaying = document.getElementById('nowPlaying');
+            const nowPlayingText = document.getElementById('nowPlayingText');
+
+            if (indices.length > 0 && samples[indices[0]]) {
+                nowPlaying.classList.remove('idle');
+                nowPlayingText.textContent = samples[indices[0]].name;
+            } else {
+                nowPlaying.classList.add('idle');
+                nowPlayingText.textContent = 'No sample playing';
+            }
+        }
+
+        async function loadSamples() {
+            const status = document.getElementById('sampleStatus');
+            status.textContent = 'Loading samples...';
+
+            const basePath = '../samples/hyperscale/chance/';
+            samples = [];
+            kitAssignments = [];
+            let loadedCount = 0;
+
+            for (let i = 0; i < expectedSamples.length; i++) {
+                const name = expectedSamples[i];
+                try {
+                    const response = await fetch(basePath + name + '.wav');
+                    if (response.ok) {
+                        const arrayBuffer = await response.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        const data = audioBuffer.getChannelData(0);
+                        samples.push({ name, data: Array.from(data) });
+
+                        // Distribute samples across kits:
+                        // - First 25 (driven digital) go to Kit 1
+                        // - Rest (synth perc) split between Kit 2 and Kit 3
+                        let kit;
+                        if (i < 25) {
+                            kit = 1;
+                        } else if (i < 41) {
+                            kit = 2;
+                        } else {
+                            kit = 3;
+                        }
+                        kitAssignments.push(kit);
+                        loadedCount++;
+                    } else {
+                        samples.push({ name, data: null });
+                        kitAssignments.push(1);
+                    }
+                } catch (e) {
+                    samples.push({ name, data: null });
+                    kitAssignments.push(1);
+                }
+            }
+
+            status.textContent = `${loadedCount}/${expectedSamples.length} samples loaded`;
+            rebuildSampleGrid();
+
+            if (workletNode) {
+                // Filter samples and corresponding kit assignments together
+                const validSamples = [];
+                const validAssignments = [];
+                for (let i = 0; i < samples.length; i++) {
+                    if (samples[i].data) {
+                        validSamples.push(samples[i]);
+                        validAssignments.push(kitAssignments[i] || 1);
+                    }
+                }
+                workletNode.port.postMessage({ type: 'samples', samples: validSamples });
+                workletNode.port.postMessage({ type: 'kitAssignments', assignments: validAssignments });
+            }
+        }
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'chance-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'state') {
+                    updateSampleGrid(e.data.playingIndices, e.data.gateStates);
+                }
+            };
+
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboard = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboard.init();
+
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'chance-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-chance'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-chance');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-chance',
+                    prefix: 'chance',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Analyzer
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+            fxNode.connect(analyser);
+
+            await loadSamples();
+            updateParams();
+        }
+
+        // Visualizer
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        function drawVisualizer() {
+            requestAnimationFrame(drawVisualizer);
+
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+
+            ctx.fillStyle = '#0a0a14';
+            ctx.fillRect(0, 0, width, height);
+
+            if (!analyser) return;
+
+            analyser.getByteFrequencyData(dataArray);
+
+            const barCount = 64;
+            const barWidth = width / barCount;
+            const maxHeight = height * 0.9;
+
+            for (let i = 0; i < barCount; i++) {
+                const dataIndex = Math.floor(i * dataArray.length / barCount);
+                const value = dataArray[dataIndex] / 255;
+                const barHeight = value * maxHeight;
+
+                const hue = 210 + i * 0.5;
+                ctx.fillStyle = `hsla(${hue}, 70%, 55%, ${0.3 + value * 0.7})`;
+                ctx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
+            }
+        }
+        drawVisualizer();
+
+        // Play button
+        document.getElementById('playBtn').addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+            }
+
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            isPlaying = !isPlaying;
+            document.getElementById('playBtn').innerHTML = isPlaying ? '&#10074;&#10074;' : '&#9654;';
+            document.getElementById('status').textContent = isPlaying ? 'Playing probabilistic sequence...' : 'Paused';
+
+            if (!isPlaying && audioContext) {
+                audioContext.suspend();
+            }
+        });
+
+        // Sample import
+        document.getElementById('sampleImport').addEventListener('change', async (e) => {
+            if (!audioContext) await initAudio();
+
+            const files = Array.from(e.target.files);
+            let imported = 0;
+
+            for (const file of files) {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    const data = audioBuffer.getChannelData(0);
+                    const name = file.name.replace(/\.[^/.]+$/, '');
+
+                    samples.push({ name, data: Array.from(data) });
+                    kitAssignments.push(selectedKit); // Assign to currently selected kit
+                    imported++;
+                } catch (e) {
+                    console.error('Failed to load:', file.name, e);
+                }
+            }
+
+            if (imported > 0 && workletNode) {
+                // Filter samples and corresponding kit assignments together
+                const validSamples = [];
+                const validAssignments = [];
+                for (let i = 0; i < samples.length; i++) {
+                    if (samples[i].data) {
+                        validSamples.push(samples[i]);
+                        validAssignments.push(kitAssignments[i] || 1);
+                    }
+                }
+                workletNode.port.postMessage({ type: 'samples', samples: validSamples });
+                workletNode.port.postMessage({ type: 'kitAssignments', assignments: validAssignments });
+                document.getElementById('sampleStatus').textContent = `${validSamples.length} samples loaded`;
+                rebuildSampleGrid();
+            }
+        });
+
+        // Clear samples
+        document.getElementById('clearSamplesBtn').addEventListener('click', () => {
+            samples = [];
+            kitAssignments = [];
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'samples', samples: [] });
+                workletNode.port.postMessage({ type: 'kitAssignments', assignments: [] });
+            }
+            document.getElementById('sampleStatus').textContent = '0 samples loaded';
+            document.getElementById('sampleGrid').innerHTML = '';
+            document.getElementById('nowPlaying').classList.add('idle');
+            document.getElementById('nowPlayingText').textContent = 'No sample playing';
+        });
+
+        setupUI();
+    </script>
+</body>
+</html>

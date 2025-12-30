@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ezil - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 80px;
+        }
+        .osc-display {
+            display: flex;
+            gap: 1em;
+            margin-bottom: 1em;
+            justify-content: center;
+        }
+        .osc-card {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 12px 20px;
+            text-align: center;
+            min-width: 100px;
+        }
+        .osc-card .label {
+            font-size: 0.65em;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .osc-card .freq {
+            font-size: 1.1em;
+            color: #e74c3c;
+            font-family: 'SF Mono', monospace;
+        }
+        .wave-mix {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 1em;
+        }
+        .wave-indicator {
+            width: 50px;
+            height: 50px;
+            border-radius: 6px;
+            background: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        .wave-indicator .icon {
+            font-size: 1.2em;
+            margin-bottom: 2px;
+        }
+        .wave-indicator .level {
+            font-size: 0.55em;
+            color: #666;
+        }
+        .wave-indicator.active {
+            background: #2a2a4e;
+            box-shadow: 0 0 10px rgba(231, 76, 60, 0.3);
+        }
+        .wave-indicator.active .icon {
+            color: #e74c3c;
+        }
+        .lpg-meter {
+            width: 100%;
+            max-width: 300px;
+            height: 8px;
+            background: #1a1a2e;
+            border-radius: 4px;
+            margin: 0.5em auto;
+            overflow: hidden;
+        }
+        .lpg-meter-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #e74c3c, #f39c12);
+            width: 0%;
+            transition: width 0.05s;
+        }
+        .toggle-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-family: inherit;
+        }
+        .toggle-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .toggle-btn.active {
+            background: #e74c3c;
+            color: white;
+            border-color: #e74c3c;
+        }
+        .midi-status {
+            text-align: center;
+            font-size: 0.75em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+        .midi-status.connected {
+            color: #4da6ff;
+        }
+        .midi-note {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #1a1a2e;
+            border-radius: 4px;
+            margin-left: 0.5em;
+            color: #e74c3c;
+            font-family: 'SF Mono', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>ezil</h1>
+                <p>West Coast dual oscillator synth with LPG, waveshaping and Doppler delay</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="midi-status" id="midiStatus">MIDI: Connect a controller to play notes</div>
+
+            <!-- Oscillator Display -->
+            <div class="osc-display">
+                <div class="osc-card">
+                    <div class="label">Osc A</div>
+                    <div class="freq" id="freqA">220 Hz</div>
+                </div>
+                <div class="osc-card">
+                    <div class="label">Osc B</div>
+                    <div class="freq" id="freqB">220 Hz</div>
+                </div>
+            </div>
+
+            <!-- Wave Mix Display -->
+            <div class="wave-mix">
+                <div class="wave-indicator" id="spikeInd">
+                    <span class="icon">⚡</span>
+                    <span class="level" id="spikeLevel">0%</span>
+                </div>
+                <div class="wave-indicator" id="squareInd">
+                    <span class="icon">▢</span>
+                    <span class="level" id="squareLevel">0%</span>
+                </div>
+                <div class="wave-indicator" id="triangleInd">
+                    <span class="icon">△</span>
+                    <span class="level" id="triangleLevel">0%</span>
+                </div>
+                <div class="wave-indicator" id="noiseInd">
+                    <span class="icon">〰</span>
+                    <span class="level" id="noiseLevel">0%</span>
+                </div>
+            </div>
+
+            <!-- LPG Meter -->
+            <div class="lpg-meter">
+                <div class="lpg-meter-fill" id="lpgMeter"></div>
+            </div>
+
+            <!-- Oscillator Section -->
+            <span class="section-label">Oscillators</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Tune A</label>
+                        <input type="range" id="tuneA" min="-24" max="24" value="0" step="1">
+                        <span class="param-value" id="tuneAVal">0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Tune B</label>
+                        <input type="range" id="tuneB" min="-24" max="24" value="0" step="1">
+                        <span class="param-value" id="tuneBVal">0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Tracking</label>
+                        <input type="range" id="tracking" min="0" max="1" value="1" step="0.01">
+                        <span class="param-value" id="trackingVal">1.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Timbre</label>
+                        <input type="range" id="timbre" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="timbreVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Waveshape</label>
+                        <input type="range" id="wshape" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="wshapeVal">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Waveform Mix -->
+            <span class="section-label">Waveform Mix</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Spike</label>
+                        <input type="range" id="spike" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="spikeVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Square</label>
+                        <input type="range" id="square" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="squareVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Triangle</label>
+                        <input type="range" id="triangle" min="0" max="1" value="0.4" step="0.01">
+                        <span class="param-value" id="triangleVal">0.40</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Noise</label>
+                        <input type="range" id="noise" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="noiseVal">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Noise Vol</label>
+                        <input type="range" id="noiseVol" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="noiseVolVal">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modulation -->
+            <span class="section-label">Modulation</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Mod Bus</label>
+                        <input type="range" id="modBus" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="modBusVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mod Mix</label>
+                        <input type="range" id="modMix" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="modMixVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mod Osc</label>
+                        <input type="range" id="modOsc" min="0.1" max="20" value="5" step="0.1">
+                        <span class="param-value" id="modOscVal">5.0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LPG / Envelope -->
+            <span class="section-label">LPG Envelope</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>LPG Gate</label>
+                        <input type="range" id="lpgGate" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="lpgGateVal">0.70</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Rise</label>
+                        <input type="range" id="rise" min="0.001" max="2" value="0.01" step="0.001">
+                        <span class="param-value" id="riseVal">0.01</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Fall</label>
+                        <input type="range" id="fall" min="0.01" max="2" value="0.28" step="0.001">
+                        <span class="param-value" id="fallVal">0.28</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Bend</label>
+                        <input type="range" id="bend" min="-1" max="1" value="0" step="0.01">
+                        <span class="param-value" id="bendVal">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Height</label>
+                        <input type="range" id="height" min="0" max="1" value="0.8" step="0.01">
+                        <span class="param-value" id="heightVal">0.80</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Looping</label>
+                        <button class="toggle-btn active" id="looping">ON</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delay -->
+            <span class="section-label">Doppler Delay</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Delay On</label>
+                        <button class="toggle-btn active" id="delayOn">ON</button>
+                    </div>
+                    <div class="param-group">
+                        <label>Tap (ms)</label>
+                        <input type="range" id="dTap" min="50" max="1000" value="250" step="1">
+                        <span class="param-value" id="dTapVal">250</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Multiply</label>
+                        <input type="range" id="dMul" min="1" max="8" value="2" step="1">
+                        <span class="param-value" id="dMulVal">2</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Divide</label>
+                        <input type="range" id="dDiv" min="1" max="8" value="1" step="1">
+                        <span class="param-value" id="dDivVal">1</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Spread</label>
+                        <input type="range" id="dSpread" min="-1" max="1" value="0.61" step="0.01">
+                        <span class="param-value" id="dSpreadVal">0.61</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="dFdbk" min="0" max="0.95" value="0.4" step="0.01">
+                        <span class="param-value" id="dFdbkVal">0.40</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Wet/Dry</label>
+                        <input type="range" id="dWetDry" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="dWetDryVal">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Drive</label>
+                        <input type="range" id="drive" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="driveVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="vol" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="volVal">0.70</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mute</label>
+                        <button class="toggle-btn" id="mute">OFF</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        const processorCode = `
+// ezil - West Coast dual oscillator synth with LPG and Doppler delay
+class EzilProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+        this.playing = false;
+        this.muted = false;
+
+        // Dual oscillators
+        this.oscA = { phase: 0, freq: 220 };
+        this.oscB = { phase: 0, freq: 220 };
+
+        // Modulation oscillator
+        this.modOsc = { phase: 0 };
+
+        // LPG envelope
+        this.envelope = 0;
+        this.envStage = 'idle'; // idle, rise, fall
+        this.looping = true; // Start with looping enabled
+
+        // LPG filter state (simple 1-pole lowpass)
+        this.lpgFilter = { y1L: 0, y1R: 0 };
+
+        // Doppler delay
+        const maxDelay = Math.ceil(this.sr * 2);
+        this.delayLineL = new Float32Array(maxDelay);
+        this.delayLineR = new Float32Array(maxDelay);
+        this.delayWriteIdx = 0;
+        this.delayEnabled = true;
+
+        // DC blockers
+        this.dcL = { x1: 0, y1: 0 };
+        this.dcR = { x1: 0, y1: 0 };
+
+        // Parameters
+        this.params = {
+            tuneA: 0, tuneB: 0,
+            tracking: 1,
+            timbre: 0.5,
+            wshape: 0.3,
+            spike: 0.5,
+            square: 0.3,
+            triangle: 0.4,
+            noise: 0,
+            noiseVol: 0.3,
+            modBus: 0.5,
+            modMix: 0.3,
+            modOsc: 5,
+            lpgGate: 0.7,
+            rise: 0.01,
+            fall: 0.28,
+            bend: 0,
+            height: 0.8,
+            dTap: 250,
+            dMul: 2,
+            dDiv: 1,
+            dSpread: 0.61,
+            dFdbk: 0.4,
+            dWetDry: 0.3,
+            drive: 0.3,
+            vol: 0.7
+        };
+
+        // MIDI note tracking
+        this.midiNote = 60; // Middle C default
+        this.midiVelocity = 0;
+        this.baseFreq = 220; // A3
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'start') {
+                this.playing = true;
+                this.envStage = 'rise';
+            }
+            if (e.data.type === 'stop') {
+                this.playing = false;
+                this.envStage = 'fall';
+            }
+            if (e.data.type === 'noteOn') {
+                // MIDI note on - trigger envelope and set pitch
+                this.midiNote = e.data.note;
+                this.midiVelocity = e.data.velocity / 127;
+                this.baseFreq = 440 * Math.pow(2, (this.midiNote - 69) / 12);
+                this.playing = true;
+                this.envStage = 'rise';
+                this.envelope = 0; // Reset envelope for new note
+            }
+            if (e.data.type === 'noteOff') {
+                // Only release if not looping
+                if (!this.looping) {
+                    this.envStage = 'fall';
+                }
+            }
+            if (e.data.type === 'mute') this.muted = e.data.value;
+            if (e.data.type === 'looping') this.looping = e.data.value;
+            if (e.data.type === 'delayOn') this.delayEnabled = e.data.value;
+            if (e.data.type === 'param') {
+                this.params[e.data.name] = e.data.value;
+            }
+        };
+    }
+
+    // Aliasing waveforms (intentionally harsh)
+    aliasingTriangle(phase) {
+        return phase < 0.5 ? 4 * phase - 1 : 3 - 4 * phase;
+    }
+
+    aliasingSquare(phase, pw = 0.5) {
+        return phase < pw ? 1 : -1;
+    }
+
+    aliasingSpike(phase) {
+        // Sharp spike wave - emphasizes harmonics
+        const x = phase * 2 - 1;
+        return Math.sign(x) * Math.pow(Math.abs(x), 0.3);
+    }
+
+    dcBlock(sample, state) {
+        const R = 0.995;
+        const y = sample - state.x1 + R * state.y1;
+        state.x1 = sample;
+        state.y1 = y;
+        return y;
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1];
+
+        if (this.muted) {
+            outL.fill(0);
+            outR.fill(0);
+            return true;
+        }
+
+        for (let i = 0; i < outL.length; i++) {
+            // Calculate oscillator frequencies (using MIDI-controlled base freq)
+            const freqA = this.baseFreq * Math.pow(2, this.params.tuneA / 12) * this.params.tracking;
+            const freqB = this.baseFreq * Math.pow(2, this.params.tuneB / 12) * this.params.tracking;
+
+            // Modulation oscillator
+            const modFreq = this.params.modOsc;
+            this.modOsc.phase += modFreq / this.sr;
+            if (this.modOsc.phase >= 1) this.modOsc.phase -= 1;
+            const modSignal = Math.sin(this.modOsc.phase * 2 * Math.PI);
+
+            // Apply modulation to oscillator B
+            const modAmount = this.params.modBus * this.params.modMix * modSignal;
+            const freqBMod = freqB * (1 + modAmount * 0.5);
+
+            // Advance oscillator phases
+            this.oscA.phase += freqA / this.sr;
+            this.oscB.phase += freqBMod / this.sr;
+            if (this.oscA.phase >= 1) this.oscA.phase -= 1;
+            if (this.oscB.phase >= 1) this.oscB.phase -= 1;
+
+            this.oscA.freq = freqA;
+            this.oscB.freq = freqBMod;
+
+            // Generate waveforms from oscillator A
+            const spikeA = this.aliasingSpike(this.oscA.phase);
+            const squareA = this.aliasingSquare(this.oscA.phase, 0.5 + this.params.timbre * 0.4);
+            const triangleA = this.aliasingTriangle(this.oscA.phase);
+
+            // Generate waveforms from oscillator B (with waveshaping)
+            const phaseB = (this.oscB.phase + this.params.wshape * 0.3) % 1;
+            const spikeB = this.aliasingSpike(phaseB);
+            const squareB = this.aliasingSquare(phaseB, 0.5 + this.params.timbre * 0.4);
+            const triangleB = this.aliasingTriangle(phaseB);
+
+            // Mix waveforms
+            const spike = (spikeA + spikeB) * 0.5 * this.params.spike;
+            const square = (squareA + squareB) * 0.5 * this.params.square;
+            const triangle = (triangleA + triangleB) * 0.5 * this.params.triangle;
+
+            // White noise
+            const noiseVal = (Math.random() * 2 - 1) * this.params.noise * this.params.noiseVol;
+
+            // Mix all sources
+            let oscMix = spike + square + triangle + noiseVal;
+
+            // Apply waveshaping/timbre
+            oscMix = Math.tanh(oscMix * (1 + this.params.wshape * 2));
+
+            // Envelope processing
+            if (this.envStage === 'rise') {
+                const riseRate = 1 / (this.params.rise * this.sr);
+                this.envelope += riseRate;
+                if (this.envelope >= this.params.height) {
+                    this.envelope = this.params.height;
+                    this.envStage = 'fall';
+                }
+            } else if (this.envStage === 'fall') {
+                // Exponential fall with bend control
+                const fallRate = 1 / (this.params.fall * this.sr);
+                const bendFactor = 1 + this.params.bend;
+                this.envelope -= this.envelope * fallRate * bendFactor + fallRate * 0.01;
+                if (this.envelope <= 0.001) {
+                    this.envelope = 0;
+                    if (this.looping && this.playing) {
+                        this.envStage = 'rise';
+                    } else {
+                        this.envStage = 'idle';
+                    }
+                }
+            }
+
+            // LPG filter - envelope controls both amplitude and filter cutoff
+            const lpgAmount = this.envelope * this.params.lpgGate;
+            const cutoff = 200 + lpgAmount * 15000; // 200Hz to 15kHz
+            const rc = 1 / (2 * Math.PI * cutoff);
+            const alpha = 1 / (1 + rc * this.sr);
+
+            // Apply LPG (lowpass + VCA)
+            let signalL = oscMix * lpgAmount;
+            let signalR = oscMix * lpgAmount;
+
+            this.lpgFilter.y1L += alpha * (signalL - this.lpgFilter.y1L);
+            this.lpgFilter.y1R += alpha * (signalR - this.lpgFilter.y1R);
+            signalL = this.lpgFilter.y1L;
+            signalR = this.lpgFilter.y1R;
+
+            // Doppler delay
+            if (this.delayEnabled) {
+                const baseDelay = this.params.dTap / 1000 * this.params.dMul / this.params.dDiv;
+                const delaySamples = Math.floor(baseDelay * this.sr);
+                const spreadOffset = Math.abs(this.params.dSpread) * delaySamples * 0.3;
+                const spreadSign = this.params.dSpread >= 0 ? 1 : -1;
+
+                const delaySamplesL = Math.max(1, Math.min(delaySamples - spreadOffset * spreadSign, this.delayLineL.length - 1));
+                const delaySamplesR = Math.max(1, Math.min(delaySamples + spreadOffset * spreadSign, this.delayLineR.length - 1));
+
+                const delayReadL = (this.delayWriteIdx - Math.floor(delaySamplesL) + this.delayLineL.length) % this.delayLineL.length;
+                const delayReadR = (this.delayWriteIdx - Math.floor(delaySamplesR) + this.delayLineR.length) % this.delayLineR.length;
+
+                const delayOutL = this.delayLineL[delayReadL];
+                const delayOutR = this.delayLineR[delayReadR];
+
+                // Cross-feedback for stereo motion
+                this.delayLineL[this.delayWriteIdx] = signalL + delayOutR * this.params.dFdbk;
+                this.delayLineR[this.delayWriteIdx] = signalR + delayOutL * this.params.dFdbk;
+                this.delayWriteIdx = (this.delayWriteIdx + 1) % this.delayLineL.length;
+
+                // Mix wet/dry
+                signalL = signalL * (1 - this.params.dWetDry) + delayOutL * this.params.dWetDry;
+                signalR = signalR * (1 - this.params.dWetDry) + delayOutR * this.params.dWetDry;
+            }
+
+            // Drive/saturation
+            const driveAmount = 1 + this.params.drive * 4;
+            signalL = Math.tanh(signalL * driveAmount);
+            signalR = Math.tanh(signalR * driveAmount);
+
+            // DC block
+            signalL = this.dcBlock(signalL, this.dcL);
+            signalR = this.dcBlock(signalR, this.dcR);
+
+            // Output
+            outL[i] = signalL * this.params.vol;
+            outR[i] = signalR * this.params.vol;
+        }
+
+        // Report envelope level for UI
+        if (this.playing || this.envelope > 0.001) {
+            this.port.postMessage({
+                type: 'envelope',
+                level: this.envelope,
+                freqA: this.oscA.freq,
+                freqB: this.oscB.freq
+            });
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('ezil-processor', EzilProcessor);
+`;
+
+        let audioContext, workletNode, pedalboard;
+        let isPlaying = false;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const lpgMeter = document.getElementById('lpgMeter');
+        const freqADisplay = document.getElementById('freqA');
+        const freqBDisplay = document.getElementById('freqB');
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext({ sampleRate: 48000 });
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            workletNode = new AudioWorkletNode(audioContext, 'ezil-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboard = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'ezil-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-ezil'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-ezil');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-ezil',
+                    prefix: 'ezil',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Handle messages from processor
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'envelope') {
+                    lpgMeter.style.width = (e.data.level * 100) + '%';
+                    freqADisplay.textContent = Math.round(e.data.freqA) + ' Hz';
+                    freqBDisplay.textContent = Math.round(e.data.freqB) + ' Hz';
+                }
+            };
+
+            // Visualizer
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            fxNode.connect(analyser);
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            function draw() {
+                requestAnimationFrame(draw);
+                analyser.getByteTimeDomainData(dataArray);
+                ctx.fillStyle = '#0a0a14';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#e74c3c';
+                ctx.beginPath();
+                const sliceWidth = canvas.width / dataArray.length;
+                let x = 0;
+                for (let i = 0; i < dataArray.length; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * canvas.height / 2;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                    x += sliceWidth;
+                }
+                ctx.stroke();
+            }
+            draw();
+
+            // Initialize MIDI after audio is ready
+            initMIDI();
+        }
+
+        // MIDI Setup
+        const midiStatus = document.getElementById('midiStatus');
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+        function noteToName(note) {
+            const octave = Math.floor(note / 12) - 1;
+            const name = noteNames[note % 12];
+            return name + octave;
+        }
+
+        function handleMIDIMessage(event) {
+            const [status, note, velocity] = event.data;
+            const command = status & 0xf0;
+
+            if (command === 0x90 && velocity > 0) {
+                // Note On
+                if (workletNode) {
+                    workletNode.port.postMessage({ type: 'noteOn', note, velocity });
+                }
+                midiStatus.innerHTML = `MIDI: Playing <span class="midi-note">${noteToName(note)}</span>`;
+            } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+                // Note Off
+                if (workletNode) {
+                    workletNode.port.postMessage({ type: 'noteOff', note });
+                }
+            }
+        }
+
+        async function initMIDI() {
+            if (!navigator.requestMIDIAccess) {
+                midiStatus.textContent = 'MIDI: Not supported in this browser';
+                return;
+            }
+
+            try {
+                const midiAccess = await navigator.requestMIDIAccess();
+                const inputs = midiAccess.inputs.values();
+                let connected = false;
+
+                for (const input of inputs) {
+                    input.onmidimessage = handleMIDIMessage;
+                    connected = true;
+                }
+
+                if (connected) {
+                    midiStatus.textContent = 'MIDI: Connected - play notes to trigger synth';
+                    midiStatus.classList.add('connected');
+                } else {
+                    midiStatus.textContent = 'MIDI: No devices found - connect a controller';
+                }
+
+                // Handle new connections
+                midiAccess.onstatechange = (e) => {
+                    if (e.port.type === 'input') {
+                        if (e.port.state === 'connected') {
+                            e.port.onmidimessage = handleMIDIMessage;
+                            midiStatus.textContent = 'MIDI: ' + e.port.name + ' connected';
+                            midiStatus.classList.add('connected');
+                        }
+                    }
+                };
+            } catch (err) {
+                midiStatus.textContent = 'MIDI: Access denied - check browser permissions';
+            }
+        }
+
+        playBtn.onclick = async () => {
+            if (!audioContext) await initAudio();
+            if (audioContext.state === 'suspended') await audioContext.resume();
+
+            isPlaying = !isPlaying;
+            playBtn.textContent = isPlaying ? '⏹' : '▶';
+
+            // Send looping state first (it's ON by default)
+            workletNode.port.postMessage({ type: 'looping', value: true });
+            workletNode.port.postMessage({ type: isPlaying ? 'start' : 'stop' });
+        };
+
+        // Update wave indicators
+        function updateWaveIndicators() {
+            const spike = parseFloat(document.getElementById('spike').value);
+            const square = parseFloat(document.getElementById('square').value);
+            const triangle = parseFloat(document.getElementById('triangle').value);
+            const noise = parseFloat(document.getElementById('noise').value);
+
+            document.getElementById('spikeInd').classList.toggle('active', spike > 0.1);
+            document.getElementById('squareInd').classList.toggle('active', square > 0.1);
+            document.getElementById('triangleInd').classList.toggle('active', triangle > 0.1);
+            document.getElementById('noiseInd').classList.toggle('active', noise > 0.1);
+
+            document.getElementById('spikeLevel').textContent = Math.round(spike * 100) + '%';
+            document.getElementById('squareLevel').textContent = Math.round(square * 100) + '%';
+            document.getElementById('triangleLevel').textContent = Math.round(triangle * 100) + '%';
+            document.getElementById('noiseLevel').textContent = Math.round(noise * 100) + '%';
+        }
+
+        // Parameter controls
+        const params = [
+            'tuneA', 'tuneB', 'tracking', 'timbre', 'wshape',
+            'spike', 'square', 'triangle', 'noise', 'noiseVol',
+            'modBus', 'modMix', 'modOsc',
+            'lpgGate', 'rise', 'fall', 'bend', 'height',
+            'dTap', 'dMul', 'dDiv', 'dSpread', 'dFdbk', 'dWetDry',
+            'drive', 'vol'
+        ];
+
+        params.forEach(name => {
+            const input = document.getElementById(name);
+            const display = document.getElementById(name + 'Val');
+            if (input && display) {
+                input.oninput = () => {
+                    const val = parseFloat(input.value);
+                    display.textContent = Number.isInteger(val) ? val : val.toFixed(2);
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'param', name, value: val });
+                    }
+                    if (['spike', 'square', 'triangle', 'noise'].includes(name)) {
+                        updateWaveIndicators();
+                    }
+                };
+            }
+        });
+
+        // Toggle buttons
+        document.getElementById('mute').onclick = function() {
+            const isActive = this.classList.toggle('active');
+            this.textContent = isActive ? 'ON' : 'OFF';
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'mute', value: isActive });
+            }
+        };
+
+        document.getElementById('looping').onclick = function() {
+            const isActive = this.classList.toggle('active');
+            this.textContent = isActive ? 'ON' : 'OFF';
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'looping', value: isActive });
+            }
+        };
+
+        document.getElementById('delayOn').onclick = function() {
+            const isActive = this.classList.toggle('active');
+            this.textContent = isActive ? 'ON' : 'OFF';
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'delayOn', value: isActive });
+            }
+        };
+
+        // Initialize wave indicators
+        updateWaveIndicators();
+
+        // Info panel
+        if (typeof ER301InfoPanel !== 'undefined') {
+            new ER301InfoPanel(document.body, {
+                title: 'ezil',
+                author: 'mudlogger',
+                origin: 'ER-301 Hyperscale Units',
+                description: 'West Coast-style dual oscillator synthesizer with aliasing waveforms, Low Pass Gate, modulation bus, and Clocked Doppler Delay. MIDI playable - connect a keyboard to control pitch.',
+                controls: [
+                    { name: 'Tune A/B', range: '-24 to +24', description: 'Semitone offset for each oscillator' },
+                    { name: 'Tracking', range: '0-1', description: 'Keyboard tracking amount' },
+                    { name: 'Timbre', range: '0-1', description: 'Pulse width / harmonic content' },
+                    { name: 'Waveshape', range: '0-1', description: 'Phase distortion amount' },
+                    { name: 'Spike/Square/Triangle', range: '0-1', description: 'Waveform mix levels' },
+                    { name: 'Noise', range: '0-1', description: 'White noise mix level' },
+                    { name: 'Mod Bus/Mix/Osc', range: 'various', description: 'FM modulation controls' },
+                    { name: 'LPG Gate', range: '0-1', description: 'Low Pass Gate sensitivity' },
+                    { name: 'Rise/Fall', range: '0-2s', description: 'Envelope attack and decay times' },
+                    { name: 'Bend', range: '-1 to 1', description: 'Envelope curve shape' },
+                    { name: 'Height', range: '0-1', description: 'Maximum envelope level' },
+                    { name: 'Looping', range: 'on/off', description: 'Auto-retrigger envelope' },
+                    { name: 'Delay Spread', range: '-1 to 1', description: 'Stereo delay offset' },
+                    { name: 'Drive', range: '0-1', description: 'Tanh saturation amount' }
+                ],
+                tips: [
+                    'Connect a MIDI keyboard to play notes - press Play first to initialize audio',
+                    'Looping ON = notes keep retriggering; Looping OFF = one-shot per key press',
+                    'Turn Looping OFF for traditional keyboard playing with note-on/note-off',
+                    'Aliasing waveforms are intentionally harsh - embrace the digital artifacts',
+                    'Mod Bus creates FM between oscillators for metallic timbres',
+                    'The LPG combines filter and amplitude for organic West Coast plucks'
+                ]
+            });
+        }
+    </script>
+</body>
+</html>

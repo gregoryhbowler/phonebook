@@ -1,0 +1,1831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tritone - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 80px;
+        }
+        .status-display {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .status-card {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 10px 16px;
+            text-align: center;
+            min-width: 70px;
+        }
+        .status-card .label {
+            font-size: 0.6em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .status-card .value {
+            font-size: 1em;
+            color: #9b59b6;
+            font-family: 'SF Mono', monospace;
+        }
+        .toggle-btn {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+        .toggle-btn.active {
+            border-color: #9b59b6;
+            color: #9b59b6;
+            background: rgba(155, 89, 182, 0.1);
+        }
+        .toggle-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .midi-status {
+            text-align: center;
+            font-size: 0.75em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+        .midi-status.connected { color: #9b59b6; }
+        select {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            width: 100%;
+            cursor: pointer;
+        }
+        select:focus {
+            outline: none;
+            border-color: #9b59b6;
+        }
+        .keyboard-container {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            background: #0a0a14;
+            border-radius: 8px;
+        }
+        .keyboard-container.visible {
+            display: block;
+        }
+        .keyboard {
+            display: flex;
+            justify-content: center;
+            position: relative;
+            height: 80px;
+            margin-bottom: 8px;
+        }
+        .white-keys {
+            display: flex;
+            gap: 2px;
+        }
+        .key {
+            cursor: pointer;
+            border-radius: 0 0 4px 4px;
+            transition: all 0.1s;
+        }
+        .key.white {
+            width: 32px;
+            height: 70px;
+            background: #ddd;
+            border: 1px solid #999;
+        }
+        .key.black {
+            width: 22px;
+            height: 45px;
+            background: #222;
+            border: 1px solid #000;
+            position: absolute;
+            z-index: 1;
+        }
+        .key.white.active {
+            background: #9b59b6;
+            border-color: #7d3c98;
+        }
+        .key.black.active {
+            background: #7d3c98;
+            border-color: #5b2c6f;
+        }
+        .key.white:hover {
+            background: #c9a0dc;
+        }
+        .key.black:hover {
+            background: #5b2c6f;
+        }
+        .key-label {
+            font-size: 0.6em;
+            text-align: center;
+            margin-top: auto;
+            padding-bottom: 4px;
+            color: #333;
+        }
+        .key.black .key-label {
+            color: #aaa;
+        }
+        .keyboard-hint {
+            font-size: 0.7em;
+            color: #666;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>tritone</h1>
+                <p>Dual oscillator synth tuned a tritone apart with LPG, fold & Doppler delay</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="midi-status" id="midiStatus">MIDI: Connect a controller</div>
+
+            <!-- Status Display -->
+            <div class="status-display">
+                <div class="status-card">
+                    <div class="label">Gate</div>
+                    <div class="value" id="gateDisplay">OFF</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Osc 1</div>
+                    <div class="value" id="osc1Display">--</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Osc 2</div>
+                    <div class="value" id="osc2Display">--</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">LPG</div>
+                    <div class="value" id="lpgDisplay">0.00</div>
+                </div>
+            </div>
+
+            <div class="toggle-row">
+                <button class="toggle-btn active" id="autoTrigBtn">Auto Trigger</button>
+                <button class="toggle-btn" id="syncBtn">Osc Sync</button>
+                <button class="toggle-btn" id="cycleBtn">Cycle Env</button>
+                <button class="toggle-btn" id="quantizeBtn">Random Notes</button>
+                <button class="toggle-btn" id="quantizeSliderBtn">Quantize Slider</button>
+            </div>
+
+            <!-- Auto Trigger & Scale Section -->
+            <span class="section-label">Auto Trigger & Scale Quantizer</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Trigger Rate</label>
+                        <input type="range" id="trigRate" min="0.1" max="10" value="2" step="0.1">
+                        <span class="param-value" id="trigRateVal">2.0 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Root Note</label>
+                        <select id="rootNote">
+                            <option value="0">C</option>
+                            <option value="1">C#</option>
+                            <option value="2">D</option>
+                            <option value="3">D#</option>
+                            <option value="4">E</option>
+                            <option value="5">F</option>
+                            <option value="6">F#</option>
+                            <option value="7">G</option>
+                            <option value="8">G#</option>
+                            <option value="9" selected>A</option>
+                            <option value="10">A#</option>
+                            <option value="11">B</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Scale</label>
+                        <select id="scaleSelect">
+                            <option value="chromatic">Chromatic</option>
+                            <option value="major">Major (Ionian)</option>
+                            <option value="minor">Natural Minor (Aeolian)</option>
+                            <option value="harmonicMinor">Harmonic Minor</option>
+                            <option value="melodicMinor">Melodic Minor</option>
+                            <option value="dorian" selected>Dorian</option>
+                            <option value="phrygian">Phrygian</option>
+                            <option value="lydian">Lydian</option>
+                            <option value="mixolydian">Mixolydian</option>
+                            <option value="locrian">Locrian</option>
+                            <option value="pentatonicMajor">Pentatonic Major</option>
+                            <option value="pentatonicMinor">Pentatonic Minor</option>
+                            <option value="blues">Blues</option>
+                            <option value="wholeTone">Whole Tone</option>
+                            <option value="diminished">Diminished</option>
+                            <option value="custom">Custom...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="keyboard-container" id="keyboardContainer">
+                    <div class="keyboard" id="keyboard"></div>
+                    <div class="keyboard-hint">Click keys to select notes (no selection = no quantization)</div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Octave Range</label>
+                        <input type="range" id="octaveRange" min="1" max="4" value="2" step="1">
+                        <span class="param-value" id="octaveRangeVal">2 oct</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Base Octave</label>
+                        <input type="range" id="baseOctave" min="2" max="6" value="3" step="1">
+                        <span class="param-value" id="baseOctaveVal">3</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pitch & Glide Section -->
+            <span class="section-label">Pitch & Glide</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Glide</label>
+                        <input type="range" id="glide" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="glideVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Glide Time</label>
+                        <input type="range" id="glideTime" min="0.001" max="1" value="0.1" step="0.001">
+                        <span class="param-value" id="glideTimeVal">0.10 s</span>
+                    </div>
+                    <div class="param-group">
+                        <label>FM 2->1</label>
+                        <input type="range" id="fm21" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="fm21Val">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Oscillator 1 Section -->
+            <span class="section-label">Oscillator 1</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Freq 1</label>
+                        <input type="range" id="freq1" min="20" max="2000" value="220" step="1">
+                        <span class="param-value" id="freq1Val">220 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Oct 1</label>
+                        <input type="range" id="oct1" min="-3" max="3" value="0" step="1">
+                        <span class="param-value" id="oct1Val">0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Vol 1</label>
+                        <input type="range" id="vol1" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="vol1Val">0.70</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Shape 1</label>
+                        <input type="range" id="wshape1" min="-1" max="1" value="0" step="0.01">
+                        <span class="param-value" id="wshape1Val">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Shape 2</label>
+                        <input type="range" id="wshape2" min="-1" max="1" value="-0.09" step="0.01">
+                        <span class="param-value" id="wshape2Val">-0.09</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Fold 1</label>
+                        <input type="range" id="fold1" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="fold1Val">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Oscillator 2 Section (Tritone) -->
+            <span class="section-label">Oscillator 2 (Tritone)</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Freq 2</label>
+                        <input type="range" id="freq2" min="20" max="2000" value="311" step="1">
+                        <span class="param-value" id="freq2Val">311 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Oct 2</label>
+                        <input type="range" id="oct2" min="-3" max="3" value="-2" step="1">
+                        <span class="param-value" id="oct2Val">-2</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Vol 2</label>
+                        <input type="range" id="vol2" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="vol2Val">0.70</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Shape 3</label>
+                        <input type="range" id="wshape3" min="-1" max="1" value="0" step="0.01">
+                        <span class="param-value" id="wshape3Val">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Shape 4</label>
+                        <input type="range" id="wshape4" min="-1" max="1" value="0" step="0.01">
+                        <span class="param-value" id="wshape4Val">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Fold 2</label>
+                        <input type="range" id="fold2" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="fold2Val">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Noise Section -->
+            <span class="section-label">Noise</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>White</label>
+                        <input type="range" id="white" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="whiteVal">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Pink</label>
+                        <input type="range" id="pink" min="0" max="1" value="0.11" step="0.01">
+                        <span class="param-value" id="pinkVal">0.11</span>
+                    </div>
+                    <div class="param-group">
+                        <label>BP Noise</label>
+                        <input type="range" id="bpNoise" min="0" max="1" value="0" step="0.01">
+                        <span class="param-value" id="bpNoiseVal">0.00</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>BP Freq</label>
+                        <input type="range" id="bpFreq" min="100" max="8000" value="1000" step="1">
+                        <span class="param-value" id="bpFreqVal">1000 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>BP Q</label>
+                        <input type="range" id="bpQ" min="0.1" max="10" value="1" step="0.01">
+                        <span class="param-value" id="bpQVal">1.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Strike LPG Section -->
+            <span class="section-label">Strike LPG</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Rise</label>
+                        <input type="range" id="lpgRise" min="0" max="1" value="0.001" step="0.001">
+                        <span class="param-value" id="lpgRiseVal">0.001 s</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Fall</label>
+                        <input type="range" id="lpgFall" min="0.01" max="5" value="0.5" step="0.01">
+                        <span class="param-value" id="lpgFallVal">0.50 s</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Bend</label>
+                        <input type="range" id="lpgBend" min="-1" max="1" value="-0.57" step="0.01">
+                        <span class="param-value" id="lpgBendVal">-0.57</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Height</label>
+                        <input type="range" id="lpgHeight" min="0" max="1" value="1" step="0.01">
+                        <span class="param-value" id="lpgHeightVal">1.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mod Envelope Section -->
+            <span class="section-label">Mod Envelope (Filter)</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Rise</label>
+                        <input type="range" id="modRise" min="0" max="2" value="0" step="0.01">
+                        <span class="param-value" id="modRiseVal">0.00 s</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Fall</label>
+                        <input type="range" id="modFall" min="0.01" max="5" value="1.99" step="0.01">
+                        <span class="param-value" id="modFallVal">1.99 s</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Bend</label>
+                        <input type="range" id="modBend" min="-1" max="1" value="0" step="0.01">
+                        <span class="param-value" id="modBendVal">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Height</label>
+                        <input type="range" id="modHeight" min="0" max="1" value="1" step="0.01">
+                        <span class="param-value" id="modHeightVal">1.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LP Filter Section -->
+            <span class="section-label">Lowpass Filter</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Cutoff</label>
+                        <input type="range" id="lpCutoff" min="100" max="12000" value="2000" step="1">
+                        <span class="param-value" id="lpCutoffVal">2000 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Q</label>
+                        <input type="range" id="lpQ" min="0.1" max="1" value="0.17" step="0.01">
+                        <span class="param-value" id="lpQVal">0.17</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Gain</label>
+                        <input type="range" id="lpGain" min="0" max="2" value="1" step="0.01">
+                        <span class="param-value" id="lpGainVal">1.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delay Section -->
+            <span class="section-label">Clocked Doppler Delay</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Mult</label>
+                        <input type="range" id="dMul" min="1" max="32" value="8" step="1">
+                        <span class="param-value" id="dMulVal">8</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Div</label>
+                        <input type="range" id="dDiv" min="1" max="32" value="11" step="1">
+                        <span class="param-value" id="dDivVal">11</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Spread</label>
+                        <input type="range" id="dSpread" min="-1" max="1" value="0.48" step="0.01">
+                        <span class="param-value" id="dSpreadVal">0.48</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="dFbk" min="0" max="0.95" value="0.5" step="0.01">
+                        <span class="param-value" id="dFbkVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Wet</label>
+                        <input type="range" id="dWet" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="dWetVal">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="vol" min="0" max="1.5" value="0.7" step="0.01">
+                        <span class="param-value" id="volVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        const processorCode = `
+// ============================================================================
+// SLEW LIMITER
+// ============================================================================
+class SlewLimiter {
+    constructor(time, sr) {
+        this.sr = sr;
+        this.setTime(time);
+        this.value = 0;
+    }
+
+    setTime(time) {
+        this.rate = 1 / (Math.max(0.001, time) * this.sr + 1);
+    }
+
+    process(target) {
+        this.value += (target - this.value) * this.rate;
+        return this.value;
+    }
+}
+
+// ============================================================================
+// SCALE QUANTIZER
+// ============================================================================
+class ScaleQuantizer {
+    constructor() {
+        // Scale definitions (semitones from root)
+        this.scales = {
+            chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+            major: [0, 2, 4, 5, 7, 9, 11],
+            minor: [0, 2, 3, 5, 7, 8, 10],
+            harmonicMinor: [0, 2, 3, 5, 7, 8, 11],
+            melodicMinor: [0, 2, 3, 5, 7, 9, 11],
+            dorian: [0, 2, 3, 5, 7, 9, 10],
+            phrygian: [0, 1, 3, 5, 7, 8, 10],
+            lydian: [0, 2, 4, 6, 7, 9, 11],
+            mixolydian: [0, 2, 4, 5, 7, 9, 10],
+            locrian: [0, 1, 3, 5, 6, 8, 10],
+            pentatonicMajor: [0, 2, 4, 7, 9],
+            pentatonicMinor: [0, 3, 5, 7, 10],
+            blues: [0, 3, 5, 6, 7, 10],
+            wholeTone: [0, 2, 4, 6, 8, 10],
+            diminished: [0, 2, 3, 5, 6, 8, 9, 11],
+            custom: [0] // Will be set by UI
+        };
+
+        this.rootNote = 9; // A
+        this.scaleName = 'dorian';
+        this.baseOctave = 3;
+        this.octaveRange = 2;
+        this.enabled = false;      // Random notes mode
+        this.sliderMode = false;   // Quantize slider mode
+    }
+
+    setScale(scaleName) {
+        if (this.scales[scaleName]) {
+            this.scaleName = scaleName;
+        }
+    }
+
+    setRoot(rootNote) {
+        this.rootNote = rootNote % 12;
+    }
+
+    // Get all valid MIDI notes for current scale within range
+    getScaleNotes() {
+        const scale = this.scales[this.scaleName];
+        const notes = [];
+        const startOctave = this.baseOctave;
+        const endOctave = startOctave + this.octaveRange;
+
+        for (let oct = startOctave; oct <= endOctave; oct++) {
+            for (const interval of scale) {
+                const midiNote = (oct * 12) + this.rootNote + interval;
+                if (midiNote >= 0 && midiNote <= 127) {
+                    notes.push(midiNote);
+                }
+            }
+        }
+        return notes;
+    }
+
+    // Get a random note from the scale
+    getRandomNote() {
+        const notes = this.getScaleNotes();
+        if (notes.length === 0) return 60; // Middle C fallback
+        return notes[Math.floor(Math.random() * notes.length)];
+    }
+
+    // Convert MIDI note to frequency
+    midiToFreq(midiNote) {
+        return 440 * Math.pow(2, (midiNote - 69) / 12);
+    }
+
+    // Get a random frequency from the scale
+    getRandomFrequency() {
+        return this.midiToFreq(this.getRandomNote());
+    }
+
+    // Quantize a frequency to the nearest scale note
+    quantizeFrequency(freq) {
+        // Convert freq to MIDI note
+        const midiNote = 69 + 12 * Math.log2(freq / 440);
+        const scale = this.scales[this.scaleName];
+
+        if (!scale || scale.length === 0) return freq;
+
+        // Find the octave and position within octave
+        const noteInOctave = ((midiNote - this.rootNote) % 12 + 12) % 12;
+        const octave = Math.floor((midiNote - this.rootNote) / 12);
+
+        // Find closest scale degree
+        let closestInterval = scale[0];
+        let minDist = Math.abs(noteInOctave - closestInterval);
+
+        for (const interval of scale) {
+            // Check distance wrapping around octave
+            let dist = Math.abs(noteInOctave - interval);
+            if (dist > 6) dist = 12 - dist; // Wrap around
+            if (dist < minDist) {
+                minDist = dist;
+                closestInterval = interval;
+            }
+        }
+
+        // Reconstruct the quantized MIDI note
+        let quantizedMidi = this.rootNote + (octave * 12) + closestInterval;
+
+        // Ensure we're in a valid MIDI range
+        quantizedMidi = Math.max(0, Math.min(127, quantizedMidi));
+
+        return this.midiToFreq(quantizedMidi);
+    }
+}
+
+// ============================================================================
+// ALIASING TRIANGLE OSCILLATOR (with waveshaping)
+// ============================================================================
+class AliasingTriangle {
+    constructor(sr) {
+        this.sr = sr;
+        this.phase = 0;
+        this.freq = 220;
+        this.shape1 = 0;
+        this.shape2 = 0;
+    }
+
+    setFrequency(freq) {
+        this.freq = Math.max(0.1, freq);
+    }
+
+    process(fmMod = 0) {
+        const effectiveFreq = this.freq * Math.pow(2, fmMod);
+        this.phase += effectiveFreq / this.sr;
+        if (this.phase >= 1) this.phase -= 1;
+
+        // Base triangle wave
+        const t = this.phase * 4;
+        let tri;
+        if (t < 1) tri = t;
+        else if (t < 3) tri = 2 - t;
+        else tri = t - 4;
+
+        // Apply waveshaping (shape1 adjusts symmetry, shape2 adds curvature)
+        tri = tri + this.shape1 * tri * tri * Math.sign(tri);
+        tri = Math.tanh(tri * (1 + Math.abs(this.shape2) * 2));
+
+        return tri;
+    }
+
+    sync() {
+        this.phase = 0;
+    }
+}
+
+// ============================================================================
+// WAVE FOLDER
+// ============================================================================
+class WaveFolder {
+    constructor() {
+        this.amount = 0.3;
+    }
+
+    process(x) {
+        const gain = 1 + this.amount * 4;
+        let sig = x * gain;
+
+        // Fold the signal
+        for (let i = 0; i < 3; i++) {
+            if (sig > 1) sig = 2 - sig;
+            else if (sig < -1) sig = -2 - sig;
+        }
+
+        return Math.tanh(sig);
+    }
+}
+
+// ============================================================================
+// BIQUAD FILTER
+// ============================================================================
+class BiquadFilter {
+    constructor(sr) {
+        this.sr = sr;
+        this.x1 = 0; this.x2 = 0;
+        this.y1 = 0; this.y2 = 0;
+        this.b0 = 1; this.b1 = 0; this.b2 = 0;
+        this.a1 = 0; this.a2 = 0;
+    }
+
+    setLowpass(freq, Q) {
+        const w0 = 2 * Math.PI * Math.min(freq, this.sr * 0.49) / this.sr;
+        const alpha = Math.sin(w0) / (2 * Math.max(0.1, Q));
+        const cosw0 = Math.cos(w0);
+        const a0 = 1 + alpha;
+        this.b0 = ((1 - cosw0) / 2) / a0;
+        this.b1 = (1 - cosw0) / a0;
+        this.b2 = ((1 - cosw0) / 2) / a0;
+        this.a1 = (-2 * cosw0) / a0;
+        this.a2 = (1 - alpha) / a0;
+    }
+
+    setBandpass(freq, Q) {
+        const w0 = 2 * Math.PI * Math.min(freq, this.sr * 0.49) / this.sr;
+        const alpha = Math.sin(w0) / (2 * Math.max(0.1, Q));
+        const cosw0 = Math.cos(w0);
+        const a0 = 1 + alpha;
+        this.b0 = alpha / a0;
+        this.b1 = 0;
+        this.b2 = -alpha / a0;
+        this.a1 = (-2 * cosw0) / a0;
+        this.a2 = (1 - alpha) / a0;
+    }
+
+    process(x) {
+        const y = this.b0 * x + this.b1 * this.x1 + this.b2 * this.x2
+                - this.a1 * this.y1 - this.a2 * this.y2;
+        this.x2 = this.x1; this.x1 = x;
+        this.y2 = this.y1; this.y1 = y;
+        return y;
+    }
+}
+
+// ============================================================================
+// PINK NOISE GENERATOR
+// ============================================================================
+class PinkNoise {
+    constructor() {
+        this.b0 = 0; this.b1 = 0; this.b2 = 0;
+        this.b3 = 0; this.b4 = 0; this.b5 = 0; this.b6 = 0;
+    }
+
+    process() {
+        const white = Math.random() * 2 - 1;
+        this.b0 = 0.99886 * this.b0 + white * 0.0555179;
+        this.b1 = 0.99332 * this.b1 + white * 0.0750759;
+        this.b2 = 0.96900 * this.b2 + white * 0.1538520;
+        this.b3 = 0.86650 * this.b3 + white * 0.3104856;
+        this.b4 = 0.55000 * this.b4 + white * 0.5329522;
+        this.b5 = -0.7616 * this.b5 - white * 0.0168980;
+        const pink = this.b0 + this.b1 + this.b2 + this.b3 + this.b4 + this.b5 + this.b6 + white * 0.5362;
+        this.b6 = white * 0.115926;
+        return pink * 0.11;
+    }
+}
+
+// ============================================================================
+// ARC ENVELOPE (AD with bend)
+// ============================================================================
+class ArcEnvelope {
+    constructor(sr) {
+        this.sr = sr;
+        this.rise = 0.001;
+        this.fall = 0.5;
+        this.bend = 0;
+        this.height = 1;
+        this.phase = 0;
+        this.stage = 'idle'; // idle, rise, fall
+        this.value = 0;
+        this.cycle = false;
+    }
+
+    trigger() {
+        this.stage = 'rise';
+        this.phase = 0;
+    }
+
+    process() {
+        if (this.stage === 'idle') {
+            if (this.cycle && this.value <= 0.001) {
+                this.trigger();
+            }
+            return this.value;
+        }
+
+        const riseTime = Math.max(0.001, this.rise);
+        const fallTime = Math.max(0.01, this.fall);
+
+        if (this.stage === 'rise') {
+            const rate = 1 / (riseTime * this.sr);
+            this.phase += rate;
+
+            // Apply bend to rise curve
+            const bendedPhase = this.bend >= 0
+                ? Math.pow(this.phase, 1 + this.bend * 2)
+                : 1 - Math.pow(1 - this.phase, 1 - this.bend * 2);
+
+            this.value = bendedPhase * this.height;
+
+            if (this.phase >= 1) {
+                this.stage = 'fall';
+                this.phase = 0;
+                this.value = this.height;
+            }
+        } else if (this.stage === 'fall') {
+            const rate = 1 / (fallTime * this.sr);
+            this.phase += rate;
+
+            // Apply bend to fall curve
+            const bendedPhase = this.bend >= 0
+                ? Math.pow(this.phase, 1 + this.bend * 2)
+                : 1 - Math.pow(1 - this.phase, 1 - this.bend * 2);
+
+            this.value = (1 - bendedPhase) * this.height;
+
+            if (this.phase >= 1) {
+                this.stage = 'idle';
+                this.value = 0;
+            }
+        }
+
+        return this.value;
+    }
+}
+
+// ============================================================================
+// STRIKE LPG (Low Pass Gate)
+// ============================================================================
+class StrikeLPG {
+    constructor(sr) {
+        this.sr = sr;
+        this.envelope = new ArcEnvelope(sr);
+        this.filter = new BiquadFilter(sr);
+    }
+
+    trigger() {
+        this.envelope.trigger();
+    }
+
+    process(input) {
+        const env = this.envelope.process();
+
+        // LPG combines VCA and VCF
+        const cutoff = 200 + env * 7800;
+        this.filter.setLowpass(cutoff, 0.7);
+
+        return this.filter.process(input) * env;
+    }
+}
+
+// ============================================================================
+// DOPPLER DELAY
+// ============================================================================
+class DopplerDelay {
+    constructor(sr, maxTime = 2) {
+        this.sr = sr;
+        const maxSamples = Math.ceil(sr * maxTime);
+        this.bufferL = new Float32Array(maxSamples);
+        this.bufferR = new Float32Array(maxSamples);
+        this.maxSamples = maxSamples;
+        this.writeIndex = 0;
+        this.basePeriod = 0.5;
+        this.mult = 8;
+        this.div = 11;
+        this.spread = 0.48;
+        this.feedback = 0.5;
+        this.wet = 0.3;
+        this.smoothTimeL = 0.1;
+        this.smoothTimeR = 0.1;
+    }
+
+    getDelayTime() {
+        return this.basePeriod * this.div / this.mult;
+    }
+
+    process(inputL, inputR) {
+        const baseDelay = Math.min(1.5, Math.max(0.01, this.getDelayTime()));
+        const spreadOffset = this.spread * 0.2;
+
+        const targetL = baseDelay * (1 + spreadOffset);
+        const targetR = baseDelay * (1 - spreadOffset);
+
+        // Smooth delay time changes for Doppler effect
+        this.smoothTimeL += (targetL - this.smoothTimeL) * 0.001;
+        this.smoothTimeR += (targetR - this.smoothTimeR) * 0.001;
+
+        const delaySamplesL = this.smoothTimeL * this.sr;
+        const delaySamplesR = this.smoothTimeR * this.sr;
+
+        // Read with interpolation
+        let readIdxL = this.writeIndex - delaySamplesL;
+        let readIdxR = this.writeIndex - delaySamplesR;
+        if (readIdxL < 0) readIdxL += this.maxSamples;
+        if (readIdxR < 0) readIdxR += this.maxSamples;
+
+        const idxL = Math.floor(readIdxL);
+        const fracL = readIdxL - idxL;
+        const idxL2 = (idxL + 1) % this.maxSamples;
+        const delayedL = this.bufferL[idxL] * (1 - fracL) + this.bufferL[idxL2] * fracL;
+
+        const idxR = Math.floor(readIdxR);
+        const fracR = readIdxR - idxR;
+        const idxR2 = (idxR + 1) % this.maxSamples;
+        const delayedR = this.bufferR[idxR] * (1 - fracR) + this.bufferR[idxR2] * fracR;
+
+        // Write with cross-feedback
+        this.bufferL[this.writeIndex] = Math.tanh(inputL + delayedR * this.feedback);
+        this.bufferR[this.writeIndex] = Math.tanh(inputR + delayedL * this.feedback);
+
+        this.writeIndex = (this.writeIndex + 1) % this.maxSamples;
+
+        return [
+            inputL * (1 - this.wet) + delayedL * this.wet,
+            inputR * (1 - this.wet) + delayedR * this.wet
+        ];
+    }
+}
+
+// ============================================================================
+// COMPRESSOR (CPR)
+// ============================================================================
+class Compressor {
+    constructor(sr) {
+        this.envelope = 0;
+        this.attackCoeff = Math.exp(-1 / (0.001 * sr));
+        this.releaseCoeff = Math.exp(-1 / (0.05 * sr));
+    }
+
+    process(x) {
+        const level = Math.abs(x);
+        this.envelope = level > this.envelope
+            ? this.attackCoeff * this.envelope + (1 - this.attackCoeff) * level
+            : this.releaseCoeff * this.envelope + (1 - this.releaseCoeff) * level;
+
+        if (this.envelope > 0.5) {
+            const dBOver = 20 * Math.log10(this.envelope / 0.5);
+            return x * Math.pow(10, -dBOver * 0.75 / 20);
+        }
+        return x;
+    }
+}
+
+// ============================================================================
+// LIMITER
+// ============================================================================
+class Limiter {
+    constructor(sr) {
+        this.envelope = 0;
+        this.releaseCoeff = Math.exp(-1 / (0.1 * sr));
+    }
+
+    process(x) {
+        const absX = Math.abs(x);
+        if (absX > this.envelope) {
+            this.envelope = absX;
+        } else {
+            this.envelope *= this.releaseCoeff;
+        }
+
+        if (this.envelope > 0.95) {
+            return x * (0.95 / this.envelope);
+        }
+        return x;
+    }
+}
+
+// ============================================================================
+// TRITONE PROCESSOR
+// ============================================================================
+class TritoneProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+        this.playing = false;
+
+        // Clock
+        this.clockPhase = 0;
+        this.autoTrigger = true;
+        this.clockRate = 2;
+
+        // Oscillators
+        this.osc1 = new AliasingTriangle(this.sr);
+        this.osc2 = new AliasingTriangle(this.sr);
+        this.fold1 = new WaveFolder();
+        this.fold2 = new WaveFolder();
+
+        // Pitch glide
+        this.pitchSlew = new SlewLimiter(0.1, this.sr);
+        this.targetPitch = 220;
+
+        // Noise
+        this.pinkNoise = new PinkNoise();
+        this.noiseBP = new BiquadFilter(this.sr);
+
+        // Envelopes
+        this.lpg = new StrikeLPG(this.sr);
+        this.modEnv = new ArcEnvelope(this.sr);
+
+        // Filter
+        this.lpFilter = new BiquadFilter(this.sr);
+
+        // Delay
+        this.dopplerDelay = new DopplerDelay(this.sr, 2);
+
+        // Output
+        this.compL = new Compressor(this.sr);
+        this.compR = new Compressor(this.sr);
+        this.limiterL = new Limiter(this.sr);
+        this.limiterR = new Limiter(this.sr);
+
+        // MIDI
+        this.midiNote = -1;
+        this.midiVelocity = 0;
+        this.oscSync = false;
+        this.cycleEnv = false;
+
+        // Current playing pitch (held until next trigger)
+        this.currentPitch = 220;
+
+        // Scale quantizer
+        this.quantizer = new ScaleQuantizer();
+
+        // Parameters
+        this.params = {
+            glide: 0.5,
+            glideTime: 0.1,
+            fm21: 0.3,
+            freq1: 220,
+            oct1: 0,
+            vol1: 0.7,
+            wshape1: 0,
+            wshape2: -0.09,
+            fold1: 0.3,
+            freq2: 311,
+            oct2: -2,
+            vol2: 0.7,
+            wshape3: 0,
+            wshape4: 0,
+            fold2: 0.3,
+            white: 0,
+            pink: 0.11,
+            bpNoise: 0,
+            bpFreq: 1000,
+            bpQ: 1,
+            lpgRise: 0.001,
+            lpgFall: 0.5,
+            lpgBend: -0.57,
+            lpgHeight: 1,
+            modRise: 0,
+            modFall: 1.99,
+            modBend: 0,
+            modHeight: 1,
+            lpCutoff: 2000,
+            lpQ: 0.17,
+            lpGain: 1,
+            dMul: 8,
+            dDiv: 11,
+            dSpread: 0.48,
+            dFbk: 0.5,
+            dWet: 0.3,
+            vol: 0.7
+        };
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'start') this.playing = true;
+            if (e.data.type === 'stop') this.playing = false;
+            if (e.data.type === 'param') {
+                this.params[e.data.name] = e.data.value;
+            }
+            if (e.data.type === 'autoTrigger') {
+                this.autoTrigger = e.data.value;
+            }
+            if (e.data.type === 'oscSync') {
+                this.oscSync = e.data.value;
+            }
+            if (e.data.type === 'cycleEnv') {
+                this.cycleEnv = e.data.value;
+                this.lpg.envelope.cycle = e.data.value;
+                this.modEnv.cycle = e.data.value;
+            }
+            if (e.data.type === 'noteOn') {
+                this.midiNote = e.data.note;
+                this.midiVelocity = e.data.velocity / 127;
+                // Set the current pitch from MIDI note
+                this.currentPitch = 440 * Math.pow(2, (e.data.note - 69) / 12);
+                this.triggerVoice(this.midiVelocity);
+            }
+            if (e.data.type === 'noteOff') {
+                if (e.data.note === this.midiNote) {
+                    this.midiNote = -1;
+                    // Don't change currentPitch - let it ring out at the same pitch
+                }
+            }
+            if (e.data.type === 'trigRate') {
+                this.clockRate = e.data.value;
+            }
+            if (e.data.type === 'quantize') {
+                this.quantizer.enabled = e.data.value;
+            }
+            if (e.data.type === 'quantizeSlider') {
+                this.quantizer.sliderMode = e.data.value;
+            }
+            if (e.data.type === 'rootNote') {
+                this.quantizer.setRoot(e.data.value);
+            }
+            if (e.data.type === 'scale') {
+                this.quantizer.setScale(e.data.value);
+            }
+            if (e.data.type === 'octaveRange') {
+                this.quantizer.octaveRange = e.data.value;
+            }
+            if (e.data.type === 'baseOctave') {
+                this.quantizer.baseOctave = e.data.value;
+            }
+            if (e.data.type === 'customScale') {
+                this.quantizer.scales.custom = e.data.value;
+            }
+        };
+    }
+
+    triggerVoice(velocity = 1, pitch = null) {
+        // If pitch provided, update currentPitch (for auto-trigger with base freq)
+        if (pitch !== null) {
+            this.currentPitch = pitch;
+        }
+
+        this.lpg.trigger();
+        this.modEnv.trigger();
+
+        if (this.oscSync) {
+            this.osc1.sync();
+            this.osc2.sync();
+        }
+    }
+
+    process(inputs, outputs) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1];
+
+        if (!this.playing) {
+            outL.fill(0);
+            outR.fill(0);
+            return true;
+        }
+
+        // Update envelope parameters
+        this.lpg.envelope.rise = this.params.lpgRise;
+        this.lpg.envelope.fall = this.params.lpgFall;
+        this.lpg.envelope.bend = this.params.lpgBend;
+        this.lpg.envelope.height = this.params.lpgHeight;
+
+        this.modEnv.rise = this.params.modRise;
+        this.modEnv.fall = this.params.modFall;
+        this.modEnv.bend = this.params.modBend;
+        this.modEnv.height = this.params.modHeight;
+
+        // Update delay
+        this.dopplerDelay.mult = this.params.dMul;
+        this.dopplerDelay.div = this.params.dDiv;
+        this.dopplerDelay.spread = this.params.dSpread;
+        this.dopplerDelay.feedback = this.params.dFbk;
+        this.dopplerDelay.wet = this.params.dWet;
+
+        // Update pitch slew
+        this.pitchSlew.setTime(this.params.glideTime * this.params.glide);
+
+        // Update waveshaping
+        this.osc1.shape1 = this.params.wshape1;
+        this.osc1.shape2 = this.params.wshape2;
+        this.osc2.shape1 = this.params.wshape3;
+        this.osc2.shape2 = this.params.wshape4;
+
+        // Update fold
+        this.fold1.amount = this.params.fold1;
+        this.fold2.amount = this.params.fold2;
+
+        for (let i = 0; i < outL.length; i++) {
+            // Clock for auto-trigger
+            if (this.autoTrigger) {
+                this.clockPhase += this.clockRate / this.sr;
+                if (this.clockPhase >= 1) {
+                    this.clockPhase -= 1;
+                    // Auto-trigger: use quantizer if enabled, otherwise use freq1
+                    let triggerPitch;
+                    if (this.quantizer.enabled) {
+                        // Random notes mode
+                        triggerPitch = this.quantizer.getRandomFrequency();
+                    } else if (this.quantizer.sliderMode) {
+                        // Quantize slider mode - quantize freq1 to nearest scale note
+                        triggerPitch = this.quantizer.quantizeFrequency(this.params.freq1);
+                    } else {
+                        triggerPitch = this.params.freq1;
+                    }
+                    this.triggerVoice(0.8, triggerPitch);
+                }
+            }
+
+            // In slider mode, continuously quantize the pitch (for live sliding effect)
+            let basePitch;
+            let skipGlide = false;
+            if (this.quantizer.sliderMode && this.midiNote < 0) {
+                // Quantize the current pitch in real-time for discrete stepping
+                basePitch = this.quantizer.quantizeFrequency(this.params.freq1);
+                this.currentPitch = basePitch;
+                skipGlide = true; // Bypass glide for immediate discrete steps
+            } else {
+                // Use currentPitch (set by MIDI or auto-trigger)
+                basePitch = this.currentPitch;
+            }
+
+            // Apply glide (skip in slider mode for discrete steps)
+            let slewedPitch;
+            if (skipGlide) {
+                slewedPitch = basePitch;
+                this.pitchSlew.value = basePitch; // Reset slew to avoid jump when exiting slider mode
+            } else {
+                this.targetPitch = basePitch;
+                slewedPitch = this.pitchSlew.process(this.targetPitch);
+            }
+
+            // Osc 1 frequency with octave
+            const freq1 = slewedPitch * Math.pow(2, this.params.oct1);
+
+            // Osc 2 frequency - tritone interval (6 semitones = sqrt(2))
+            const tritoneRatio = Math.pow(2, 6/12); // ~1.414
+            const freq2 = (this.params.freq2 / 220) * slewedPitch * Math.pow(2, this.params.oct2) * tritoneRatio;
+
+            // Generate Osc 2 first (for FM)
+            this.osc2.setFrequency(freq2);
+            let osc2Sig = this.osc2.process();
+            osc2Sig = this.fold2.process(osc2Sig);
+
+            // Generate Osc 1 with FM from Osc 2
+            this.osc1.setFrequency(freq1);
+            const fmAmount = osc2Sig * this.params.fm21 * 2;
+            let osc1Sig = this.osc1.process(fmAmount);
+            osc1Sig = this.fold1.process(osc1Sig);
+
+            // Mix oscillators
+            let sig = osc1Sig * this.params.vol1 + osc2Sig * this.params.vol2;
+
+            // Add noise
+            const whiteNoise = (Math.random() * 2 - 1) * this.params.white;
+            const pinkNoiseSig = this.pinkNoise.process() * this.params.pink;
+
+            // Bandpass filtered noise
+            this.noiseBP.setBandpass(this.params.bpFreq, this.params.bpQ);
+            const bpNoiseSig = this.noiseBP.process(Math.random() * 2 - 1) * this.params.bpNoise;
+
+            sig += whiteNoise + pinkNoiseSig + bpNoiseSig;
+
+            // Strike LPG
+            sig = this.lpg.process(sig);
+
+            // Tanh saturation
+            sig = Math.tanh(sig * 1.5);
+
+            // Lowpass filter with mod envelope
+            const modEnvVal = this.modEnv.process();
+            const lpFreq = this.params.lpCutoff * (1 + modEnvVal);
+            this.lpFilter.setLowpass(lpFreq, this.params.lpQ * 10);
+            sig = this.lpFilter.process(sig) * this.params.lpGain;
+
+            // Stereo spread
+            let sigL = sig;
+            let sigR = sig;
+
+            // Doppler delay
+            [sigL, sigR] = this.dopplerDelay.process(sigL, sigR);
+
+            // Compression
+            sigL = this.compL.process(sigL);
+            sigR = this.compR.process(sigR);
+
+            // Limiting
+            sigL = this.limiterL.process(sigL);
+            sigR = this.limiterR.process(sigR);
+
+            // Output volume
+            sigL *= this.params.vol;
+            sigR *= this.params.vol;
+
+            outL[i] = Math.tanh(sigL);
+            outR[i] = Math.tanh(sigR);
+        }
+
+        // Send state updates
+        if (Math.random() < 0.1) {
+            const freq1 = this.osc1.freq * Math.pow(2, this.params.oct1);
+            const freq2 = this.osc2.freq * Math.pow(2, this.params.oct2);
+            this.port.postMessage({
+                type: 'state',
+                gateOn: this.lpg.envelope.value > 0.01,
+                osc1Freq: Math.round(freq1),
+                osc2Freq: Math.round(freq2),
+                lpgLevel: this.lpg.envelope.value
+            });
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('tritone-processor', TritoneProcessor);
+`;
+
+        let audioContext, workletNode, pedalboardUI, analyser;
+        let isPlaying = false;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext({ sampleRate: 48000 });
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'tritone-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboardUI = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboardUI.init();
+            pedalboardUI.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'tritone-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-tritone'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-tritone');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-tritone',
+                    prefix: 'tritone',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Visualizer
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            fxNode.connect(analyser);
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            function draw() {
+                requestAnimationFrame(draw);
+                analyser.getByteTimeDomainData(dataArray);
+                ctx.fillStyle = '#0a0a14';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#9b59b6';
+                ctx.beginPath();
+                const sliceWidth = canvas.width / dataArray.length;
+                let x = 0;
+                for (let i = 0; i < dataArray.length; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * canvas.height / 2;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                    x += sliceWidth;
+                }
+                ctx.stroke();
+            }
+            draw();
+
+            // Handle messages
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'state') {
+                    document.getElementById('gateDisplay').textContent = e.data.gateOn ? 'ON' : 'OFF';
+                    document.getElementById('osc1Display').textContent = e.data.osc1Freq + ' Hz';
+                    document.getElementById('osc2Display').textContent = e.data.osc2Freq + ' Hz';
+                    document.getElementById('lpgDisplay').textContent = e.data.lpgLevel.toFixed(2);
+                }
+            };
+
+            initMIDI();
+        }
+
+        // MIDI
+        const midiStatus = document.getElementById('midiStatus');
+
+        function handleMIDIMessage(event) {
+            const [status, note, velocity] = event.data;
+            const command = status & 0xf0;
+
+            if (command === 0x90 && velocity > 0) {
+                if (workletNode) workletNode.port.postMessage({ type: 'noteOn', note, velocity });
+            } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+                if (workletNode) workletNode.port.postMessage({ type: 'noteOff', note });
+            }
+        }
+
+        async function initMIDI() {
+            if (!navigator.requestMIDIAccess) return;
+            try {
+                const midiAccess = await navigator.requestMIDIAccess();
+                for (const input of midiAccess.inputs.values()) {
+                    input.onmidimessage = handleMIDIMessage;
+                    midiStatus.textContent = 'MIDI: Connected';
+                    midiStatus.classList.add('connected');
+                }
+                midiAccess.onstatechange = (e) => {
+                    if (e.port.type === 'input' && e.port.state === 'connected') {
+                        e.port.onmidimessage = handleMIDIMessage;
+                        midiStatus.textContent = 'MIDI: ' + e.port.name;
+                        midiStatus.classList.add('connected');
+                    }
+                };
+            } catch (err) {}
+        }
+
+        playBtn.onclick = async () => {
+            if (!audioContext) await initAudio();
+            if (audioContext.state === 'suspended') await audioContext.resume();
+
+            isPlaying = !isPlaying;
+            playBtn.textContent = isPlaying ? '\u23F9' : '\u25B6';
+            workletNode.port.postMessage({ type: isPlaying ? 'start' : 'stop' });
+        };
+
+        // Toggle buttons
+        const autoTrigBtn = document.getElementById('autoTrigBtn');
+        autoTrigBtn.onclick = () => {
+            autoTrigBtn.classList.toggle('active');
+            if (workletNode) {
+                workletNode.port.postMessage({
+                    type: 'autoTrigger',
+                    value: autoTrigBtn.classList.contains('active')
+                });
+            }
+        };
+
+        const syncBtn = document.getElementById('syncBtn');
+        syncBtn.onclick = () => {
+            syncBtn.classList.toggle('active');
+            if (workletNode) {
+                workletNode.port.postMessage({
+                    type: 'oscSync',
+                    value: syncBtn.classList.contains('active')
+                });
+            }
+        };
+
+        const cycleBtn = document.getElementById('cycleBtn');
+        cycleBtn.onclick = () => {
+            cycleBtn.classList.toggle('active');
+            if (workletNode) {
+                workletNode.port.postMessage({
+                    type: 'cycleEnv',
+                    value: cycleBtn.classList.contains('active')
+                });
+            }
+        };
+
+        const quantizeBtn = document.getElementById('quantizeBtn');
+        const quantizeSliderBtn = document.getElementById('quantizeSliderBtn');
+
+        quantizeBtn.onclick = () => {
+            quantizeBtn.classList.toggle('active');
+            // Turn off slider mode if random notes is enabled
+            if (quantizeBtn.classList.contains('active')) {
+                quantizeSliderBtn.classList.remove('active');
+                if (workletNode) {
+                    workletNode.port.postMessage({ type: 'quantizeSlider', value: false });
+                }
+            }
+            if (workletNode) {
+                workletNode.port.postMessage({
+                    type: 'quantize',
+                    value: quantizeBtn.classList.contains('active')
+                });
+            }
+        };
+
+        quantizeSliderBtn.onclick = () => {
+            quantizeSliderBtn.classList.toggle('active');
+            // Turn off random notes mode if slider mode is enabled
+            if (quantizeSliderBtn.classList.contains('active')) {
+                quantizeBtn.classList.remove('active');
+                if (workletNode) {
+                    workletNode.port.postMessage({ type: 'quantize', value: false });
+                }
+            }
+            if (workletNode) {
+                workletNode.port.postMessage({
+                    type: 'quantizeSlider',
+                    value: quantizeSliderBtn.classList.contains('active')
+                });
+            }
+        };
+
+        // Trigger rate control
+        const trigRateInput = document.getElementById('trigRate');
+        const trigRateVal = document.getElementById('trigRateVal');
+        trigRateInput.oninput = () => {
+            const val = parseFloat(trigRateInput.value);
+            trigRateVal.textContent = val.toFixed(1) + ' Hz';
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'trigRate', value: val });
+            }
+        };
+
+        // Root note select
+        const rootNoteSelect = document.getElementById('rootNote');
+        rootNoteSelect.onchange = () => {
+            if (workletNode) {
+                workletNode.port.postMessage({
+                    type: 'rootNote',
+                    value: parseInt(rootNoteSelect.value)
+                });
+            }
+        };
+
+        // Scale select
+        const scaleSelect = document.getElementById('scaleSelect');
+        const keyboardContainer = document.getElementById('keyboardContainer');
+
+        scaleSelect.onchange = () => {
+            // Show/hide keyboard for custom scale
+            if (scaleSelect.value === 'custom') {
+                keyboardContainer.classList.add('visible');
+            } else {
+                keyboardContainer.classList.remove('visible');
+            }
+            if (workletNode) {
+                workletNode.port.postMessage({
+                    type: 'scale',
+                    value: scaleSelect.value
+                });
+            }
+        };
+
+        // Custom scale keyboard
+        const keyboard = document.getElementById('keyboard');
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const isBlackKey = [false, true, false, true, false, false, true, false, true, false, true, false];
+        const customScaleNotes = new Set(); // Start empty - user selects all notes
+
+        // Build the keyboard
+        function buildKeyboard() {
+            keyboard.innerHTML = '';
+
+            // Create wrapper for proper positioning
+            const wrapper = document.createElement('div');
+            wrapper.style.position = 'relative';
+            wrapper.style.display = 'inline-block';
+
+            // White keys - C D E F G A B (7 keys)
+            const whiteKeyNotes = [0, 2, 4, 5, 7, 9, 11]; // C, D, E, F, G, A, B
+            const blackKeyNotes = [1, 3, 6, 8, 10]; // C#, D#, F#, G#, A#
+            // Black key positions relative to white keys (which white key they sit after, with offset)
+            const blackKeyPositions = [0, 1, 3, 4, 5]; // After C, D, F, G, A
+
+            // Create white keys first
+            whiteKeyNotes.forEach((noteIdx, i) => {
+                const key = document.createElement('div');
+                key.className = 'key white';
+                key.dataset.note = noteIdx;
+                key.style.display = 'inline-block';
+                key.style.verticalAlign = 'top';
+                key.style.marginRight = '2px';
+
+                const label = document.createElement('div');
+                label.className = 'key-label';
+                label.textContent = noteNames[noteIdx];
+                key.appendChild(label);
+
+                if (customScaleNotes.has(noteIdx)) {
+                    key.classList.add('active');
+                }
+
+                key.onclick = () => toggleNote(noteIdx, key);
+                wrapper.appendChild(key);
+            });
+
+            // Create black keys with absolute positioning
+            blackKeyNotes.forEach((noteIdx, i) => {
+                const key = document.createElement('div');
+                key.className = 'key black';
+                key.dataset.note = noteIdx;
+                // Position: each white key is 32px + 2px margin = 34px
+                // Black key should be centered between white keys
+                const leftPos = (blackKeyPositions[i] * 34) + 32 - 11; // 32 is white key width, 11 is half black key
+                key.style.left = leftPos + 'px';
+                key.style.top = '0';
+
+                const label = document.createElement('div');
+                label.className = 'key-label';
+                label.textContent = noteNames[noteIdx];
+                key.appendChild(label);
+
+                if (customScaleNotes.has(noteIdx)) {
+                    key.classList.add('active');
+                }
+
+                key.onclick = () => toggleNote(noteIdx, key);
+                wrapper.appendChild(key);
+            });
+
+            keyboard.appendChild(wrapper);
+        }
+
+        function toggleNote(note, keyEl) {
+            if (customScaleNotes.has(note)) {
+                customScaleNotes.delete(note);
+                keyEl.classList.remove('active');
+            } else {
+                customScaleNotes.add(note);
+                keyEl.classList.add('active');
+            }
+
+            // Send custom scale to worklet
+            sendCustomScale();
+        }
+
+        function sendCustomScale() {
+            if (workletNode) {
+                const scaleArray = Array.from(customScaleNotes).sort((a, b) => a - b);
+                workletNode.port.postMessage({
+                    type: 'customScale',
+                    value: scaleArray
+                });
+            }
+        }
+
+        buildKeyboard();
+
+        // Octave range control
+        const octaveRangeInput = document.getElementById('octaveRange');
+        const octaveRangeVal = document.getElementById('octaveRangeVal');
+        octaveRangeInput.oninput = () => {
+            const val = parseInt(octaveRangeInput.value);
+            octaveRangeVal.textContent = val + ' oct';
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'octaveRange', value: val });
+            }
+        };
+
+        // Base octave control
+        const baseOctaveInput = document.getElementById('baseOctave');
+        const baseOctaveVal = document.getElementById('baseOctaveVal');
+        baseOctaveInput.oninput = () => {
+            const val = parseInt(baseOctaveInput.value);
+            baseOctaveVal.textContent = val;
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'baseOctave', value: val });
+            }
+        };
+
+        // Parameter controls
+        const params = ['glide', 'glideTime', 'fm21',
+                        'freq1', 'oct1', 'vol1', 'wshape1', 'wshape2', 'fold1',
+                        'freq2', 'oct2', 'vol2', 'wshape3', 'wshape4', 'fold2',
+                        'white', 'pink', 'bpNoise', 'bpFreq', 'bpQ',
+                        'lpgRise', 'lpgFall', 'lpgBend', 'lpgHeight',
+                        'modRise', 'modFall', 'modBend', 'modHeight',
+                        'lpCutoff', 'lpQ', 'lpGain',
+                        'dMul', 'dDiv', 'dSpread', 'dFbk', 'dWet', 'vol'];
+
+        params.forEach(name => {
+            const input = document.getElementById(name);
+            const display = document.getElementById(name + 'Val');
+            if (input && display) {
+                input.oninput = () => {
+                    const val = parseFloat(input.value);
+                    if (name === 'freq1' || name === 'freq2' || name === 'lpCutoff' || name === 'bpFreq') {
+                        display.textContent = Math.round(val) + ' Hz';
+                    } else if (name === 'glideTime' || name === 'lpgRise' || name === 'lpgFall' || name === 'modRise' || name === 'modFall') {
+                        display.textContent = val.toFixed(2) + ' s';
+                    } else if (name === 'oct1' || name === 'oct2' || name === 'dMul' || name === 'dDiv') {
+                        display.textContent = Math.round(val);
+                    } else {
+                        display.textContent = val.toFixed(2);
+                    }
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'param', name, value: val });
+                    }
+                };
+            }
+        });
+
+        // Info panel
+        if (typeof ER301InfoPanel !== 'undefined') {
+            new ER301InfoPanel(document.body, {
+                title: 'tritone',
+                author: 'mudlogger',
+                origin: 'ER-301 Hyperscale Units',
+                description: 'Dual oscillator synthesizer with oscillators tuned a tritone (6 semitones) apart, creating dissonant, tension-filled intervals. Features dual Aliasing Triangle oscillators with wave folding and FM modulation from Osc 2 to Osc 1. Includes white/pink/bandpass filtered noise, Strike LPG for West Coast envelopes, Arc AD modulation envelope controlling filter cutoff, Bique lowpass filter, and Clocked Doppler Delay with stereo spread. Optional Scale Quantizer for melodic auto-triggering. Pure synthesis - no samples.',
+                controls: [
+                    { name: 'Trigger Rate', range: '0.1-10 Hz', description: 'Auto-trigger frequency' },
+                    { name: 'Root Note', range: 'C-B', description: 'Root note for scale quantizer' },
+                    { name: 'Scale', range: 'Various', description: 'Musical scale/mode selection (15 presets + custom)' },
+                    { name: 'Octave Range', range: '1-4 oct', description: 'Note range for quantizer' },
+                    { name: 'Base Octave', range: '2-6', description: 'Starting octave for quantizer' },
+                    { name: 'Glide/Time', range: '0-1', description: 'Portamento amount and time' },
+                    { name: 'FM 2->1', range: '0-1', description: 'Frequency modulation from Osc 2 to Osc 1' },
+                    { name: 'Freq 1/2', range: '20-2000 Hz', description: 'Base oscillator frequencies (Freq 1 used when quantizer off)' },
+                    { name: 'Oct 1/2', range: '-3 to +3', description: 'Octave shift for each oscillator' },
+                    { name: 'Shape 1-4', range: '-1 to +1', description: 'Waveshaping controls for oscillators' },
+                    { name: 'Fold 1/2', range: '0-1', description: 'Wave folding amount' },
+                    { name: 'White/Pink/BP Noise', range: '0-1', description: 'Noise sources mix' },
+                    { name: 'LPG Rise/Fall/Bend/Height', range: 'Various', description: 'Strike LPG envelope controls' },
+                    { name: 'Mod Env Rise/Fall/Bend/Height', range: 'Various', description: 'Filter modulation envelope' },
+                    { name: 'LP Cutoff/Q/Gain', range: 'Various', description: 'Lowpass filter controls' },
+                    { name: 'Delay Mult/Div/Spread/Fbk/Wet', range: 'Various', description: 'Clocked Doppler Delay controls' }
+                ],
+                tips: [
+                    'Random Notes: plays random pitches from the selected scale',
+                    'Quantize Slider: quantizes Freq 1 slider to scale notes in real-time',
+                    'Slide Freq 1 with Quantize Slider on to hear discrete pitch steps',
+                    'Trigger Rate controls how often auto-trigger fires (0.1-10 Hz)',
+                    'Try Dorian, Phrygian, or Lydian modes for different moods',
+                    'Pentatonic scales work great for ambient textures',
+                    'Custom scale: click keys to select which notes to quantize to',
+                    'Empty custom scale = no quantization (frequency passes through)',
+                    'The tritone interval creates natural dissonance and tension',
+                    'FM modulation from Osc 2 creates metallic, bell-like tones',
+                    'Wave folding adds harmonics and creates complex timbres',
+                    'MIDI notes override the quantizer and play the exact pitch'
+                ]
+            });
+        }
+    </script>
+</body>
+</html>

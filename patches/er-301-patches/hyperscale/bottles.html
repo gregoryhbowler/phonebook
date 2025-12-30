@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bottles - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <script src="../lib/er301-dsp.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 100px;
+        }
+        .gate-btn {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #888;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .gate-btn:hover {
+            border-color: #4a90d9;
+        }
+        .gate-btn.active {
+            background: #4a90d9;
+            border-color: #4a90d9;
+            color: white;
+        }
+        .sample-status {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 0.5em;
+        }
+        .sample-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1em;
+        }
+        .import-btn {
+            background: #2a2a4e;
+            border: 1px solid #4a90d9;
+            color: #4a90d9;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+        .import-btn:hover {
+            background: #4a90d9;
+            color: white;
+        }
+        .sample-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 4px;
+            margin-top: 0.75em;
+            padding: 0.75em;
+            background: #0a0a14;
+            border-radius: 6px;
+            border: 1px solid #222;
+            max-height: 140px;
+            overflow-y: auto;
+        }
+        .sample-slot {
+            width: 100%;
+            aspect-ratio: 1;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6em;
+            color: #666;
+            transition: all 0.1s;
+            cursor: default;
+        }
+        .sample-slot.loaded {
+            border-color: #4a90d944;
+            color: #888;
+        }
+        .sample-slot.playing {
+            background: #4a90d9;
+            border-color: #4a90d9;
+            color: white;
+            box-shadow: 0 0 10px #4a90d966;
+            transform: scale(1.1);
+            z-index: 1;
+        }
+        .now-playing {
+            margin-top: 0.5em;
+            padding: 8px 12px;
+            background: linear-gradient(90deg, #1a1a2e, #2a2a4e);
+            border-radius: 4px;
+            font-size: 0.85em;
+            color: #4a90d9;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .now-playing .indicator {
+            width: 8px;
+            height: 8px;
+            background: #4a90d9;
+            border-radius: 50%;
+            animation: pulse-glow 0.5s ease-in-out infinite;
+        }
+        .now-playing.idle .indicator {
+            background: #333;
+            animation: none;
+        }
+        .now-playing.idle {
+            color: #666;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 1; box-shadow: 0 0 5px #4a90d9; }
+            50% { opacity: 0.5; box-shadow: 0 0 10px #4a90d9; }
+        }
+        .euclid-display {
+            display: flex;
+            gap: 4px;
+            padding: 8px;
+            background: #0a0a14;
+            border-radius: 4px;
+            margin-top: 0.5em;
+            flex-wrap: wrap;
+            min-height: 52px;
+            align-content: flex-start;
+        }
+        .euclid-step {
+            width: 20px;
+            height: 20px;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 3px;
+            transition: all 0.1s;
+        }
+        .euclid-step.active {
+            background: #4a90d9;
+            border-color: #4a90d9;
+        }
+        .euclid-step.current {
+            box-shadow: 0 0 8px #4a90d9;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Bottles</h1>
+                <p>Euclidean sequencer with chance, clocked delay and Dattorro reverb</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Sample Section -->
+            <span class="section-label">Samples (54 Sutra Kit)</span>
+            <div class="param-controls">
+                <div class="sample-controls">
+                    <span class="sample-status" id="sampleStatus">Loading samples...</span>
+                    <input type="file" id="sampleImport" multiple accept="audio/*" style="display:none">
+                    <button class="import-btn" onclick="document.getElementById('sampleImport').click()">Import Samples</button>
+                    <button class="import-btn" id="clearSamplesBtn" style="border-color: #d94a4a; color: #d94a4a;">Clear All</button>
+                </div>
+                <div class="now-playing idle" id="nowPlaying">
+                    <span class="indicator"></span>
+                    <span id="nowPlayingText">No sample playing</span>
+                </div>
+                <div class="sample-grid" id="sampleGrid"></div>
+            </div>
+
+            <!-- Euclidean Sequencer Section -->
+            <span class="section-label">Euclidean Sequencer</span>
+            <div class="param-controls">
+                <div class="euclid-display" id="euclidDisplay"></div>
+                <div class="param-row" style="margin-top: 1em;">
+                    <div class="param-group">
+                        <label>Steps</label>
+                        <input type="range" id="steps" min="2" max="16" value="8" step="1">
+                        <span class="param-value" id="stepsVal">8</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Hits</label>
+                        <input type="range" id="hits" min="1" max="16" value="3" step="1">
+                        <span class="param-value" id="hitsVal">3</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Rotate</label>
+                        <input type="range" id="rotate" min="0" max="15" value="0" step="1">
+                        <span class="param-value" id="rotateVal">0</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>BPM</label>
+                        <input type="range" id="bpm" min="30" max="200" value="90" step="1">
+                        <span class="param-value" id="bpmVal">90</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Chance</label>
+                        <input type="range" id="chance" min="0" max="1" value="0.8" step="0.01">
+                        <span class="param-value" id="chanceVal">0.80</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pitch Section -->
+            <span class="section-label">Pitch</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Rnd Pitch</label>
+                        <button class="gate-btn active" id="rndPitchBtn">ON</button>
+                    </div>
+                    <div class="param-group">
+                        <label>Pitch Range</label>
+                        <input type="range" id="pitchRange" min="0" max="0.5" value="0.2" step="0.01">
+                        <span class="param-value" id="pitchRangeVal">0.20</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clocked Delay Section -->
+            <span class="section-label">Clocked Delay</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Mult</label>
+                        <input type="range" id="delMult" min="1" max="8" value="1" step="1">
+                        <span class="param-value" id="delMultVal">1</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Div</label>
+                        <input type="range" id="delDiv" min="1" max="8" value="2" step="1">
+                        <span class="param-value" id="delDivVal">2</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Spread</label>
+                        <input type="range" id="spread" min="-1" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="spreadVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="feedback" min="0" max="0.9" value="0.4" step="0.01">
+                        <span class="param-value" id="feedbackVal">0.40</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Delay Mix</label>
+                        <input type="range" id="delayMix" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="delayMixVal">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reverb Section -->
+            <span class="section-label">Dattorro Reverb</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Bandwidth</label>
+                        <input type="range" id="bandwidth" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="bandwidthVal">0.70</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Decay</label>
+                        <input type="range" id="decay" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="decayVal">0.50</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Damping</label>
+                        <input type="range" id="damping" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="dampingVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Verb Mix</label>
+                        <input type="range" id="verbMix" min="0" max="1" value="0.26" step="0.01">
+                        <span class="param-value" id="verbMixVal">0.26</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="vol" min="0" max="1.5" value="1.0" step="0.01">
+                        <span class="param-value" id="volVal">1.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <pre class="code-block">
+// Bottles - ER-301 Hyperscale Unit
+// Original by mudlogger
+//
+// Signal flow:
+// Euclidean Sequencer + Chance -> Variable Speed Player
+//   -> Clocked Delay -> Dattorro Reverb -> CPR -> Output
+//
+// Features:
+// - Euclidean rhythm generation
+// - Probabilistic triggering (Chance)
+// - Carousel clock divider for complex timing
+// - Random pitch modulation
+            </pre>
+
+            <p class="status" id="status">Click play to start</p>
+
+            <div id="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        // AudioWorklet Processor Code
+        const processorCode = `
+// ============================================================================
+// DELAY LINE
+// ============================================================================
+class DelayLine {
+    constructor(maxDelay) {
+        this.buffer = new Float32Array(maxDelay);
+        this.maxDelay = maxDelay;
+        this.writeIndex = 0;
+    }
+
+    write(sample) {
+        this.buffer[this.writeIndex] = sample;
+        this.writeIndex = (this.writeIndex + 1) % this.maxDelay;
+    }
+
+    readLinear(delaySamples) {
+        const delay = Math.max(0, Math.min(delaySamples, this.maxDelay - 1));
+        const intDelay = Math.floor(delay);
+        const frac = delay - intDelay;
+        let idx0 = this.writeIndex - intDelay - 1;
+        let idx1 = this.writeIndex - intDelay;
+        if (idx0 < 0) idx0 += this.maxDelay;
+        if (idx1 < 0) idx1 += this.maxDelay;
+        return this.buffer[idx1] + frac * (this.buffer[idx0] - this.buffer[idx1]);
+    }
+
+    read(delaySamples) {
+        let idx = this.writeIndex - Math.floor(delaySamples) - 1;
+        if (idx < 0) idx += this.maxDelay;
+        return this.buffer[idx];
+    }
+}
+
+// ============================================================================
+// ONE POLE FILTER
+// ============================================================================
+class OnePole {
+    constructor(coeff = 0.5) {
+        this.coeff = coeff;
+        this.z1 = 0;
+    }
+    process(x) {
+        this.z1 = x * (1 - this.coeff) + this.z1 * this.coeff;
+        return this.z1;
+    }
+}
+
+// ============================================================================
+// ALLPASS SECTION
+// ============================================================================
+class AllpassSection {
+    constructor(size) {
+        this.delay = new DelayLine(size + 1);
+        this.size = size;
+    }
+    process(x, coeff = 0.5) {
+        const delayed = this.delay.read(this.size);
+        const out = -x * coeff + delayed;
+        this.delay.write(x + delayed * coeff);
+        return out;
+    }
+}
+
+// ============================================================================
+// DC BLOCKER
+// ============================================================================
+class DCBlocker {
+    constructor() {
+        this.x1 = 0;
+        this.y1 = 0;
+    }
+    process(x) {
+        const y = x - this.x1 + 0.995 * this.y1;
+        this.x1 = x;
+        this.y1 = y;
+        return y;
+    }
+}
+
+// ============================================================================
+// DATTORRO PLATE REVERB
+// ============================================================================
+class DattorroReverb {
+    constructor(sr) {
+        this.sr = sr;
+
+        // Input diffusers
+        this.inAp1 = new AllpassSection(Math.floor(sr * 0.0047));
+        this.inAp2 = new AllpassSection(Math.floor(sr * 0.0036));
+        this.inAp3 = new AllpassSection(Math.floor(sr * 0.0127));
+        this.inAp4 = new AllpassSection(Math.floor(sr * 0.0093));
+
+        // Tank
+        this.tankAp1L = new AllpassSection(Math.floor(sr * 0.03));
+        this.tankAp1R = new AllpassSection(Math.floor(sr * 0.022));
+        this.tankDelay1L = new DelayLine(Math.floor(sr * 0.15));
+        this.tankDelay1R = new DelayLine(Math.floor(sr * 0.12));
+        this.tankAp2L = new AllpassSection(Math.floor(sr * 0.06));
+        this.tankAp2R = new AllpassSection(Math.floor(sr * 0.089));
+        this.tankDelay2L = new DelayLine(Math.floor(sr * 0.11));
+        this.tankDelay2R = new DelayLine(Math.floor(sr * 0.14));
+
+        // Damping
+        this.dampL = new OnePole(0.5);
+        this.dampR = new OnePole(0.5);
+
+        // DC blockers
+        this.dcL = new DCBlocker();
+        this.dcR = new DCBlocker();
+
+        this.tankL = 0;
+        this.tankR = 0;
+    }
+
+    process(inputL, inputR, bandwidth, decay, damping, wet) {
+        const d = Math.min(decay * 0.85, 0.85);
+        const input = Math.max(-1, Math.min(1, (inputL + inputR) * 0.5));
+
+        // Input diffusion
+        let diffused = this.inAp1.process(input * bandwidth, 0.7);
+        diffused = this.inAp2.process(diffused, 0.7);
+        diffused = this.inAp3.process(diffused, 0.5);
+        diffused = this.inAp4.process(diffused, 0.5);
+
+        // Tank processing
+        let tankInL = diffused + this.tankR * d;
+        let tankInR = diffused + this.tankL * d;
+
+        tankInL = this.tankAp1L.process(tankInL, 0.5);
+        tankInR = this.tankAp1R.process(tankInR, 0.5);
+
+        this.tankDelay1L.write(tankInL);
+        this.tankDelay1R.write(tankInR);
+
+        tankInL = this.dampL.process(this.tankDelay1L.read(Math.floor(this.sr * 0.1)));
+        tankInR = this.dampR.process(this.tankDelay1R.read(Math.floor(this.sr * 0.08)));
+
+        this.dampL.coeff = damping * 0.7;
+        this.dampR.coeff = damping * 0.7;
+
+        tankInL = this.tankAp2L.process(tankInL, 0.5);
+        tankInR = this.tankAp2R.process(tankInR, 0.5);
+
+        this.tankDelay2L.write(tankInL);
+        this.tankDelay2R.write(tankInR);
+
+        this.tankL = this.tankDelay2L.read(Math.floor(this.sr * 0.08));
+        this.tankR = this.tankDelay2R.read(Math.floor(this.sr * 0.1));
+
+        // Output
+        let outL = this.dcL.process(this.tankL);
+        let outR = this.dcR.process(this.tankR);
+
+        outL = Math.tanh(outL);
+        outR = Math.tanh(outR);
+
+        return [
+            inputL * (1 - wet) + outL * wet,
+            inputR * (1 - wet) + outR * wet
+        ];
+    }
+}
+
+// ============================================================================
+// CLOCKED DELAY
+// ============================================================================
+class ClockedDelay {
+    constructor(sr) {
+        this.sr = sr;
+        const maxDelay = Math.floor(sr * 2);
+        this.delayL = new DelayLine(maxDelay);
+        this.delayR = new DelayLine(maxDelay);
+        this.dampL = new OnePole(0.3);
+        this.dampR = new OnePole(0.3);
+    }
+
+    process(inputL, inputR, bpm, mult, div, spread, feedback, wet) {
+        const beatSamples = (60 / bpm) * this.sr;
+        const baseDelay = (beatSamples * mult) / div;
+        const spreadSamples = spread * 0.1 * this.sr;
+
+        const delayL = Math.max(1, baseDelay - spreadSamples);
+        const delayR = Math.max(1, baseDelay + spreadSamples);
+
+        const wetL = this.dampL.process(this.delayL.readLinear(delayL));
+        const wetR = this.dampR.process(this.delayR.readLinear(delayR));
+
+        this.delayL.write(inputL + wetL * feedback);
+        this.delayR.write(inputR + wetR * feedback);
+
+        return [
+            inputL * (1 - wet) + wetL * wet,
+            inputR * (1 - wet) + wetR * wet
+        ];
+    }
+}
+
+// ============================================================================
+// CPR COMPRESSOR
+// ============================================================================
+class CPR {
+    constructor(sr) {
+        this.sr = sr;
+        this.envelope = 0;
+        this.ratio = 3.0;
+        this.threshold = -12;
+        this.attack = 0.001;
+        this.release = 0.05;
+        this.makeupGain = 1.0;
+    }
+
+    process(inputL, inputR) {
+        const inputLevel = Math.max(Math.abs(inputL), Math.abs(inputR));
+        const inputDb = 20 * Math.log10(inputLevel + 1e-10);
+
+        const attackCoeff = Math.exp(-1 / (this.attack * this.sr));
+        const releaseCoeff = Math.exp(-1 / (this.release * this.sr));
+
+        if (inputDb > this.envelope) {
+            this.envelope = attackCoeff * this.envelope + (1 - attackCoeff) * inputDb;
+        } else {
+            this.envelope = releaseCoeff * this.envelope + (1 - releaseCoeff) * inputDb;
+        }
+
+        let gainReduction = 0;
+        if (this.envelope > this.threshold) {
+            gainReduction = (this.envelope - this.threshold) * (1 - 1/this.ratio);
+        }
+
+        const gain = Math.pow(10, -gainReduction / 20) * this.makeupGain;
+        return [inputL * gain, inputR * gain];
+    }
+}
+
+// ============================================================================
+// EUCLIDEAN RHYTHM GENERATOR
+// ============================================================================
+function generateEuclidean(steps, hits, rotate) {
+    if (hits > steps) hits = steps;
+    if (hits === 0) return new Array(steps).fill(false);
+
+    // Bjorklund's algorithm
+    let pattern = [];
+    let counts = [];
+    let remainders = [];
+
+    let divisor = steps - hits;
+    remainders.push(hits);
+    let level = 0;
+
+    while (remainders[level] > 1) {
+        counts.push(Math.floor(divisor / remainders[level]));
+        remainders.push(divisor % remainders[level]);
+        divisor = remainders[level];
+        level++;
+    }
+    counts.push(divisor);
+
+    function build(level) {
+        if (level === -1) {
+            pattern.push(false);
+        } else if (level === -2) {
+            pattern.push(true);
+        } else {
+            for (let i = 0; i < counts[level]; i++) {
+                build(level - 1);
+            }
+            if (remainders[level] !== 0) {
+                build(level - 2);
+            }
+        }
+    }
+
+    build(level);
+
+    // Rotate
+    const rotateAmount = rotate % pattern.length;
+    if (rotateAmount > 0) {
+        pattern = [...pattern.slice(-rotateAmount), ...pattern.slice(0, -rotateAmount)];
+    }
+
+    return pattern;
+}
+
+// ============================================================================
+// BOTTLES PROCESSOR
+// ============================================================================
+class BottlesProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+        this.samples = [];
+        this.params = {
+            steps: 8,
+            hits: 3,
+            rotate: 0,
+            bpm: 90,
+            chance: 0.8,
+            rndPitch: true,
+            pitchRange: 0.2,
+            delMult: 1,
+            delDiv: 2,
+            spread: 0.3,
+            feedback: 0.4,
+            delayMix: 0.3,
+            bandwidth: 0.7,
+            decay: 0.5,
+            damping: 0.3,
+            verbMix: 0.26,
+            vol: 1.0
+        };
+
+        // Voice
+        this.sampleIndex = -1;
+        this.samplePosition = 0;
+        this.sampleSpeed = 1.0;
+        this.samplePlaying = false;
+
+        // Euclidean sequencer
+        this.euclidPattern = generateEuclidean(8, 3, 0);
+        this.currentStep = 0;
+        this.clockPhase = 0;
+        this.lastTrigger = 0;
+
+        // DSP
+        this.clockedDelay = new ClockedDelay(this.sr);
+        this.reverb = new DattorroReverb(this.sr);
+        this.cpr = new CPR(this.sr);
+        this.dcL = new DCBlocker();
+        this.dcR = new DCBlocker();
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'samples') {
+                this.samples = e.data.samples;
+            } else if (e.data.type === 'params') {
+                const oldSteps = this.params.steps;
+                const oldHits = this.params.hits;
+                const oldRotate = this.params.rotate;
+                Object.assign(this.params, e.data.params);
+
+                // Regenerate pattern if changed
+                if (this.params.steps !== oldSteps ||
+                    this.params.hits !== oldHits ||
+                    this.params.rotate !== oldRotate) {
+                    this.euclidPattern = generateEuclidean(
+                        this.params.steps,
+                        this.params.hits,
+                        this.params.rotate
+                    );
+                    this.currentStep = this.currentStep % this.params.steps;
+                }
+            }
+        };
+    }
+
+    triggerSample() {
+        if (this.samples.length === 0) return;
+
+        // Chance gate
+        if (Math.random() > this.params.chance) return;
+
+        const idx = Math.floor(Math.random() * this.samples.length);
+        this.sampleIndex = idx;
+        this.samplePosition = 0;
+        this.samplePlaying = true;
+
+        // Random pitch
+        if (this.params.rndPitch) {
+            const pitchMod = (Math.random() - 0.5) * 2 * this.params.pitchRange;
+            this.sampleSpeed = Math.pow(2, pitchMod);
+        } else {
+            this.sampleSpeed = 1.0;
+        }
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1];
+
+        if (!outL || !outR) return true;
+
+        const samplesPerStep = (60 / this.params.bpm) * this.sr / 4; // 16th notes
+
+        for (let i = 0; i < outL.length; i++) {
+            this.clockPhase++;
+
+            // Check for step advance
+            if (this.clockPhase - this.lastTrigger >= samplesPerStep) {
+                this.lastTrigger = this.clockPhase;
+
+                // Check euclidean pattern
+                if (this.euclidPattern[this.currentStep]) {
+                    this.triggerSample();
+                }
+
+                this.currentStep = (this.currentStep + 1) % this.params.steps;
+            }
+
+            // Sample playback
+            let sampleOut = 0;
+            if (this.samplePlaying && this.sampleIndex >= 0) {
+                const sample = this.samples[this.sampleIndex];
+                if (sample && sample.data) {
+                    const pos = Math.floor(this.samplePosition);
+                    if (pos >= sample.data.length) {
+                        this.samplePlaying = false;
+                    } else {
+                        const frac = this.samplePosition - pos;
+                        const s0 = sample.data[pos] || 0;
+                        const s1 = sample.data[pos + 1] || 0;
+                        sampleOut = s0 + frac * (s1 - s0);
+                        this.samplePosition += this.sampleSpeed;
+                    }
+                }
+            }
+
+            let mixL = sampleOut * 0.7;
+            let mixR = sampleOut * 0.7;
+
+            // Clocked Delay
+            [mixL, mixR] = this.clockedDelay.process(
+                mixL, mixR,
+                this.params.bpm,
+                this.params.delMult,
+                this.params.delDiv,
+                this.params.spread,
+                this.params.feedback,
+                this.params.delayMix
+            );
+
+            // Dattorro Reverb
+            [mixL, mixR] = this.reverb.process(
+                mixL, mixR,
+                this.params.bandwidth,
+                this.params.decay,
+                this.params.damping,
+                this.params.verbMix
+            );
+
+            // CPR
+            [mixL, mixR] = this.cpr.process(mixL, mixR);
+
+            // DC blocking
+            mixL = this.dcL.process(mixL);
+            mixR = this.dcR.process(mixR);
+
+            // Soft limiting
+            mixL = Math.tanh(mixL * this.params.vol);
+            mixR = Math.tanh(mixR * this.params.vol);
+
+            outL[i] = mixL;
+            outR[i] = mixR;
+        }
+
+        // Report state
+        this.port.postMessage({
+            type: 'state',
+            sampleIndex: this.samplePlaying ? this.sampleIndex : -1,
+            currentStep: this.currentStep,
+            pattern: this.euclidPattern
+        });
+
+        return true;
+    }
+}
+
+registerProcessor('bottles-processor', BottlesProcessor);
+`;
+
+        // Expected sample names
+        const expectedSamples = [
+            'Sutra-Bongo', 'Sutra-Bottle', 'Sutra-Clap', 'Sutra-Crunch',
+            'Sutra-Hat-1', 'Sutra-Hat-2', 'Sutra-Hat-4', 'Sutra-Hat-5', 'Sutra-Hat-6',
+            'Sutra-Kick-1', 'Sutra-Kick-2', 'Sutra-Kick-3', 'Sutra-Kick-4',
+            'Sutra-SideStick', 'Sutra-Slap', 'Sutra-Snare-1', 'Sutra-Snare-2', 'Sutra-Snare-3',
+            'Sutra-Tickle', 'Sutra-Tom',
+            'Technetium', 'Tegmen', 'Tenebrous', 'Tetrorchid', 'Thallium', 'Theemim',
+            'Thereabouts', 'Thuban', 'Titanium', 'Traivikrama', 'Tripadam', 'Tyl',
+            'Uchchushita', 'Unukalhai', 'Upasripta', 'Upavitika', 'Utkalita', 'Uthkanta',
+            'Utphallaka', 'Vadavaka', 'Varahaghata', 'Veshta', 'Veshtita', 'Vigilant',
+            'Viparitaka', 'Virsha', 'Vrishaghata', 'Vyomapada', 'Wezen',
+            'Yed Posterior', 'Yildun', 'Yoni', 'Yugmapada', 'Zaniah'
+        ];
+
+        let audioContext, workletNode, analyser, dataArray;
+        let pedalboard = null;
+        let isPlaying = false;
+        let samples = [];
+        let currentPattern = [];
+        let currentStep = 0;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        function setupUI() {
+            // Create sample grid
+            const grid = document.getElementById('sampleGrid');
+            grid.innerHTML = '';
+            for (let i = 0; i < 54; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'sample-slot';
+                slot.innerHTML = `<span class="slot-index">${i + 1}</span>`;
+                slot.id = `slot-${i}`;
+                grid.appendChild(slot);
+            }
+
+            // Create euclidean display
+            updateEuclidDisplay();
+
+            // Random pitch button
+            document.getElementById('rndPitchBtn').addEventListener('click', function() {
+                this.classList.toggle('active');
+                this.textContent = this.classList.contains('active') ? 'ON' : 'OFF';
+                updateParams();
+            });
+
+            // Sliders
+            const sliderConfigs = [
+                { id: 'steps', suffix: '', decimals: 0 },
+                { id: 'hits', suffix: '', decimals: 0 },
+                { id: 'rotate', suffix: '', decimals: 0 },
+                { id: 'bpm', suffix: '', decimals: 0 },
+                { id: 'chance', suffix: '', decimals: 2 },
+                { id: 'pitchRange', suffix: '', decimals: 2 },
+                { id: 'delMult', suffix: '', decimals: 0 },
+                { id: 'delDiv', suffix: '', decimals: 0 },
+                { id: 'spread', suffix: '', decimals: 2 },
+                { id: 'feedback', suffix: '', decimals: 2 },
+                { id: 'delayMix', suffix: '', decimals: 2 },
+                { id: 'bandwidth', suffix: '', decimals: 2 },
+                { id: 'decay', suffix: '', decimals: 2 },
+                { id: 'damping', suffix: '', decimals: 2 },
+                { id: 'verbMix', suffix: '', decimals: 2 },
+                { id: 'vol', suffix: '', decimals: 2 }
+            ];
+
+            sliderConfigs.forEach(config => {
+                const slider = document.getElementById(config.id);
+                const display = document.getElementById(config.id + 'Val');
+                if (slider && display) {
+                    slider.addEventListener('input', () => {
+                        const val = parseFloat(slider.value);
+                        display.textContent = config.decimals ? val.toFixed(config.decimals) : val;
+                        updateParams();
+
+                        // Update euclidean display for relevant params
+                        if (['steps', 'hits', 'rotate'].includes(config.id)) {
+                            updateEuclidDisplay();
+                        }
+                    });
+                }
+            });
+        }
+
+        function updateEuclidDisplay() {
+            const steps = parseInt(document.getElementById('steps').value);
+            const hits = parseInt(document.getElementById('hits').value);
+            const rotate = parseInt(document.getElementById('rotate').value);
+
+            // Generate pattern locally for display
+            function generateEuclidean(steps, hits, rotate) {
+                if (hits > steps) hits = steps;
+                if (hits === 0) return new Array(steps).fill(false);
+
+                let pattern = [];
+                let counts = [];
+                let remainders = [];
+
+                let divisor = steps - hits;
+                remainders.push(hits);
+                let level = 0;
+
+                while (remainders[level] > 1) {
+                    counts.push(Math.floor(divisor / remainders[level]));
+                    remainders.push(divisor % remainders[level]);
+                    divisor = remainders[level];
+                    level++;
+                }
+                counts.push(divisor);
+
+                function build(level) {
+                    if (level === -1) {
+                        pattern.push(false);
+                    } else if (level === -2) {
+                        pattern.push(true);
+                    } else {
+                        for (let i = 0; i < counts[level]; i++) {
+                            build(level - 1);
+                        }
+                        if (remainders[level] !== 0) {
+                            build(level - 2);
+                        }
+                    }
+                }
+
+                build(level);
+
+                const rotateAmount = rotate % pattern.length;
+                if (rotateAmount > 0) {
+                    pattern = [...pattern.slice(-rotateAmount), ...pattern.slice(0, -rotateAmount)];
+                }
+
+                return pattern;
+            }
+
+            currentPattern = generateEuclidean(steps, hits, rotate);
+
+            const display = document.getElementById('euclidDisplay');
+            display.innerHTML = currentPattern.map((active, i) =>
+                `<div class="euclid-step ${active ? 'active' : ''} ${i === currentStep ? 'current' : ''}"></div>`
+            ).join('');
+        }
+
+        function updateParams() {
+            if (!workletNode) return;
+
+            workletNode.port.postMessage({
+                type: 'params',
+                params: {
+                    steps: parseInt(document.getElementById('steps').value),
+                    hits: parseInt(document.getElementById('hits').value),
+                    rotate: parseInt(document.getElementById('rotate').value),
+                    bpm: parseFloat(document.getElementById('bpm').value),
+                    chance: parseFloat(document.getElementById('chance').value),
+                    rndPitch: document.getElementById('rndPitchBtn').classList.contains('active'),
+                    pitchRange: parseFloat(document.getElementById('pitchRange').value),
+                    delMult: parseInt(document.getElementById('delMult').value),
+                    delDiv: parseInt(document.getElementById('delDiv').value),
+                    spread: parseFloat(document.getElementById('spread').value),
+                    feedback: parseFloat(document.getElementById('feedback').value),
+                    delayMix: parseFloat(document.getElementById('delayMix').value),
+                    bandwidth: parseFloat(document.getElementById('bandwidth').value),
+                    decay: parseFloat(document.getElementById('decay').value),
+                    damping: parseFloat(document.getElementById('damping').value),
+                    verbMix: parseFloat(document.getElementById('verbMix').value),
+                    vol: parseFloat(document.getElementById('vol').value)
+                }
+            });
+        }
+
+        function updateSampleGrid(sampleIndex) {
+            document.querySelectorAll('.sample-slot.playing').forEach(slot => {
+                slot.classList.remove('playing');
+            });
+
+            if (sampleIndex >= 0) {
+                const slot = document.getElementById(`slot-${sampleIndex}`);
+                if (slot) slot.classList.add('playing');
+            }
+
+            const nowPlaying = document.getElementById('nowPlaying');
+            const nowPlayingText = document.getElementById('nowPlayingText');
+
+            if (sampleIndex >= 0 && samples[sampleIndex]) {
+                nowPlaying.classList.remove('idle');
+                nowPlayingText.textContent = samples[sampleIndex].name;
+            } else {
+                nowPlaying.classList.add('idle');
+                nowPlayingText.textContent = 'No sample playing';
+            }
+        }
+
+        async function loadSamples() {
+            const status = document.getElementById('sampleStatus');
+            status.textContent = 'Loading samples...';
+
+            const basePath = '../samples/hyperscale/bottles/';
+            samples = [];
+            let loadedCount = 0;
+
+            for (let i = 0; i < expectedSamples.length; i++) {
+                const name = expectedSamples[i];
+                try {
+                    const response = await fetch(basePath + name + '.wav');
+                    if (response.ok) {
+                        const arrayBuffer = await response.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        const data = audioBuffer.getChannelData(0);
+                        samples.push({ name, data: Array.from(data) });
+                        loadedCount++;
+
+                        const slot = document.getElementById(`slot-${i}`);
+                        if (slot) slot.classList.add('loaded');
+                    } else {
+                        samples.push({ name, data: null });
+                    }
+                } catch (e) {
+                    samples.push({ name, data: null });
+                }
+            }
+
+            status.textContent = `${loadedCount}/${expectedSamples.length} samples loaded`;
+
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'samples', samples: samples.filter(s => s.data) });
+            }
+        }
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'bottles-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'state') {
+                    updateSampleGrid(e.data.sampleIndex);
+                    if (e.data.currentStep !== currentStep) {
+                        currentStep = e.data.currentStep;
+                        // Update step indicator
+                        document.querySelectorAll('.euclid-step').forEach((step, i) => {
+                            step.classList.toggle('current', i === currentStep);
+                        });
+                    }
+                }
+            };
+
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboard = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboard.init();
+
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'bottles-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-bottles'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-bottles');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-bottles',
+                    prefix: 'bottles',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Analyzer
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+            fxNode.connect(analyser);
+
+            await loadSamples();
+            updateParams();
+        }
+
+        // Visualizer
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        function drawVisualizer() {
+            requestAnimationFrame(drawVisualizer);
+
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+
+            ctx.fillStyle = '#0a0a14';
+            ctx.fillRect(0, 0, width, height);
+
+            if (!analyser) return;
+
+            analyser.getByteFrequencyData(dataArray);
+
+            const barCount = 64;
+            const barWidth = width / barCount;
+            const maxHeight = height * 0.9;
+
+            for (let i = 0; i < barCount; i++) {
+                const dataIndex = Math.floor(i * dataArray.length / barCount);
+                const value = dataArray[dataIndex] / 255;
+                const barHeight = value * maxHeight;
+
+                const hue = 210 + i * 0.5;
+                ctx.fillStyle = `hsla(${hue}, 70%, 55%, ${0.3 + value * 0.7})`;
+                ctx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
+            }
+        }
+        drawVisualizer();
+
+        // Play button
+        document.getElementById('playBtn').addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+            }
+
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            isPlaying = !isPlaying;
+            document.getElementById('playBtn').innerHTML = isPlaying ? '&#10074;&#10074;' : '&#9654;';
+            document.getElementById('status').textContent = isPlaying ? 'Playing euclidean sequence...' : 'Paused';
+
+            if (!isPlaying && audioContext) {
+                audioContext.suspend();
+            }
+        });
+
+        // Sample import
+        document.getElementById('sampleImport').addEventListener('change', async (e) => {
+            if (!audioContext) await initAudio();
+
+            const files = Array.from(e.target.files);
+            let imported = 0;
+
+            for (const file of files) {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    const data = audioBuffer.getChannelData(0);
+                    const name = file.name.replace(/\.[^/.]+$/, '');
+
+                    samples.push({ name, data: Array.from(data) });
+                    imported++;
+                } catch (e) {
+                    console.error('Failed to load:', file.name, e);
+                }
+            }
+
+            if (imported > 0 && workletNode) {
+                workletNode.port.postMessage({ type: 'samples', samples: samples.filter(s => s.data) });
+                document.getElementById('sampleStatus').textContent = `${samples.filter(s => s.data).length} samples loaded`;
+                // Rebuild grid with new sample count
+                const grid = document.getElementById('sampleGrid');
+                grid.innerHTML = '';
+                for (let i = 0; i < samples.length; i++) {
+                    const slot = document.createElement('div');
+                    slot.className = 'sample-slot' + (samples[i].data ? ' loaded' : '');
+                    slot.innerHTML = `<span class="slot-index">${i + 1}</span>`;
+                    slot.id = `slot-${i}`;
+                    slot.title = samples[i].name;
+                    grid.appendChild(slot);
+                }
+            }
+        });
+
+        // Clear samples
+        document.getElementById('clearSamplesBtn').addEventListener('click', () => {
+            samples = [];
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'samples', samples: [] });
+            }
+            document.getElementById('sampleStatus').textContent = '0 samples loaded';
+            document.getElementById('sampleGrid').innerHTML = '';
+            document.getElementById('nowPlaying').classList.add('idle');
+            document.getElementById('nowPlayingText').textContent = 'No sample playing';
+        });
+
+        setupUI();
+    </script>
+</body>
+</html>

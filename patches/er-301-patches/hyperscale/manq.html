@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>manq - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 70px;
+        }
+        .sample-visualizer {
+            max-width: 800px;
+            width: 100%;
+            margin: 1rem auto;
+        }
+        .sample-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            padding: 0.75rem;
+            background: var(--bg-secondary, #111);
+            border: 1px solid var(--border, #333);
+            border-radius: 8px;
+            max-height: 140px;
+            overflow-y: auto;
+        }
+        .sample-slot {
+            width: 24px;
+            height: 24px;
+            background: var(--bg-card, #1a1a1a);
+            border: 1px solid var(--border, #333);
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem;
+            color: var(--text-secondary, #888);
+            transition: all 0.1s;
+            cursor: default;
+        }
+        .sample-slot.playing {
+            background: #9b59b6;
+            color: white;
+            border-color: #9b59b6;
+            box-shadow: 0 0 8px rgba(155, 89, 182, 0.5);
+            transform: scale(1.15);
+        }
+        .now-playing {
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary, #888);
+            text-align: center;
+        }
+        .sample-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+        .sample-actions button {
+            padding: 0.5em 1em;
+            background: #222;
+            border: 1px solid #444;
+            color: #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        .sample-actions button:hover {
+            background: #333;
+            border-color: #9b59b6;
+        }
+        .status-display {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .status-card {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 10px 16px;
+            text-align: center;
+            min-width: 55px;
+        }
+        .status-card .label {
+            font-size: 0.55em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .status-card .value {
+            font-size: 0.95em;
+            color: #9b59b6;
+            font-family: 'SF Mono', monospace;
+        }
+        .indicator {
+            width: 10px;
+            height: 10px;
+            background: #333;
+            border-radius: 50%;
+            display: inline-block;
+            transition: all 0.05s;
+        }
+        .indicator.active {
+            background: #9b59b6;
+            box-shadow: 0 0 8px rgba(155, 89, 182, 0.7);
+        }
+        .indicator.freeze {
+            background: #3498db;
+            box-shadow: 0 0 8px rgba(52, 152, 219, 0.7);
+        }
+        .tap-btn {
+            padding: 0.5em 1.5em;
+            background: #1a1a1a;
+            border: 2px solid #9b59b6;
+            color: #9b59b6;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: bold;
+            transition: all 0.1s;
+        }
+        .tap-btn:hover, .tap-btn:active {
+            background: #9b59b6;
+            color: white;
+        }
+        .tap-btn.flash {
+            background: #9b59b6;
+            color: white;
+        }
+        .freeze-btn {
+            padding: 0.5em 1.5em;
+            background: #1a1a1a;
+            border: 2px solid #3498db;
+            color: #3498db;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: bold;
+            transition: all 0.1s;
+        }
+        .freeze-btn.active {
+            background: #3498db;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>manq</h1>
+                <p>Abstrakt Konkrete Macro kit with FM, bit crush, freeze looper and Dattorro reverb</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Status Display -->
+            <div class="status-display">
+                <div class="status-card">
+                    <div class="label">Samples</div>
+                    <div class="value" id="sampleCount">0</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Gate</div>
+                    <div class="value"><span class="indicator" id="gateIndicator"></span></div>
+                </div>
+                <div class="status-card">
+                    <div class="label">FM</div>
+                    <div class="value"><span class="indicator" id="fmIndicator"></span></div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Freeze</div>
+                    <div class="value"><span class="indicator" id="freezeIndicator"></span></div>
+                </div>
+                <div class="status-card">
+                    <div class="label">BPM</div>
+                    <div class="value" id="bpmDisplay">120</div>
+                </div>
+            </div>
+
+            <!-- Sample Grid -->
+            <div class="sample-visualizer">
+                <div class="sample-grid" id="sampleGrid"></div>
+                <div class="now-playing" id="nowPlaying">Ready - Load samples to begin</div>
+            </div>
+
+            <!-- Tap Tempo & Freeze -->
+            <div style="text-align: center; margin-bottom: 1em; display: flex; gap: 1em; justify-content: center;">
+                <button class="tap-btn" id="tapBtn">TAP TEMPO</button>
+                <button class="freeze-btn" id="freezeBtn">FREEZE</button>
+            </div>
+
+            <!-- Clock -->
+            <span class="section-label">Clock &amp; Trigger</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Clock</label>
+                        <input type="range" id="clock" min="0.5" max="8" value="2" step="0.1">
+                        <span class="param-value" id="clockVal">2.0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Scale</label>
+                        <input type="range" id="scale" min="0.25" max="2" value="1" step="0.01">
+                        <span class="param-value" id="scaleVal">1.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ADSR -->
+            <span class="section-label">Envelope</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Decay</label>
+                        <input type="range" id="decay" min="0.01" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="decayVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Release</label>
+                        <input type="range" id="release" min="0.01" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="releaseVal">0.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FM Modulation -->
+            <span class="section-label">FM Modulation</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>FM Prob</label>
+                        <input type="range" id="fmProb" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="fmProbVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>FM Freq</label>
+                        <input type="range" id="fmFreq" min="0.1" max="20" value="5" step="0.1">
+                        <span class="param-value" id="fmFreqVal">5.0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>FM Depth</label>
+                        <input type="range" id="fmDepth" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="fmDepthVal">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bit Crush -->
+            <span class="section-label">Grid Quantizer (Bit Crush)</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Bits</label>
+                        <input type="range" id="bits" min="2" max="16" value="16" step="1">
+                        <span class="param-value" id="bitsVal">16</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Freeze Looper -->
+            <span class="section-label">Freeze Looper</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Frz Prob</label>
+                        <input type="range" id="frzProb" min="0" max="1" value="0.1" step="0.01">
+                        <span class="param-value" id="frzProbVal">0.10</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grain Delay -->
+            <span class="section-label">Grain Delay</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Time</label>
+                        <input type="range" id="grainTime" min="0.01" max="0.5" value="0.1" step="0.01">
+                        <span class="param-value" id="grainTimeVal">0.10</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="grainFb" min="0" max="0.9" value="0.4" step="0.01">
+                        <span class="param-value" id="grainFbVal">0.40</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mix</label>
+                        <input type="range" id="grainMix" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="grainMixVal">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dattorro Reverb -->
+            <span class="section-label">Dattorro Reverb</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>BW</label>
+                        <input type="range" id="rBw" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="rBwVal">0.70</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Damp</label>
+                        <input type="range" id="rDamp" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="rDampVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mix</label>
+                        <input type="range" id="rWd" min="0" max="1" value="0.35" step="0.01">
+                        <span class="param-value" id="rWdVal">0.35</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="vol" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="volVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sample Import -->
+            <div class="sample-actions">
+                <input type="file" id="sampleInput" multiple accept="audio/*" style="display:none;">
+                <button id="importBtn">Import Samples</button>
+                <button id="clearBtn">Clear Samples</button>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        const processorCode = `
+// ============================================================================
+// SLEW LIMITER
+// ============================================================================
+class SlewLimiter {
+    constructor(time, sr) {
+        this.sr = sr;
+        this.setTime(time);
+        this.value = 0;
+    }
+
+    setTime(time) {
+        this.rate = 1 / (time * this.sr + 1);
+    }
+
+    process(target) {
+        const diff = target - this.value;
+        this.value += diff * this.rate;
+        return this.value;
+    }
+}
+
+// ============================================================================
+// PINGABLE SCALED RANDOM
+// ============================================================================
+class PingableScaledRandom {
+    constructor() {
+        this.value = 0.5;
+        this.target = 0.5;
+        this.min = 0;
+        this.max = 1;
+    }
+
+    ping() {
+        this.target = this.min + Math.random() * (this.max - this.min);
+    }
+
+    setRange(min, max) {
+        this.min = min;
+        this.max = max;
+    }
+
+    process(slew) {
+        this.value += (this.target - this.value) * slew;
+        return this.value;
+    }
+}
+
+// ============================================================================
+// CLOCKED RANDOM GATE
+// ============================================================================
+class ClockedRandomGate {
+    constructor(sr) {
+        this.sr = sr;
+        this.phase = 0;
+        this.rate = 2;
+        this.prob = 0.7;
+        this.gateOpen = false;
+    }
+
+    setRate(r) { this.rate = Math.max(0.1, r); }
+    setProb(p) { this.prob = p; }
+
+    process() {
+        this.phase += this.rate / this.sr;
+
+        let triggered = false;
+        if (this.phase >= 1) {
+            this.phase -= 1;
+            if (Math.random() < this.prob) {
+                triggered = true;
+                this.gateOpen = true;
+            }
+        }
+
+        if (this.phase > 0.5) {
+            this.gateOpen = false;
+        }
+
+        return triggered;
+    }
+}
+
+// ============================================================================
+// ADSR ENVELOPE
+// ============================================================================
+class ADSR {
+    constructor(sr) {
+        this.sr = sr;
+        this.state = 'idle';
+        this.value = 0;
+        this.attack = 0.01;
+        this.decay = 0.3;
+        this.sustain = 0.5;
+        this.release = 0.5;
+    }
+
+    trigger() {
+        this.state = 'attack';
+    }
+
+    release_() {
+        this.state = 'release';
+    }
+
+    process() {
+        const attackRate = 1 / (this.attack * this.sr);
+        const decayRate = 1 / (this.decay * this.sr);
+        const releaseRate = 1 / (this.release * this.sr);
+
+        switch (this.state) {
+            case 'attack':
+                this.value += attackRate;
+                if (this.value >= 1) {
+                    this.value = 1;
+                    this.state = 'decay';
+                }
+                break;
+            case 'decay':
+                this.value -= decayRate * (1 - this.sustain);
+                if (this.value <= this.sustain) {
+                    this.value = this.sustain;
+                    this.state = 'sustain';
+                }
+                break;
+            case 'sustain':
+                // Hold at sustain until release
+                this.state = 'release'; // Auto-release for this patch
+                break;
+            case 'release':
+                this.value -= releaseRate * this.value;
+                if (this.value < 0.001) {
+                    this.value = 0;
+                    this.state = 'idle';
+                }
+                break;
+        }
+
+        return this.value;
+    }
+}
+
+// ============================================================================
+// SINE OSCILLATOR (for FM)
+// ============================================================================
+class SineOsc {
+    constructor(sr) {
+        this.sr = sr;
+        this.phase = 0;
+        this.freq = 5;
+    }
+
+    setFreq(f) { this.freq = f; }
+
+    process() {
+        this.phase += this.freq / this.sr;
+        if (this.phase >= 1) this.phase -= 1;
+        return Math.sin(this.phase * Math.PI * 2);
+    }
+}
+
+// ============================================================================
+// GRID QUANTIZER (Bit Crusher)
+// ============================================================================
+class GridQuantizer {
+    constructor() {
+        this.bits = 16;
+    }
+
+    setBits(b) {
+        this.bits = Math.max(1, Math.min(16, b));
+    }
+
+    process(input) {
+        const levels = Math.pow(2, this.bits);
+        return Math.round(input * levels) / levels;
+    }
+}
+
+// ============================================================================
+// GRAIN DELAY
+// ============================================================================
+class GrainDelay {
+    constructor(sr, maxTime) {
+        this.sr = sr;
+        this.buffer = new Float32Array(Math.ceil(maxTime * sr) + 1);
+        this.writeIdx = 0;
+        this.delayTime = 0.1;
+        this.feedback = 0.4;
+        this.grainSize = 0.02;
+        this.grainPhase = 0;
+    }
+
+    setTime(t) { this.delayTime = Math.max(0.01, t); }
+    setFeedback(fb) { this.feedback = Math.min(0.95, fb); }
+
+    process(input) {
+        const delaySamples = this.delayTime * this.sr;
+
+        // Grain window
+        this.grainPhase += 1 / (this.grainSize * this.sr);
+        if (this.grainPhase >= 1) this.grainPhase = 0;
+        const grainEnv = 0.5 * (1 - Math.cos(this.grainPhase * Math.PI * 2));
+
+        let readIdx = this.writeIdx - delaySamples;
+        if (readIdx < 0) readIdx += this.buffer.length;
+
+        const idx0 = Math.floor(readIdx);
+        const idx1 = (idx0 + 1) % this.buffer.length;
+        const frac = readIdx - idx0;
+
+        const delayed = (this.buffer[idx0] * (1 - frac) + this.buffer[idx1] * frac) * grainEnv;
+
+        this.buffer[this.writeIdx] = input + delayed * this.feedback;
+        this.writeIdx = (this.writeIdx + 1) % this.buffer.length;
+
+        return delayed;
+    }
+}
+
+// ============================================================================
+// FEEDBACK LOOPER (Freeze)
+// ============================================================================
+class FeedbackLooper {
+    constructor(sr, maxTime) {
+        this.sr = sr;
+        this.buffer = new Float32Array(Math.ceil(maxTime * sr));
+        this.writeIdx = 0;
+        this.readIdx = 0;
+        this.loopLength = Math.floor(0.5 * sr);
+        this.frozen = false;
+    }
+
+    setFreeze(f) {
+        if (f && !this.frozen) {
+            // Start freeze - capture loop length
+            this.loopLength = Math.min(this.buffer.length, Math.floor(this.sr * 0.5));
+            this.readIdx = 0;
+        }
+        this.frozen = f;
+    }
+
+    process(input) {
+        if (this.frozen) {
+            // Play back frozen buffer
+            const out = this.buffer[this.readIdx];
+            this.readIdx = (this.readIdx + 1) % this.loopLength;
+            return out;
+        } else {
+            // Normal pass-through, write to buffer
+            this.buffer[this.writeIdx] = input;
+            this.writeIdx = (this.writeIdx + 1) % this.buffer.length;
+            return input;
+        }
+    }
+}
+
+// ============================================================================
+// REVERB HELPER CLASSES
+// ============================================================================
+class ReverbDelayLine {
+    constructor(maxDelay) { this.buffer = new Float32Array(maxDelay); this.maxDelay = maxDelay; this.writeIndex = 0; }
+    write(sample) { this.buffer[this.writeIndex] = sample; this.writeIndex = (this.writeIndex + 1) % this.maxDelay; }
+    read(delaySamples) { let r = this.writeIndex - Math.floor(delaySamples); if (r < 0) r += this.maxDelay; return this.buffer[r]; }
+}
+class OnePole {
+    constructor(coeff = 0.99) { this.coeff = coeff; this.z1 = 0; }
+    setFrequency(freq, sr) { this.coeff = Math.exp(-2 * Math.PI * freq / sr); }
+    process(input) { this.z1 = input + this.coeff * (this.z1 - input); return this.z1; }
+}
+class AllpassSection {
+    constructor(delaySamples, coeff) { this.delay = new ReverbDelayLine(delaySamples + 1); this.delaySamples = delaySamples; this.coeff = coeff; }
+    process(input) { const d = this.delay.read(this.delaySamples); const o = -input * this.coeff + d; this.delay.write(input + d * this.coeff); return o; }
+}
+class DCBlocker {
+    constructor() { this.x1 = 0; this.y1 = 0; this.R = 0.995; }
+    process(x) { const y = x - this.x1 + this.R * this.y1; this.x1 = x; this.y1 = y; return y; }
+}
+
+// ============================================================================
+// DATTORRO REVERB (with stability fixes)
+// ============================================================================
+class DattorroReverb {
+    constructor(sr) {
+        this.sr = sr; const b = sr / 29761;
+        this.predelay = new ReverbDelayLine(Math.floor(sr * 0.1)); this.predelayTime = Math.floor(0.019 * sr);
+        this.inDiff1 = new AllpassSection(Math.floor(142 * b), 0.7); this.inDiff2 = new AllpassSection(Math.floor(107 * b), 0.7);
+        this.inDiff3 = new AllpassSection(Math.floor(379 * b), 0.5); this.inDiff4 = new AllpassSection(Math.floor(277 * b), 0.5);
+        this.decayDiff1L = new AllpassSection(Math.floor(672 * b), -0.6); this.delay1L = new ReverbDelayLine(Math.floor(4453 * b));
+        this.damp1L = new OnePole(0.0001); this.decayDiff2L = new AllpassSection(Math.floor(1800 * b), 0.4); this.delay2L = new ReverbDelayLine(Math.floor(3720 * b));
+        this.decayDiff1R = new AllpassSection(Math.floor(908 * b), -0.6); this.delay1R = new ReverbDelayLine(Math.floor(4217 * b));
+        this.damp1R = new OnePole(0.0001); this.decayDiff2R = new AllpassSection(Math.floor(2656 * b), 0.4); this.delay2R = new ReverbDelayLine(Math.floor(3163 * b));
+        this.inputFilter = new OnePole(0.9995); this.tankL = 0; this.tankR = 0;
+        this.dcBlockL = new DCBlocker(); this.dcBlockR = new DCBlocker(); this.decay = 0.5; this.mix = 0.5;
+        this.delay1LTime = Math.floor(4453 * b); this.delay2LTime = Math.floor(3720 * b);
+        this.delay1RTime = Math.floor(4217 * b); this.delay2RTime = Math.floor(3163 * b);
+        this.bandwidth = 0.7; this.damping = 0.5;
+    }
+    setDecay(d) { this.decay = Math.max(0, Math.min(0.85, d * 0.85)); }
+    setDamping(d) { const f = 200 + 15000 * (1 - d); this.damp1L.setFrequency(f, this.sr); this.damp1R.setFrequency(f, this.sr); this.damping = d; }
+    setBandwidth(bw) { this.inputFilter.coeff = 1 - bw; this.bandwidth = bw; }
+    setMix(m) { this.mix = Math.max(0, Math.min(1, m)); }
+    process(inL, inR) {
+        let input = Math.max(-1, Math.min(1, (inL + inR) * 0.5));
+        input = this.inputFilter.process(input); this.predelay.write(input); input = this.predelay.read(this.predelayTime);
+        input = this.inDiff1.process(this.inDiff2.process(this.inDiff3.process(this.inDiff4.process(input))));
+        let tL = input + this.dcBlockL.process(this.tankR) * this.decay;
+        tL = this.decayDiff1L.process(tL); this.delay1L.write(tL); tL = this.damp1L.process(this.delay1L.read(this.delay1LTime));
+        tL = this.decayDiff2L.process(tL); this.delay2L.write(tL); this.tankL = Math.tanh(this.delay2L.read(this.delay2LTime));
+        let tR = input + this.dcBlockR.process(this.tankL) * this.decay;
+        tR = this.decayDiff1R.process(tR); this.delay1R.write(tR); tR = this.damp1R.process(this.delay1R.read(this.delay1RTime));
+        tR = this.decayDiff2R.process(tR); this.delay2R.write(tR); this.tankR = Math.tanh(this.delay2R.read(this.delay2RTime));
+        const wL = this.tankL * 0.6 + this.tankR * 0.4, wR = this.tankR * 0.6 + this.tankL * 0.4;
+        return [inL * (1 - this.mix) + wL * this.mix, inR * (1 - this.mix) + wR * this.mix];
+    }
+}
+
+// ============================================================================
+// CPR COMPRESSOR
+// ============================================================================
+class CPR {
+    constructor(sr) {
+        this.sr = sr;
+        this.envelope = 0;
+        this.attackCoef = Math.exp(-1 / (sr * 0.005));
+        this.releaseCoef = Math.exp(-1 / (sr * 0.1));
+        this.threshold = 0.5;
+        this.ratio = 4;
+        this.makeupGain = 1.5;
+    }
+
+    process(input) {
+        const inputLevel = Math.abs(input);
+
+        if (inputLevel > this.envelope) {
+            this.envelope = this.attackCoef * this.envelope + (1 - this.attackCoef) * inputLevel;
+        } else {
+            this.envelope = this.releaseCoef * this.envelope + (1 - this.releaseCoef) * inputLevel;
+        }
+
+        let gain = 1;
+        if (this.envelope > this.threshold) {
+            const excess = this.envelope - this.threshold;
+            const compressed = excess / this.ratio;
+            gain = (this.threshold + compressed) / this.envelope;
+        }
+
+        return input * gain * this.makeupGain;
+    }
+}
+
+// ============================================================================
+// MANQ PROCESSOR
+// ============================================================================
+class ManqProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+        this.playing = false;
+        this.samples = [];
+        this.sampleNames = [];
+
+        // Current sample
+        this.currentSample = null;
+        this.samplePosition = 0;
+        this.currentSampleIndex = -1;
+
+        // BPM
+        this.bpm = 120;
+        this.clockRate = 2;
+
+        // Gate
+        this.gate = new ClockedRandomGate(this.sr);
+
+        // ADSR
+        this.adsr = new ADSR(this.sr);
+
+        // FM
+        this.fmOsc = new SineOsc(this.sr);
+        this.fmActive = false;
+
+        // Bit crusher
+        this.bitCrusher = new GridQuantizer();
+
+        // Freeze looper
+        this.freezeLooper = new FeedbackLooper(this.sr, 2);
+        this.manualFreeze = false;
+
+        // Grain delay
+        this.grainDelay = new GrainDelay(this.sr, 1);
+
+        // Dattorro reverb
+        this.reverb = new DattorroReverb(this.sr);
+
+        // CPR
+        this.compressor = new CPR(this.sr);
+
+        // Random
+        this.sampleRandom = new PingableScaledRandom();
+
+        // Params
+        this.params = {
+            clock: 2,
+            scale: 1,
+            decay: 0.3,
+            release: 0.5,
+            fmProb: 0.3,
+            fmFreq: 5,
+            fmDepth: 0.3,
+            bits: 16,
+            frzProb: 0.1,
+            grainTime: 0.1,
+            grainFb: 0.4,
+            grainMix: 0.3,
+            rBw: 0.7,
+            rDamp: 0.5,
+            rWd: 0.35,
+            vol: 0.7
+        };
+
+        this.uiCounter = 0;
+        this.freezeTimer = 0;
+        this.freezeDuration = Math.floor(this.sr * 0.5); // 500ms in samples
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'start') this.playing = true;
+            if (e.data.type === 'stop') this.playing = false;
+            if (e.data.type === 'param') {
+                this.params[e.data.name] = e.data.value;
+            }
+            if (e.data.type === 'bpm') {
+                this.bpm = e.data.bpm;
+                this.clockRate = this.bpm / 60;
+            }
+            if (e.data.type === 'freeze') {
+                this.manualFreeze = e.data.freeze;
+            }
+            if (e.data.type === 'loadSamples') {
+                this.samples = e.data.samples;
+                this.sampleNames = e.data.names || [];
+            }
+            if (e.data.type === 'clearSamples') {
+                this.samples = [];
+                this.sampleNames = [];
+                this.currentSample = null;
+            }
+        };
+    }
+
+    triggerSample() {
+        if (this.samples.length === 0) return;
+
+        const idx = Math.floor(Math.random() * this.samples.length);
+        this.currentSample = this.samples[idx];
+        this.currentSampleIndex = idx;
+        this.samplePosition = 0;
+
+        this.adsr.trigger();
+
+        // FM probability
+        this.fmActive = Math.random() < this.params.fmProb;
+
+        // Freeze probability - start timer-based freeze
+        if (Math.random() < this.params.frzProb && !this.manualFreeze) {
+            this.freezeLooper.setFreeze(true);
+            this.freezeTimer = this.freezeDuration;
+        }
+
+        this.port.postMessage({
+            type: 'sampleTriggered',
+            index: idx,
+            fm: this.fmActive
+        });
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1];
+
+        if (!this.playing) {
+            outL.fill(0);
+            outR.fill(0);
+            return true;
+        }
+
+        // Update params
+        this.gate.setRate(this.clockRate * this.params.clock);
+        this.adsr.decay = this.params.decay;
+        this.adsr.release = this.params.release;
+        this.fmOsc.setFreq(this.params.fmFreq);
+        this.bitCrusher.setBits(this.params.bits);
+        this.grainDelay.setTime(this.params.grainTime);
+        this.grainDelay.setFeedback(this.params.grainFb);
+        this.reverb.setBandwidth(this.params.rBw);
+        this.reverb.setDamping(this.params.rDamp);
+        this.reverb.setDecay(0.7);
+        this.reverb.setMix(this.params.rWd);
+
+        // Freeze state - check timer-based freeze
+        if (this.freezeTimer > 0) {
+            this.freezeTimer -= outL.length;
+            if (this.freezeTimer <= 0 && !this.manualFreeze) {
+                this.freezeLooper.setFreeze(false);
+            }
+        }
+        if (this.manualFreeze) {
+            this.freezeLooper.setFreeze(true);
+        }
+
+        let gateState = false;
+
+        for (let i = 0; i < outL.length; i++) {
+            const trig = this.gate.process();
+            gateState = this.gate.gateOpen;
+
+            if (trig) {
+                this.triggerSample();
+            }
+
+            // Sample playback
+            let sampleOut = 0;
+            if (this.currentSample) {
+                const idx = Math.floor(this.samplePosition);
+                if (idx >= 0 && idx < this.currentSample.length - 1) {
+                    const frac = this.samplePosition - idx;
+                    const s0 = this.currentSample[idx];
+                    const s1 = this.currentSample[idx + 1];
+                    sampleOut = s0 + frac * (s1 - s0);
+
+                    // FM modulation of speed
+                    let speed = this.params.scale;
+                    if (this.fmActive) {
+                        const fm = this.fmOsc.process() * this.params.fmDepth;
+                        speed *= (1 + fm);
+                    }
+                    this.samplePosition += speed;
+                }
+            }
+
+            // Envelope
+            const env = this.adsr.process();
+            sampleOut *= env;
+
+            // Bit crush
+            sampleOut = this.bitCrusher.process(sampleOut);
+
+            // Freeze looper
+            sampleOut = this.freezeLooper.process(sampleOut);
+
+            // Grain delay
+            const grainOut = this.grainDelay.process(sampleOut);
+            sampleOut = sampleOut * (1 - this.params.grainMix) + grainOut * this.params.grainMix;
+
+            // Reverb (includes wet/dry mix)
+            let [sigL, sigR] = this.reverb.process(sampleOut, sampleOut);
+
+            // Compression
+            sigL = this.compressor.process(sigL);
+            sigR = this.compressor.process(sigR);
+
+            // Volume and limit
+            sigL *= this.params.vol;
+            sigR *= this.params.vol;
+
+            outL[i] = Math.tanh(sigL);
+            outR[i] = Math.tanh(sigR);
+        }
+
+        // UI updates
+        this.uiCounter++;
+        if (this.uiCounter >= 256) {
+            this.uiCounter = 0;
+            this.port.postMessage({
+                type: 'status',
+                gate: gateState,
+                fm: this.fmActive,
+                freeze: this.freezeLooper.frozen
+            });
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('manq-processor', ManqProcessor);
+`;
+
+        let audioContext, workletNode, pedalboard;
+        let isPlaying = false;
+        let samples = [];
+        let sampleNames = [];
+        let currentPlayingIndex = -1;
+        let tapTimes = [];
+        let isFreeze = false;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const tapBtn = document.getElementById('tapBtn');
+        const freezeBtn = document.getElementById('freezeBtn');
+        const sampleGrid = document.getElementById('sampleGrid');
+        const nowPlaying = document.getElementById('nowPlaying');
+        const sampleCountEl = document.getElementById('sampleCount');
+        const bpmDisplayEl = document.getElementById('bpmDisplay');
+        const gateIndicator = document.getElementById('gateIndicator');
+        const fmIndicator = document.getElementById('fmIndicator');
+        const freezeIndicator = document.getElementById('freezeIndicator');
+        const importBtn = document.getElementById('importBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const sampleInput = document.getElementById('sampleInput');
+
+        // Tap tempo
+        tapBtn.addEventListener('click', () => {
+            const now = Date.now();
+            tapTimes.push(now);
+            if (tapTimes.length > 4) tapTimes.shift();
+
+            tapBtn.classList.add('flash');
+            setTimeout(() => tapBtn.classList.remove('flash'), 100);
+
+            if (tapTimes.length >= 2) {
+                let totalInterval = 0;
+                for (let i = 1; i < tapTimes.length; i++) {
+                    totalInterval += tapTimes[i] - tapTimes[i-1];
+                }
+                const avgInterval = totalInterval / (tapTimes.length - 1);
+                const bpm = Math.round(60000 / avgInterval);
+
+                if (bpm >= 40 && bpm <= 300) {
+                    bpmDisplayEl.textContent = bpm;
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'bpm', bpm: bpm });
+                    }
+                }
+            }
+
+            if (tapTimes.length >= 2) {
+                const lastGap = tapTimes[tapTimes.length - 1] - tapTimes[tapTimes.length - 2];
+                if (lastGap > 2000) tapTimes = [now];
+            }
+        });
+
+        // Freeze toggle
+        freezeBtn.addEventListener('click', () => {
+            isFreeze = !isFreeze;
+            freezeBtn.classList.toggle('active', isFreeze);
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'freeze', freeze: isFreeze });
+            }
+        });
+
+        // Parameters
+        const params = [
+            'clock', 'scale', 'decay', 'release',
+            'fmProb', 'fmFreq', 'fmDepth', 'bits', 'frzProb',
+            'grainTime', 'grainFb', 'grainMix',
+            'rBw', 'rDamp', 'rWd', 'vol'
+        ];
+
+        params.forEach(param => {
+            const el = document.getElementById(param);
+            const valEl = document.getElementById(param + 'Val');
+            if (el && valEl) {
+                el.addEventListener('input', () => {
+                    const v = parseFloat(el.value);
+                    valEl.textContent = v.toFixed(el.step.includes('.') ? el.step.split('.')[1].length : 0);
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'param', name: param, value: v });
+                    }
+                });
+            }
+        });
+
+        function updateSampleGrid() {
+            sampleGrid.innerHTML = '';
+            samples.forEach((_, idx) => {
+                const slot = document.createElement('div');
+                slot.className = 'sample-slot';
+                slot.textContent = idx + 1;
+                slot.id = 'slot-' + idx;
+                sampleGrid.appendChild(slot);
+            });
+            sampleCountEl.textContent = samples.length;
+        }
+
+        async function loadDefaultSamples() {
+            const samplePath = '../samples/hyperscale/manq/';
+            const sampleFiles = [
+                'Macro-Cricket-01.wav', 'Macro-CrystalHit1.wav', 'Macro-Double-01.wav', 'Macro-Double-02.wav',
+                'Macro-Gem-01.wav', 'Macro-Gem-03.wav', 'Macro-Gem-04.wav', 'Macro-Gem-05.wav', 'Macro-Gem-06.wav', 'Macro-Gem-07.wav',
+                'Macro-Glass-03.wav', 'Macro-Glass-05.wav', 'Macro-Glass-07.wav',
+                'Macro-GlassPing-01.wav', 'Macro-GlassPing-02.wav', 'Macro-GlassPing-03.wav', 'Macro-GlassPing-04.wav', 'Macro-GlassPing-05.wav', 'Macro-GlassPing-06.wav', 'Macro-GlassPing-07.wav',
+                'Macro-Glitch2.wav',
+                'Macro-Hat2-04.wav', 'Macro-Hat2-05.wav', 'Macro-Hat2-07.wav',
+                'Macro-Hit-01.wav', 'Macro-Hit-02.wav', 'Macro-Hit-03.wav', 'Macro-Hit-05.wav', 'Macro-Hit-06.wav', 'Macro-Hit-5.wav', 'Macro-Hit3.wav',
+                'Macro-Kick-01.wav', 'Macro-Kick-02.wav', 'Macro-Kick-03.wav', 'Macro-Kick-04.wav', 'Macro-Kick-05.wav', 'Macro-Kick-06.wav', 'Macro-Kick-07.wav',
+                'Macro-Kick2-01.wav', 'Macro-Kick2-02.wav', 'Macro-Kick2-03.wav', 'Macro-Kick2-04.wav', 'Macro-Kick2-05.wav', 'Macro-Kick2-06.wav', 'Macro-Kick2-07.wav',
+                'Macro-Kick3-01.wav', 'Macro-Kick3-02.wav', 'Macro-Kick3-03.wav', 'Macro-Kick3-04.wav', 'Macro-Kick3-05.wav', 'Macro-Kick3-06.wav', 'Macro-Kick3-07.wav',
+                'Macro-Kick4-01.wav', 'Macro-Kick4-02.wav', 'Macro-Kick4-03.wav', 'Macro-Kick4-04.wav', 'Macro-Kick4-05.wav', 'Macro-Kick4-06.wav', 'Macro-Kick4-07.wav',
+                'Macro-Kick5-01.wav', 'Macro-Kick5-02.wav', 'Macro-Kick5-03.wav', 'Macro-Kick5-04.wav', 'Macro-Kick5-05.wav', 'Macro-Kick5-06.wav', 'Macro-Kick5-07.wav',
+                'Macro-Micro-01.wav', 'Macro-Micro-02.wav', 'Macro-Micro-03.wav', 'Macro-Micro-04.wav', 'Macro-Micro-05.wav', 'Macro-Micro-06.wav', 'Macro-Micro-07.wav',
+                'Macro-Perc6.wav', 'Macro-Rev1.wav',
+                'Macro-Ridgehiss-01.wav', 'Macro-Ridgehiss-02.wav', 'Macro-Ridgehiss-03.wav', 'Macro-Ridgehiss-04.wav', 'Macro-Ridgehiss-05.wav',
+                'Macro-Ridger-01.wav',
+                'Macro-Snake-01.wav', 'Macro-Snake-02.wav', 'Macro-Snake-03.wav', 'Macro-Snake-04.wav', 'Macro-Snake-05.wav', 'Macro-Snake-06.wav', 'Macro-Snake-07.wav',
+                'Macro-Splik-05.wav', 'Macro-Splik-06.wav',
+                'Macro-Twinkle.wav'
+            ];
+
+            nowPlaying.textContent = `Loading ${sampleFiles.length} samples...`;
+            samples = [];
+            sampleNames = [];
+
+            let loaded = 0;
+            for (const file of sampleFiles) {
+                try {
+                    const response = await fetch(samplePath + encodeURIComponent(file));
+                    if (response.ok) {
+                        const arrayBuffer = await response.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                        samples.push(audioBuffer.getChannelData(0));
+                        sampleNames.push(file.replace('.wav', '').replace('Macro-', ''));
+                        loaded++;
+                        nowPlaying.textContent = `Loading... ${loaded}/${sampleFiles.length}`;
+                    }
+                } catch (e) {
+                    console.log('Sample not found:', file);
+                }
+            }
+
+            if (samples.length > 0) {
+                workletNode.port.postMessage({ type: 'loadSamples', samples, names: sampleNames });
+                nowPlaying.textContent = `${samples.length} Macro samples loaded`;
+            } else {
+                nowPlaying.textContent = 'No default samples - Import your own';
+            }
+            updateSampleGrid();
+        }
+
+        importBtn.addEventListener('click', () => sampleInput.click());
+
+        sampleInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+
+            nowPlaying.textContent = `Loading ${files.length} samples...`;
+            samples = [];
+            sampleNames = [];
+
+            for (const file of files) {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    samples.push(audioBuffer.getChannelData(0));
+                    sampleNames.push(file.name.replace(/\.[^.]+$/, ''));
+                } catch (e) {
+                    console.error('Error loading:', file.name, e);
+                }
+            }
+
+            if (workletNode && samples.length > 0) {
+                workletNode.port.postMessage({ type: 'loadSamples', samples, names: sampleNames });
+            }
+            nowPlaying.textContent = `${samples.length} samples loaded`;
+            updateSampleGrid();
+            sampleInput.value = '';
+        });
+
+        clearBtn.addEventListener('click', () => {
+            samples = [];
+            sampleNames = [];
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'clearSamples' });
+            }
+            updateSampleGrid();
+            nowPlaying.textContent = 'Samples cleared - Import new samples';
+        });
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'manq-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'sampleTriggered') {
+                    const prevSlot = document.getElementById('slot-' + currentPlayingIndex);
+                    if (prevSlot) prevSlot.classList.remove('playing');
+
+                    currentPlayingIndex = e.data.index;
+                    const slot = document.getElementById('slot-' + currentPlayingIndex);
+                    if (slot) slot.classList.add('playing');
+
+                    if (sampleNames[currentPlayingIndex]) {
+                        nowPlaying.textContent = sampleNames[currentPlayingIndex];
+                    }
+                }
+                if (e.data.type === 'status') {
+                    gateIndicator.classList.toggle('active', e.data.gate);
+                    fmIndicator.classList.toggle('active', e.data.fm);
+                    freezeIndicator.classList.toggle('active', e.data.freeze);
+                    freezeIndicator.classList.toggle('freeze', e.data.freeze);
+                }
+            };
+
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboard = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'manq-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-manq'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-manq');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-manq',
+                    prefix: 'manq',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+            fxNodeRef = fxNode;
+
+            params.forEach(param => {
+                const el = document.getElementById(param);
+                if (el) {
+                    workletNode.port.postMessage({
+                        type: 'param',
+                        name: param,
+                        value: parseFloat(el.value)
+                    });
+                }
+            });
+
+            workletNode.port.postMessage({ type: 'bpm', bpm: 120 });
+
+            await loadDefaultSamples();
+        }
+
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+            }
+
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            isPlaying = !isPlaying;
+            playBtn.innerHTML = isPlaying ? '&#9632;' : '&#9654;';
+            workletNode.port.postMessage({ type: isPlaying ? 'start' : 'stop' });
+        });
+
+        // Visualization
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        let analyser, fxNodeRef;
+        function setupAnalyser() {
+            if (!audioContext || !fxNodeRef) return;
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            fxNodeRef.connect(analyser);
+        }
+
+        function draw() {
+            requestAnimationFrame(draw);
+
+            const w = canvas.offsetWidth;
+            const h = canvas.offsetHeight;
+
+            ctx.fillStyle = '#0a0a0f';
+            ctx.fillRect(0, 0, w, h);
+
+            if (!analyser) {
+                if (audioContext && fxNodeRef) setupAnalyser();
+                return;
+            }
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            const barWidth = w / bufferLength;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const barHeight = (dataArray[i] / 255) * h * 0.8;
+                const hue = 280 + (dataArray[i] / 255) * 20;
+                ctx.fillStyle = `hsl(${hue}, 50%, ${35 + dataArray[i] / 8}%)`;
+                ctx.fillRect(i * barWidth, h - barHeight, barWidth - 1, barHeight);
+            }
+        }
+
+        draw();
+
+        // Info panel
+        ER301InfoPanel.create({
+            title: 'manq',
+            sections: [
+                {
+                    title: 'Overview',
+                    content: `manq is a generative sample mangler using the Abstrakt Konkrete Vol.2 Macro kit (91 samples).
+Features FM modulation, bit crushing (grid quantizer), freeze looping, grain delay, and Dattorro reverb.
+The Macro kit includes glass, crystal, kicks, micro percussion, snakes, and various textural hits.`
+                },
+                {
+                    title: 'Tap Tempo & Freeze',
+                    content: `<strong>TAP TEMPO:</strong> Tap to set the clock rate<br>
+<strong>FREEZE:</strong> Toggle to freeze the current audio in a loop. Can also trigger randomly via Frz Prob.`
+                },
+                {
+                    title: 'Clock & Trigger',
+                    content: `<strong>Clock:</strong> Clock multiplier for trigger rate<br>
+<strong>Scale:</strong> Sample playback speed scaling`
+                },
+                {
+                    title: 'Envelope',
+                    content: `<strong>Decay:</strong> Envelope decay time<br>
+<strong>Release:</strong> Envelope release time`
+                },
+                {
+                    title: 'FM Modulation',
+                    content: `Sine wave FM modulation of playback speed:<br><br>
+<strong>FM Prob:</strong> Probability that FM is active on each trigger<br>
+<strong>FM Freq:</strong> Modulation frequency in Hz<br>
+<strong>FM Depth:</strong> Modulation intensity`
+                },
+                {
+                    title: 'Grid Quantizer',
+                    content: `<strong>Bits:</strong> Bit depth reduction (16=clean, lower=more crushed)<br>
+Creates digital lo-fi textures.`
+                },
+                {
+                    title: 'Freeze Looper',
+                    content: `<strong>Frz Prob:</strong> Probability of auto-freeze on each trigger<br>
+Or use the FREEZE button for manual control.`
+                },
+                {
+                    title: 'Grain Delay',
+                    content: `<strong>Time:</strong> Grain/delay time<br>
+<strong>Feedback:</strong> Delay feedback amount<br>
+<strong>Mix:</strong> Wet/dry blend`
+                },
+                {
+                    title: 'Dattorro Reverb',
+                    content: `<strong>BW:</strong> Bandwidth (input filtering)<br>
+<strong>Damp:</strong> High frequency damping<br>
+<strong>Mix:</strong> Wet/dry blend`
+                },
+                {
+                    title: 'Signal Flow',
+                    content: `Tap Tempo → Clocked Random Gate → Sample Player →<br>
+FM Modulation (probabilistic) → ADSR Envelope →<br>
+Grid Quantizer → Freeze Looper → Grain Delay →<br>
+Dattorro Reverb → CPR + Limiter → Output`
+                },
+                {
+                    title: 'Sample Kit: Abstrakt Konkrete Macro',
+                    content: `91 samples including:<br>
+• Glass and Crystal hits<br>
+• Multiple Kick variations (Kick1-5)<br>
+• Micro percussion<br>
+• Snake and hiss textures<br>
+• Gem and twinkle sounds<br>
+• Glitch and experimental hits`
+                },
+                {
+                    title: 'Tips',
+                    content: `• The Macro kit has lots of tonal variety - great for evolving textures<br>
+• Lower bits values create crushed, lo-fi textures<br>
+• FM Modulation adds pitch wobble - try low FM Prob for occasional variation<br>
+• Use Freeze for glitchy stutter effects or drone moments<br>
+• Grain Delay adds spatial depth and texture<br>
+• Try slower clock rates for ambient washes`
+                }
+            ]
+        });
+    </script>
+</body>
+</html>

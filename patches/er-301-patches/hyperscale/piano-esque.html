@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>piano esque - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        :root {
+            --accent: #3498db;
+            --glow: rgba(52, 152, 219, 0.4);
+        }
+        .info-toggle {
+            position: absolute; top: 1rem; right: 1rem;
+            background: var(--bg-card); border: 1px solid var(--border);
+            color: var(--text-secondary); width: 32px; height: 32px;
+            border-radius: 50%; cursor: pointer; font-size: 1.1rem;
+            display: flex; align-items: center; justify-content: center; z-index: 100;
+        }
+        .info-toggle:hover { border-color: var(--accent); color: var(--accent); }
+        .info-panel {
+            display: none; position: fixed; top: 0; right: 0;
+            width: min(520px, 90vw); height: 100vh;
+            background: var(--bg-primary); border-left: 1px solid var(--border);
+            padding: 2rem; overflow-y: auto; z-index: 200;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+        }
+        .info-panel.visible { display: block; }
+        .info-panel h2 { color: var(--accent); margin-bottom: 1rem; }
+        .info-panel h3 { color: var(--text-primary); margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        .info-panel p, .info-panel li { color: var(--text-secondary); line-height: 1.6; }
+        .info-panel ul { padding-left: 1.5rem; }
+        .info-panel .close-btn {
+            position: absolute; top: 1rem; right: 1rem;
+            background: none; border: none; color: var(--text-secondary);
+            font-size: 1.5rem; cursor: pointer;
+        }
+        .info-panel code { background: var(--bg-card); padding: 2px 6px; border-radius: 3px; }
+        .synth-section {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 8px; padding: 0.6rem; margin-bottom: 0.6rem;
+            min-width: 0; overflow: hidden;
+        }
+        .synth-section h3 {
+            color: var(--accent); margin: 0 0 0.4rem 0;
+            font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .param-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+            gap: 0.4rem;
+        }
+        .param-group { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+        .param-group label { font-size: 0.6rem; color: var(--text-secondary); text-transform: uppercase; }
+        .param-group input[type="range"] { width: 100%; min-width: 0; height: 4px; }
+        .param-group .value { font-size: 0.6rem; color: var(--accent); text-align: center; }
+        .controls-row {
+            display: flex; gap: 0.5rem; justify-content: center;
+            margin-bottom: 0.6rem; flex-wrap: wrap; align-items: center;
+        }
+        .trigger-btn, .autogen-btn {
+            background: var(--bg-card); border: 2px solid var(--accent);
+            color: var(--accent); padding: 0.4rem 0.8rem; border-radius: 4px;
+            cursor: pointer; font-weight: bold; font-size: 0.8rem; transition: all 0.1s;
+        }
+        .trigger-btn:hover, .trigger-btn.active,
+        .autogen-btn:hover, .autogen-btn.active {
+            background: var(--accent); color: white;
+        }
+        .waveform-display {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 8px; padding: 0.4rem; margin-bottom: 0.6rem; text-align: center;
+        }
+        .waveform-display canvas { width: 100%; max-width: 500px; height: 50px; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; width: 100%; max-width: 100%; }
+        .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; width: 100%; max-width: 100%; }
+        @media (max-width: 700px) { .two-col, .three-col { grid-template-columns: 1fr; } }
+        .keyboard-hint { font-size: 0.6rem; color: var(--text-secondary); text-align: center; margin-top: 0.4rem; }
+        .toggle-btn {
+            background: var(--bg-card); border: 1px solid var(--border);
+            color: var(--text-secondary); padding: 0.3rem 0.6rem; border-radius: 4px;
+            cursor: pointer; font-size: 0.7rem;
+        }
+        .toggle-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+        .sample-info {
+            text-align: center; font-size: 0.75rem; color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+        .sample-info.ready { color: var(--accent); }
+        .sample-info.loading { color: #f39c12; }
+        .sample-actions {
+            display: flex; gap: 8px; justify-content: center; margin: 0.5rem 0;
+        }
+        .sample-actions button {
+            padding: 6px 12px; background: var(--bg-card);
+            border: 1px solid var(--border); color: var(--text-secondary);
+            border-radius: 4px; cursor: pointer; font-size: 0.75rem;
+        }
+        .sample-actions button:hover { border-color: var(--accent); color: var(--accent); }
+        .midi-status {
+            text-align: center; font-size: 0.7rem; color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+        .midi-status.connected { color: var(--accent); }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header" style="position: relative; justify-content: center;">
+            <a href="../../../index.html" class="back-link" style="position: absolute; left: 2rem;">&larr; Back</a>
+            <div style="text-align: center;">
+                <h1>piano esque</h1>
+                <p style="color: var(--text-secondary); font-size: 0.85rem;">Multi-Sample Piano with Grain Stretch & Feedback Looper</p>
+            </div>
+            <button class="info-toggle" id="infoToggle">?</button>
+        </header>
+
+        <div class="info-panel" id="infoPanel">
+            <button class="close-btn" id="closeInfo">&times;</button>
+            <h2>piano esque</h2>
+            <p>Multi-velocity Kawai 9' Grand piano sampler with grain stretching for textural manipulation, feedback looper for ambient layers, and autogen mode for generative piano textures.</p>
+
+            <h3>Sample Playback</h3>
+            <ul>
+                <li><strong>Samples:</strong> 42 Kawai 9' Grand samples (Hard + Medium velocity)</li>
+                <li><strong>Stretch:</strong> Time-stretch/pitch-shift amount</li>
+                <li><strong>Duration:</strong> Note sustain length</li>
+                <li><strong>Velocity:</strong> Hard/Medium sample blend based on velocity</li>
+            </ul>
+
+            <h3>Autogen Section</h3>
+            <ul>
+                <li><strong>BPM:</strong> Clock tempo for auto-triggering</li>
+                <li><strong>Clk Mult:</strong> Clock multiplier</li>
+                <li><strong>Trig Prob:</strong> Probability of note triggering</li>
+                <li><strong>Pan Rnd:</strong> Random stereo panning</li>
+            </ul>
+
+            <h3>Grain Stretch</h3>
+            <ul>
+                <li><strong>Stretch:</strong> Pitch/time stretch ratio</li>
+                <li><strong>Grain Dur:</strong> Individual grain length</li>
+                <li><strong>Grain Mix:</strong> Dry/stretched blend</li>
+            </ul>
+
+            <h3>Feedback Looper</h3>
+            <ul>
+                <li><strong>Looper:</strong> Feedback looper wet level</li>
+                <li><strong>Loop Time:</strong> Delay time for looper</li>
+                <li><strong>Feedback:</strong> Loop feedback amount</li>
+            </ul>
+
+            <h3>Tone Section</h3>
+            <ul>
+                <li><strong>Tone:</strong> Low-pass filter brightness</li>
+                <li><strong>Del:</strong> Delay wet level</li>
+                <li><strong>Del Time:</strong> Delay time</li>
+                <li><strong>Del Fdbk:</strong> Delay feedback</li>
+            </ul>
+
+            <h3>MIDI Control</h3>
+            <ul>
+                <li><strong>Notes:</strong> Play piano notes (velocity-sensitive)</li>
+                <li><strong>Mod Wheel:</strong> Grain stretch amount</li>
+                <li><strong>CC 2:</strong> Tone/brightness</li>
+            </ul>
+
+            <h3>Keyboard</h3>
+            <ul>
+                <li><strong>Space:</strong> Toggle autogen</li>
+                <li><strong>Z-M:</strong> Play piano notes</li>
+            </ul>
+
+            <h3>Original ER-301 Unit</h3>
+            <p>Based on <code>piano esque.pkg</code> from mudlogger's Hyperscale collection featuring Variable Speed Player, Grain Stretch, and Feedback Looper with Kawai 9' Grand samples.</p>
+        </div>
+
+        <main class="patch-content" style="max-width: 800px; margin: 0 auto; padding: 0.5rem; overflow-x: hidden;">
+            <div class="controls-row">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+                <button class="autogen-btn" id="autogenBtn">AUTOGEN</button>
+                <button class="trigger-btn" id="trigBtn">TRIGGER</button>
+            </div>
+
+            <div class="midi-status" id="midiStatus">MIDI: Connect a controller for velocity-sensitive playback</div>
+            <div class="sample-info" id="sampleInfo">Loading samples...</div>
+
+            <div class="sample-actions">
+                <input type="file" id="sampleInput" accept="audio/*" multiple style="display: none;">
+                <button onclick="document.getElementById('sampleInput').click()">Import Samples</button>
+                <button id="clearSamples">Clear Samples</button>
+            </div>
+
+            <div class="waveform-display">
+                <canvas id="waveform" width="500" height="50"></canvas>
+            </div>
+
+            <div class="synth-section">
+                <h3>Autogen / Clock</h3>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>BPM</label>
+                        <input type="range" id="bpm" min="40" max="200" step="1" value="80">
+                        <span class="value" id="bpmVal">80</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Clk Mult</label>
+                        <input type="range" id="clkMult" min="1" max="8" step="1" value="1">
+                        <span class="value" id="clkMultVal">1</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Trig Prob</label>
+                        <input type="range" id="trigProb" min="0" max="1" step="0.01" value="0.13">
+                        <span class="value" id="trigProbVal">0.13</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Pan Rnd</label>
+                        <input type="range" id="panRnd" min="0" max="1" step="0.01" value="0.5">
+                        <span class="value" id="panRndVal">0.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="two-col">
+                <div class="synth-section">
+                    <h3>Sample Player</h3>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Duration</label>
+                            <input type="range" id="duration" min="0.1" max="4" step="0.01" value="0.5">
+                            <span class="value" id="durationVal">0.50</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Stretch</label>
+                            <input type="range" id="stretch" min="-24" max="24" step="1" value="0">
+                            <span class="value" id="stretchVal">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="synth-section">
+                    <h3>Grain Stretch</h3>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Grain Dur</label>
+                            <input type="range" id="grainDur" min="0.02" max="0.5" step="0.01" value="0.1">
+                            <span class="value" id="grainDurVal">0.10</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Grain Mix</label>
+                            <input type="range" id="grainMix" min="0" max="1" step="0.01" value="0">
+                            <span class="value" id="grainMixVal">0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="two-col">
+                <div class="synth-section">
+                    <h3>Feedback Looper</h3>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Looper</label>
+                            <input type="range" id="looper" min="0" max="1" step="0.01" value="0">
+                            <span class="value" id="looperVal">0.00</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Loop Time</label>
+                            <input type="range" id="loopTime" min="0.1" max="2" step="0.01" value="0.5">
+                            <span class="value" id="loopTimeVal">0.50</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Feedback</label>
+                            <input type="range" id="loopFdbk" min="0" max="0.95" step="0.01" value="0.7">
+                            <span class="value" id="loopFdbkVal">0.70</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="synth-section">
+                    <h3>Tone / Filter</h3>
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label>Tone</label>
+                            <input type="range" id="tone" min="200" max="12000" step="1" value="6000">
+                            <span class="value" id="toneVal">6000</span>
+                        </div>
+                        <div class="param-group">
+                            <label>Meter</label>
+                            <input type="range" id="meter" min="0" max="1" step="0.01" value="0.8">
+                            <span class="value" id="meterVal">0.80</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="synth-section">
+                <h3>Delay</h3>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Del</label>
+                        <input type="range" id="del" min="0" max="1" step="0.01" value="0.3">
+                        <span class="value" id="delVal">0.30</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Del Time</label>
+                        <input type="range" id="delTime" min="0.05" max="1" step="0.01" value="0.35">
+                        <span class="value" id="delTimeVal">0.35</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Del Fdbk</label>
+                        <input type="range" id="delFdbk" min="0" max="0.9" step="0.01" value="0.45">
+                        <span class="value" id="delFdbkVal">0.45</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="volume" min="0" max="1" step="0.01" value="0.7">
+                        <span class="value" id="volumeVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <p class="keyboard-hint">SPACE=Toggle Autogen | Z-M=Notes | MIDI supported with velocity</p>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+const processorCode = `
+// ============================================================================
+// PIANO ESQUE PROCESSOR
+// Multi-sample piano with grain stretch and feedback looper
+// ============================================================================
+
+class PianoEsqueProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sampleRate = 48000;
+
+        // Samples storage - keyed by MIDI note number
+        this.samples = new Map();
+        this.sampleZones = []; // sorted list of available notes
+
+        // Polyphony
+        this.maxVoices = 12;
+        this.voices = [];
+
+        // Delay line
+        this.delayL = new Float32Array(96000);
+        this.delayR = new Float32Array(96000);
+        this.delayWriteIdx = 0;
+
+        // Feedback looper
+        this.looperL = new Float32Array(192000);
+        this.looperR = new Float32Array(192000);
+        this.looperWriteIdx = 0;
+
+        // Filter state
+        this.lpfL = 0;
+        this.lpfR = 0;
+
+        // Autogen
+        this.clockPhase = 0;
+        this.autogen = false;
+
+        // CPR
+        this.cprEnv = 0;
+
+        // Waveform
+        this.waveformBuffer = new Float32Array(256);
+        this.waveformIdx = 0;
+        this.sampleCounter = 0;
+
+        // Parameters
+        this.params = {
+            bpm: 80,
+            clkMult: 1,
+            trigProb: 0.13,
+            panRnd: 0.5,
+            duration: 0.5,
+            stretch: 0,
+            grainDur: 0.1,
+            grainMix: 0,
+            looper: 0,
+            loopTime: 0.5,
+            loopFdbk: 0.7,
+            tone: 6000,
+            meter: 0.8,
+            del: 0.3,
+            delTime: 0.35,
+            delFdbk: 0.45,
+            volume: 0.7
+        };
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'setParam') {
+                this.params[e.data.param] = e.data.value;
+            } else if (e.data.type === 'noteOn') {
+                this.playNote(e.data.note, e.data.velocity);
+            } else if (e.data.type === 'noteOff') {
+                this.releaseNote(e.data.note);
+            } else if (e.data.type === 'trigger') {
+                // Random note trigger
+                if (this.sampleZones.length > 0) {
+                    const idx = Math.floor(Math.random() * this.sampleZones.length);
+                    this.playNote(this.sampleZones[idx], 0.5 + Math.random() * 0.5);
+                }
+            } else if (e.data.type === 'autogen') {
+                this.autogen = e.data.value;
+            } else if (e.data.type === 'loadSample') {
+                const sampleData = new Float32Array(e.data.sample);
+                this.samples.set(e.data.note, {
+                    data: sampleData,
+                    velocity: e.data.velocity || 'med'
+                });
+                this.updateSampleZones();
+            } else if (e.data.type === 'clearSamples') {
+                this.samples.clear();
+                this.sampleZones = [];
+                this.voices = [];
+            }
+        };
+    }
+
+    updateSampleZones() {
+        this.sampleZones = Array.from(this.samples.keys()).sort((a, b) => a - b);
+    }
+
+    findClosestSample(note, velocity) {
+        if (this.sampleZones.length === 0) return null;
+
+        // Find closest note
+        let closest = this.sampleZones[0];
+        let minDist = Math.abs(note - closest);
+
+        for (const zone of this.sampleZones) {
+            const dist = Math.abs(note - zone);
+            if (dist < minDist) {
+                minDist = dist;
+                closest = zone;
+            }
+        }
+
+        const sampleInfo = this.samples.get(closest);
+        if (!sampleInfo) return null;
+
+        return {
+            data: sampleInfo.data,
+            rootNote: closest,
+            pitchRatio: Math.pow(2, (note - closest) / 12)
+        };
+    }
+
+    playNote(note, velocity) {
+        const sample = this.findClosestSample(note, velocity);
+        if (!sample) return;
+
+        // Find free voice or steal oldest
+        if (this.voices.length >= this.maxVoices) {
+            this.voices.shift();
+        }
+
+        const pan = 0.5 + (Math.random() - 0.5) * this.params.panRnd;
+        const stretchRatio = Math.pow(2, this.params.stretch / 12);
+
+        this.voices.push({
+            sample: sample.data,
+            position: 0,
+            speed: sample.pitchRatio * stretchRatio,
+            velocity: velocity,
+            pan: pan,
+            note: note,
+            envelope: 0,
+            stage: 'attack',
+            duration: this.params.duration * this.sampleRate,
+            age: 0,
+            grainPhase: 0
+        });
+    }
+
+    releaseNote(note) {
+        for (const voice of this.voices) {
+            if (voice.note === note && voice.stage !== 'release') {
+                voice.stage = 'release';
+            }
+        }
+    }
+
+    processLPF(input, cutoff, state) {
+        const rc = 1 / (2 * Math.PI * cutoff);
+        const dt = 1 / this.sampleRate;
+        const alpha = dt / (rc + dt);
+        return state + alpha * (input - state);
+    }
+
+    processCPR(input) {
+        const abs = Math.abs(input);
+        const rise = abs > this.cprEnv ? 0.01 : 0.0001;
+        this.cprEnv += (abs - this.cprEnv) * rise;
+        if (this.cprEnv > 0.5) {
+            return input * (0.5 + (this.cprEnv - 0.5) * 0.5) / this.cprEnv;
+        }
+        return input;
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+        if (!left || !right) return true;
+
+        const p = this.params;
+        const clockHz = (p.bpm / 60) * p.clkMult;
+        const clockInc = clockHz / this.sampleRate;
+
+        for (let i = 0; i < left.length; i++) {
+            // Autogen clock
+            if (this.autogen && this.sampleZones.length > 0) {
+                this.clockPhase += clockInc;
+                if (this.clockPhase >= 1) {
+                    this.clockPhase -= 1;
+                    if (Math.random() < p.trigProb) {
+                        const idx = Math.floor(Math.random() * this.sampleZones.length);
+                        const randomNote = this.sampleZones[idx];
+                        this.playNote(randomNote, 0.4 + Math.random() * 0.6);
+                    }
+                }
+            }
+
+            // Process voices
+            let mixL = 0;
+            let mixR = 0;
+
+            for (let v = this.voices.length - 1; v >= 0; v--) {
+                const voice = this.voices[v];
+
+                // Envelope
+                if (voice.stage === 'attack') {
+                    voice.envelope += 1 / (0.01 * this.sampleRate);
+                    if (voice.envelope >= 1) {
+                        voice.envelope = 1;
+                        voice.stage = 'sustain';
+                    }
+                } else if (voice.stage === 'sustain') {
+                    voice.age++;
+                    if (voice.age >= voice.duration) {
+                        voice.stage = 'release';
+                    }
+                } else if (voice.stage === 'release') {
+                    voice.envelope -= 1 / (0.3 * this.sampleRate);
+                    if (voice.envelope <= 0) {
+                        this.voices.splice(v, 1);
+                        continue;
+                    }
+                }
+
+                // Sample playback with linear interpolation
+                const pos = Math.floor(voice.position);
+                const frac = voice.position - pos;
+
+                let sampleVal = 0;
+                if (pos >= 0 && pos < voice.sample.length - 1) {
+                    sampleVal = voice.sample[pos] + frac * (voice.sample[pos + 1] - voice.sample[pos]);
+                }
+
+                // Grain stretch effect
+                if (p.grainMix > 0) {
+                    voice.grainPhase += 1 / (p.grainDur * this.sampleRate);
+                    if (voice.grainPhase >= 1) {
+                        voice.grainPhase = 0;
+                    }
+                    const grainWindow = 0.5 * (1 - Math.cos(2 * Math.PI * voice.grainPhase));
+                    const grainVal = sampleVal * grainWindow;
+                    sampleVal = sampleVal * (1 - p.grainMix) + grainVal * p.grainMix;
+                }
+
+                voice.position += voice.speed;
+
+                // End of sample check
+                if (voice.position >= voice.sample.length - 1) {
+                    voice.stage = 'release';
+                }
+
+                const voiceOut = sampleVal * voice.envelope * voice.velocity;
+                mixL += voiceOut * (1 - voice.pan);
+                mixR += voiceOut * voice.pan;
+            }
+
+            // Tone filter
+            this.lpfL = this.processLPF(mixL, p.tone, this.lpfL);
+            this.lpfR = this.processLPF(mixR, p.tone, this.lpfR);
+
+            let sigL = this.lpfL;
+            let sigR = this.lpfR;
+
+            // Feedback looper
+            if (p.looper > 0) {
+                const loopTime = Math.floor(p.loopTime * this.sampleRate);
+                const loopReadIdx = (this.looperWriteIdx - loopTime + this.looperL.length) % this.looperL.length;
+
+                const loopedL = this.looperL[loopReadIdx];
+                const loopedR = this.looperR[loopReadIdx];
+
+                this.looperL[this.looperWriteIdx] = sigL + loopedL * p.loopFdbk;
+                this.looperR[this.looperWriteIdx] = sigR + loopedR * p.loopFdbk;
+                this.looperWriteIdx = (this.looperWriteIdx + 1) % this.looperL.length;
+
+                sigL = sigL * (1 - p.looper) + loopedL * p.looper;
+                sigR = sigR * (1 - p.looper) + loopedR * p.looper;
+            }
+
+            // Delay
+            if (p.del > 0) {
+                const delayTime = Math.floor(p.delTime * this.sampleRate);
+                const delayReadIdx = (this.delayWriteIdx - delayTime + this.delayL.length) % this.delayL.length;
+
+                const delayedL = this.delayL[delayReadIdx];
+                const delayedR = this.delayR[delayReadIdx];
+
+                this.delayL[this.delayWriteIdx] = sigL + delayedR * p.delFdbk;
+                this.delayR[this.delayWriteIdx] = sigR + delayedL * p.delFdbk;
+                this.delayWriteIdx = (this.delayWriteIdx + 1) % this.delayL.length;
+
+                sigL = sigL * (1 - p.del) + delayedL * p.del;
+                sigR = sigR * (1 - p.del) + delayedR * p.del;
+            }
+
+            // CPR and output
+            sigL = this.processCPR(sigL) * p.volume * p.meter;
+            sigR = this.processCPR(sigR) * p.volume * p.meter;
+
+            left[i] = Math.tanh(sigL);
+            right[i] = Math.tanh(sigR);
+
+            // Waveform buffer
+            this.sampleCounter++;
+            if (this.sampleCounter >= 188) {
+                this.waveformBuffer[this.waveformIdx] = (left[i] + right[i]) * 0.5;
+                this.waveformIdx = (this.waveformIdx + 1) % 256;
+                this.sampleCounter = 0;
+            }
+        }
+
+        if (Math.random() < 0.05) {
+            this.port.postMessage({ type: 'waveform', data: Array.from(this.waveformBuffer) });
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('piano-esque-processor', PianoEsqueProcessor);
+`;
+
+        let audioContext, workletNode, pedalboard;
+        let isPlaying = false, autogenActive = false;
+        let waveformData = new Float32Array(256);
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const waveformCanvas = document.getElementById('waveform');
+        const waveformCtx = waveformCanvas.getContext('2d');
+
+        const sampleInfo = document.getElementById('sampleInfo');
+        const midiStatus = document.getElementById('midiStatus');
+
+        // Sample note mapping from filenames
+        const noteNameToMidi = {
+            'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5,
+            'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11
+        };
+
+        function parseNoteFromFilename(filename) {
+            // Parse filenames like "K 9ft Hrd A#2  x.wav" or "K 9ft Med B1.wav"
+            const match = filename.match(/([A-G]#?)(\d)/);
+            if (match) {
+                const noteName = match[1];
+                const octave = parseInt(match[2]);
+                return noteNameToMidi[noteName] + (octave + 1) * 12; // +1 to align with MIDI standard
+            }
+            return null;
+        }
+
+        const sampleBasePath = 'samples/piano-esque/';
+        const sampleFiles = [
+            "K 9ft Hrd  B1  x.wav", "K 9ft Hrd A#0  x.wav", "K 9ft Hrd A#2  x.wav",
+            "K 9ft Hrd A2   x.wav", "K 9ft Hrd A4   x.wav", "K 9ft Hrd B2   x.wav",
+            "K 9ft Hrd B3   x.wav", "K 9ft Hrd B5   x.wav", "K 9ft Hrd C#1  x.wav",
+            "K 9ft Hrd C3   x.wav", "K 9ft Hrd D#0  x.wav", "K 9ft Hrd D#5  x.wav",
+            "K 9ft Hrd D3   x.wav", "K 9ft Hrd E2   x.wav", "K 9ft Hrd F#3  x.wav",
+            "K 9ft Hrd F0   x.wav", "K 9ft Hrd F1   x.wav", "K 9ft Hrd F4   x.wav",
+            "K 9ft Hrd F5   x.wav", "K 9ft Hrd F6   x.wav", "K 9ft Hrd G#2  x.wav",
+            "K 9ft Med A#0.wav", "K 9ft Med A#2.wav", "K 9ft Med A2.wav",
+            "K 9ft Med A4.wav", "K 9ft Med B1.wav", "K 9ft Med B2.wav",
+            "K 9ft Med B3.wav", "K 9ft Med B5.wav", "K 9ft Med C#1.wav",
+            "K 9ft Med C3.wav", "K 9ft Med D#0.wav", "K 9ft Med D#5.wav",
+            "K 9ft Med D3.wav", "K 9ft Med E2.wav", "K 9ft Med F#3.wav",
+            "K 9ft Med F0.wav", "K 9ft Med F1.wav", "K 9ft Med F4.wav",
+            "K 9ft Med F5.wav", "K 9ft Med F6.wav", "K 9ft Med G#2.wav"
+        ];
+
+        async function loadDefaultSamples() {
+            if (!workletNode) return;
+
+            sampleInfo.textContent = 'Loading samples...';
+            sampleInfo.className = 'sample-info loading';
+
+            let loaded = 0;
+            const total = sampleFiles.length;
+
+            for (const filename of sampleFiles) {
+                try {
+                    const response = await fetch(sampleBasePath + encodeURIComponent(filename));
+                    if (response.ok) {
+                        const buffer = await response.arrayBuffer();
+                        const audioBuffer = await audioContext.decodeAudioData(buffer);
+                        const sample = audioBuffer.getChannelData(0);
+
+                        const midiNote = parseNoteFromFilename(filename);
+                        if (midiNote !== null) {
+                            const velocity = filename.includes('Hrd') ? 'hrd' : 'med';
+                            workletNode.port.postMessage({
+                                type: 'loadSample',
+                                sample: sample,
+                                note: midiNote,
+                                velocity: velocity
+                            });
+                            loaded++;
+                        }
+                    }
+                } catch (e) {
+                    // Continue loading other samples
+                }
+            }
+
+            if (loaded > 0) {
+                sampleInfo.textContent = 'Kawai 9\' Grand - ' + loaded + ' samples loaded';
+                sampleInfo.className = 'sample-info ready';
+            } else {
+                sampleInfo.textContent = 'No samples found - import your own';
+                sampleInfo.className = 'sample-info';
+            }
+        }
+
+        const paramDefs = {
+            bpm: { format: v => Math.round(v) },
+            clkMult: { format: v => v.toFixed(0) },
+            trigProb: { format: v => v.toFixed(2) },
+            panRnd: { format: v => v.toFixed(2) },
+            duration: { format: v => v.toFixed(2) },
+            stretch: { format: v => v.toFixed(0) },
+            grainDur: { format: v => v.toFixed(2) },
+            grainMix: { format: v => v.toFixed(2) },
+            looper: { format: v => v.toFixed(2) },
+            loopTime: { format: v => v.toFixed(2) },
+            loopFdbk: { format: v => v.toFixed(2) },
+            tone: { format: v => Math.round(v) },
+            meter: { format: v => v.toFixed(2) },
+            del: { format: v => v.toFixed(2) },
+            delTime: { format: v => v.toFixed(2) },
+            delFdbk: { format: v => v.toFixed(2) },
+            volume: { format: v => v.toFixed(2) }
+        };
+
+        Object.keys(paramDefs).forEach(key => {
+            const el = document.getElementById(key);
+            const valEl = document.getElementById(key + 'Val');
+            if (el && valEl) {
+                el.addEventListener('input', () => {
+                    const value = parseFloat(el.value);
+                    valEl.textContent = paramDefs[key].format(value);
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'setParam', param: key, value });
+                    }
+                });
+                valEl.textContent = paramDefs[key].format(parseFloat(el.value));
+            }
+        });
+
+        function drawWaveform() {
+            const w = waveformCanvas.width, h = waveformCanvas.height;
+            waveformCtx.fillStyle = '#1a1a2e';
+            waveformCtx.fillRect(0, 0, w, h);
+            waveformCtx.strokeStyle = '#3498db';
+            waveformCtx.lineWidth = 1.5;
+            waveformCtx.beginPath();
+            for (let i = 0; i < waveformData.length; i++) {
+                const x = (i / waveformData.length) * w;
+                const y = (0.5 - waveformData[i] * 0.4) * h;
+                if (i === 0) waveformCtx.moveTo(x, y);
+                else waveformCtx.lineTo(x, y);
+            }
+            waveformCtx.stroke();
+            if (isPlaying) requestAnimationFrame(drawWaveform);
+        }
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext({ sampleRate: 48000 });
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'piano-esque-processor', {
+                numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2]
+            });
+
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'waveform') waveformData = new Float32Array(e.data.data);
+            };
+
+            Object.keys(paramDefs).forEach(key => {
+                const el = document.getElementById(key);
+                if (el) workletNode.port.postMessage({ type: 'setParam', param: key, value: parseFloat(el.value) });
+            });
+
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboard = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'piano-esque-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-piano-esque'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-piano-esque');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-piano-esque',
+                    prefix: 'esque',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Load samples after audio is ready
+            await loadDefaultSamples();
+
+            // Initialize MIDI
+            initMIDI();
+        }
+
+        const playBtn = document.getElementById('playBtn');
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) await initAudio();
+            if (isPlaying) {
+                await audioContext.suspend();
+                playBtn.textContent = '\u25B6';
+                isPlaying = false;
+                if (modMatrix) modMatrix.stop();
+            } else {
+                await audioContext.resume();
+                playBtn.textContent = '\u23F9';
+                isPlaying = true;
+                if (modMatrix) modMatrix.start();
+                drawWaveform();
+            }
+        });
+
+        document.getElementById('autogenBtn').addEventListener('click', async () => {
+            if (!audioContext) await initAudio();
+            if (!isPlaying) {
+                await audioContext.resume();
+                playBtn.textContent = '\u23F9';
+                isPlaying = true;
+                drawWaveform();
+            }
+            autogenActive = !autogenActive;
+            document.getElementById('autogenBtn').classList.toggle('active', autogenActive);
+            workletNode.port.postMessage({ type: 'autogen', value: autogenActive });
+        });
+
+        const trigBtn = document.getElementById('trigBtn');
+        trigBtn.addEventListener('mousedown', () => {
+            if (workletNode) { workletNode.port.postMessage({ type: 'trigger' }); trigBtn.classList.add('active'); }
+        });
+        trigBtn.addEventListener('mouseup', () => {
+            trigBtn.classList.remove('active');
+        });
+        trigBtn.addEventListener('mouseleave', () => {
+            trigBtn.classList.remove('active');
+        });
+
+        document.getElementById('infoToggle').addEventListener('click', () => document.getElementById('infoPanel').classList.add('visible'));
+        document.getElementById('closeInfo').addEventListener('click', () => document.getElementById('infoPanel').classList.remove('visible'));
+
+        // Sample import
+        document.getElementById('sampleInput').onchange = async (e) => {
+            if (!audioContext) await initAudio();
+            const files = e.target.files;
+            let loaded = 0;
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                try {
+                    const buffer = await file.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(buffer);
+                    const sample = audioBuffer.getChannelData(0);
+
+                    // Try to parse note from filename, or assign based on index
+                    let midiNote = parseNoteFromFilename(file.name);
+                    if (midiNote === null) {
+                        midiNote = 48 + i * 2; // Default: start at C3, 2 semitones apart
+                    }
+
+                    workletNode.port.postMessage({
+                        type: 'loadSample',
+                        sample: sample,
+                        note: midiNote,
+                        velocity: 'med'
+                    });
+                    loaded++;
+                } catch (err) {
+                    console.error('Error loading:', file.name);
+                }
+            }
+
+            if (loaded > 0) {
+                sampleInfo.textContent = loaded + ' custom samples loaded';
+                sampleInfo.className = 'sample-info ready';
+            }
+        };
+
+        document.getElementById('clearSamples').onclick = () => {
+            if (workletNode) {
+                workletNode.port.postMessage({ type: 'clearSamples' });
+                sampleInfo.textContent = 'No samples loaded';
+                sampleInfo.className = 'sample-info';
+            }
+        };
+
+        // Keyboard notes
+        const keyNotes = {
+            'KeyZ': 48, 'KeyS': 49, 'KeyX': 50, 'KeyD': 51, 'KeyC': 52,
+            'KeyV': 53, 'KeyG': 54, 'KeyB': 55, 'KeyH': 56, 'KeyN': 57,
+            'KeyJ': 58, 'KeyM': 59, 'Comma': 60
+        };
+        const activeKeys = new Set();
+
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+            if (e.code === 'Space') {
+                e.preventDefault();
+                document.getElementById('autogenBtn').click();
+                return;
+            }
+
+            if (keyNotes[e.code] !== undefined && !activeKeys.has(e.code) && workletNode) {
+                activeKeys.add(e.code);
+                workletNode.port.postMessage({ type: 'noteOn', note: keyNotes[e.code], velocity: 0.8 });
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (keyNotes[e.code] !== undefined) {
+                activeKeys.delete(e.code);
+                if (workletNode) workletNode.port.postMessage({ type: 'noteOff', note: keyNotes[e.code] });
+            }
+        });
+
+        // MIDI
+        function handleMIDIMessage(e) {
+            if (!workletNode) return;
+            const [status, note, velocity] = e.data;
+            const command = status >> 4;
+
+            if (command === 9 && velocity > 0) {
+                workletNode.port.postMessage({ type: 'noteOn', note, velocity: velocity / 127 });
+            } else if (command === 8 || (command === 9 && velocity === 0)) {
+                workletNode.port.postMessage({ type: 'noteOff', note });
+            } else if (command === 11) {
+                if (note === 1) { // Mod wheel -> stretch
+                    const stretch = (velocity / 127) * 48 - 24;
+                    document.getElementById('stretch').value = stretch;
+                    document.getElementById('stretch').dispatchEvent(new Event('input'));
+                } else if (note === 2) { // CC2 -> tone
+                    const tone = 200 + (velocity / 127) * 11800;
+                    document.getElementById('tone').value = tone;
+                    document.getElementById('tone').dispatchEvent(new Event('input'));
+                }
+            }
+        }
+
+        async function initMIDI() {
+            if (!navigator.requestMIDIAccess) return;
+            try {
+                const midiAccess = await navigator.requestMIDIAccess();
+                for (const input of midiAccess.inputs.values()) {
+                    input.onmidimessage = handleMIDIMessage;
+                    midiStatus.textContent = 'MIDI: ' + input.name;
+                    midiStatus.classList.add('connected');
+                }
+                midiAccess.onstatechange = (e) => {
+                    if (e.port.type === 'input' && e.port.state === 'connected') {
+                        e.port.onmidimessage = handleMIDIMessage;
+                        midiStatus.textContent = 'MIDI: ' + e.port.name;
+                        midiStatus.classList.add('connected');
+                    }
+                };
+            } catch (err) {}
+        }
+
+        // Initial waveform
+        waveformCtx.fillStyle = '#1a1a2e';
+        waveformCtx.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+        waveformCtx.strokeStyle = '#333';
+        waveformCtx.beginPath();
+        waveformCtx.moveTo(0, waveformCanvas.height / 2);
+        waveformCtx.lineTo(waveformCanvas.width, waveformCanvas.height / 2);
+        waveformCtx.stroke();
+    </script>
+</body>
+</html>

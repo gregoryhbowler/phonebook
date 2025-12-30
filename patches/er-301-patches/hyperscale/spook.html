@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>spook - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 80px;
+        }
+        .status-display {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 1em;
+            flex-wrap: wrap;
+        }
+        .status-card {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 10px 16px;
+            text-align: center;
+            min-width: 70px;
+        }
+        .status-card .label {
+            font-size: 0.6em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .status-card .value {
+            font-size: 1em;
+            color: #9b59b6;
+            font-family: 'SF Mono', monospace;
+        }
+        .sample-info {
+            text-align: center;
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+        .sample-info.loading { color: #f39c12; }
+        .sample-info.ready { color: #9b59b6; }
+        .sample-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 1em 0;
+        }
+        .sample-actions button {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+        .sample-actions button:hover {
+            border-color: #9b59b6;
+            color: #9b59b6;
+        }
+        .toggle-btn {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+        .toggle-btn.active {
+            border-color: #9b59b6;
+            color: #9b59b6;
+            background: rgba(155, 89, 182, 0.1);
+        }
+        .toggle-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 1em;
+        }
+        .midi-status {
+            text-align: center;
+            font-size: 0.75em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+        .midi-status.connected { color: #9b59b6; }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>spook</h1>
+                <p>Haunting glitch metal textures with Clocked Stretch, Clocked Delay & FDN reverb</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <div class="midi-status" id="midiStatus">MIDI: Connect a controller - notes control squeal pitch</div>
+
+            <div class="sample-info" id="sampleInfo">Loading samples...</div>
+
+            <!-- Status Display -->
+            <div class="status-display">
+                <div class="status-card">
+                    <div class="label">Squeal</div>
+                    <div class="value" id="squealDisplay">-0.11</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Slice</div>
+                    <div class="value" id="sliceDisplay">0.59</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">FDN</div>
+                    <div class="value" id="fdnDisplay">0.31</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Meter</div>
+                    <div class="value" id="meterDisplay">0.60</div>
+                </div>
+            </div>
+
+            <div class="toggle-row">
+                <button class="toggle-btn active" id="autoTrigBtn">Auto Trigger</button>
+            </div>
+
+            <div class="sample-actions">
+                <input type="file" id="sampleInput" accept="audio/*" multiple style="display: none;">
+                <button onclick="document.getElementById('sampleInput').click()">Import Samples</button>
+                <button id="clearSamples">Clear Samples</button>
+            </div>
+
+            <!-- Clock Section -->
+            <span class="section-label">Clock / Trigger</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Gate 1 Prob</label>
+                        <input type="range" id="prob1" min="0" max="1" value="0.86" step="0.01">
+                        <span class="param-value" id="prob1Val">0.86</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Gate 1 Mult</label>
+                        <input type="range" id="mult1" min="1" max="32" value="28" step="1">
+                        <span class="param-value" id="mult1Val">28</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Gate 1 Div</label>
+                        <input type="range" id="div1" min="1" max="32" value="16" step="1">
+                        <span class="param-value" id="div1Val">16</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Gate 2 Prob</label>
+                        <input type="range" id="prob2" min="0" max="1" value="0.12" step="0.01">
+                        <span class="param-value" id="prob2Val">0.12</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Gate 2 Mult</label>
+                        <input type="range" id="mult2" min="1" max="32" value="16" step="1">
+                        <span class="param-value" id="mult2Val">16</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Gate 2 Div</label>
+                        <input type="range" id="div2" min="1" max="32" value="11" step="1">
+                        <span class="param-value" id="div2Val">11</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Square Clock Section -->
+            <span class="section-label">Square Clock</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Clock Freq</label>
+                        <input type="range" id="clockFreq" min="0.01" max="2" value="0.128" step="0.001">
+                        <span class="param-value" id="clockFreqVal">0.128 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Clock PW</label>
+                        <input type="range" id="clockPW" min="0.1" max="0.9" value="0.5" step="0.01">
+                        <span class="param-value" id="clockPWVal">0.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clocked Stretch Section -->
+            <span class="section-label">Clocked Stretch</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Squeal (Pitch)</label>
+                        <input type="range" id="squeal" min="-1" max="1" value="-0.108" step="0.001">
+                        <span class="param-value" id="squealVal">-0.11</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Slice</label>
+                        <input type="range" id="slice" min="0" max="1" value="0.59" step="0.01">
+                        <span class="param-value" id="sliceVal">0.59</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Duration</label>
+                        <input type="range" id="duration" min="0.01" max="0.5" value="0.05" step="0.01">
+                        <span class="param-value" id="durationVal">0.05</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Jitter</label>
+                        <input type="range" id="jitter" min="0" max="0.1" value="0.01" step="0.001">
+                        <span class="param-value" id="jitterVal">0.01</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clocked Delay Section -->
+            <span class="section-label">Clocked Delay</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Delay Mult</label>
+                        <input type="range" id="delMult" min="1" max="32" value="27" step="1">
+                        <span class="param-value" id="delMultVal">27</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Delay Div</label>
+                        <input type="range" id="delDiv" min="1" max="32" value="11" step="1">
+                        <span class="param-value" id="delDivVal">11</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="delFeedback" min="0" max="0.95" value="0.22" step="0.01">
+                        <span class="param-value" id="delFeedbackVal">0.22</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Spread</label>
+                        <input type="range" id="delSpread" min="-1" max="1" value="-0.25" step="0.01">
+                        <span class="param-value" id="delSpreadVal">-0.25</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Wet</label>
+                        <input type="range" id="delWet" min="0" max="1" value="0.4" step="0.01">
+                        <span class="param-value" id="delWetVal">0.40</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FDN Reverb Section -->
+            <span class="section-label">Feedback Delay Network</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Delay</label>
+                        <input type="range" id="fdnDelay" min="0.01" max="0.5" value="0.1" step="0.01">
+                        <span class="param-value" id="fdnDelayVal">0.10</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="fdnFeedback" min="0" max="0.99" value="0.98" step="0.01">
+                        <span class="param-value" id="fdnFeedbackVal">0.98</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Tone</label>
+                        <input type="range" id="fdnTone" min="-1" max="1" value="-0.56" step="0.01">
+                        <span class="param-value" id="fdnToneVal">-0.56</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mod</label>
+                        <input type="range" id="fdnMod" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="fdnModVal">0.70</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Wet</label>
+                        <input type="range" id="fdnWet" min="0" max="1" value="0.31" step="0.01">
+                        <span class="param-value" id="fdnWetVal">0.31</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Level</label>
+                        <input type="range" id="level" min="0" max="1" value="0.6" step="0.01">
+                        <span class="param-value" id="levelVal">0.60</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Meter</label>
+                        <input type="range" id="meter" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="meterVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pedalboard Effects -->
+            <div id="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+    class SpookProcessor extends AudioWorkletProcessor {
+        constructor() {
+            super();
+            this.sampleBuffers = [];
+            this.sampleRate = 48000;
+
+            // Dual Clocked Random Gates
+            this.gate1 = { phase: 0, prob: 0.86, mult: 28, div: 16, rate: 2, active: false };
+            this.gate2 = { phase: 0, prob: 0.12, mult: 16, div: 11, rate: 3.5, active: false };
+
+            // Square clock
+            this.clockPhase = 0;
+            this.clockFreq = 0.128;
+            this.clockPW = 0.5;
+            this.clockOutput = 0;
+
+            // Pingable Scaled Random
+            this.randomValue = 0;
+            this.randomTarget = 0;
+            this.slewTime = 0.768;
+
+            // Clocked Stretch
+            this.grains = [];
+            this.squeal = -0.108;
+            this.slice = 0.59;
+            this.sliceScale = 0.4;
+            this.duration = 0.05;
+            this.jitter = 0.01;
+            this.currentSampleIndex = 0;
+
+            // VCA
+            this.level = 0.6;
+
+            // Clocked Delay
+            this.delayBuffer = new Float32Array(this.sampleRate * 10);
+            this.delayWritePos = 0;
+            this.delMult = 27;
+            this.delDiv = 11;
+            this.delFeedback = 0.22;
+            this.delSpread = -0.25;
+            this.delWet = 0.4;
+            this.delayTime = 2.45; // mult/div based
+
+            // FDN Reverb (4-channel)
+            this.fdnDelay = 0.1;
+            this.fdnFeedback = 0.98;
+            this.fdnTone = -0.56;
+            this.fdnMod = 0.7;
+            this.fdnWet = 0.31;
+            this.fdnInput = 0.7;
+            this.fdnBuffers = [
+                new Float32Array(Math.floor(this.sampleRate * 0.089)),
+                new Float32Array(Math.floor(this.sampleRate * 0.127)),
+                new Float32Array(Math.floor(this.sampleRate * 0.163)),
+                new Float32Array(Math.floor(this.sampleRate * 0.211))
+            ];
+            this.fdnWritePos = [0, 0, 0, 0];
+            this.fdnModPhases = [0, 0, 0, 0];
+            this.fdnLpState = [0, 0, 0, 0];
+
+            // Output
+            this.meter = 0.7;
+            this.autoTrigger = true;
+
+            // MIDI
+            this.midiNote = -1;
+
+            this.port.onmessage = (e) => this.handleMessage(e.data);
+        }
+
+        handleMessage(data) {
+            switch(data.type) {
+                case 'samples':
+                    this.sampleBuffers = data.buffers.map(b => new Float32Array(b));
+                    break;
+                case 'parameter':
+                    this[data.param] = data.value;
+                    break;
+                case 'trigger':
+                    this.triggerGrain();
+                    break;
+                case 'midiNote':
+                    this.midiNote = data.note;
+                    if (data.velocity > 0) {
+                        this.squeal = (data.note - 60) / 12;
+                        this.triggerGrain();
+                    }
+                    break;
+            }
+        }
+
+        triggerGrain() {
+            if (this.sampleBuffers.length === 0) return;
+
+            // Select sample based on slice + random modulation
+            const baseIndex = this.slice * this.sampleBuffers.length;
+            const modOffset = this.randomValue * this.sliceScale * this.sampleBuffers.length;
+            this.currentSampleIndex = Math.floor(baseIndex + modOffset) % this.sampleBuffers.length;
+            if (this.currentSampleIndex < 0) this.currentSampleIndex += this.sampleBuffers.length;
+
+            const buffer = this.sampleBuffers[this.currentSampleIndex];
+            if (!buffer) return;
+
+            // Create grain
+            const jitterOffset = (Math.random() - 0.5) * this.jitter;
+            this.grains.push({
+                buffer: buffer,
+                position: 0,
+                phase: 0,
+                duration: (this.duration + jitterOffset) * this.sampleRate,
+                speed: Math.pow(2, this.squeal)
+            });
+
+            if (this.grains.length > 12) this.grains.shift();
+        }
+
+        processFDN(input) {
+            const modRate = 0.5;
+            let outputs = [0, 0, 0, 0];
+
+            // Calculate delay times with modulation
+            const baseDelay = this.fdnDelay * this.sampleRate;
+
+            // Read from each delay line
+            for (let i = 0; i < 4; i++) {
+                const modAmount = this.fdnMod * 0.01 * this.sampleRate;
+                const modOffset = Math.sin(this.fdnModPhases[i]) * modAmount;
+                const delaySamples = Math.min(
+                    this.fdnBuffers[i].length - 1,
+                    Math.max(1, baseDelay * (0.7 + i * 0.2) + modOffset)
+                );
+
+                const readPos = (this.fdnWritePos[i] - Math.floor(delaySamples) + this.fdnBuffers[i].length) % this.fdnBuffers[i].length;
+                outputs[i] = this.fdnBuffers[i][readPos];
+
+                // Apply tone (lowpass)
+                const lpCoeff = 0.5 + 0.5 * (1 + this.fdnTone);
+                this.fdnLpState[i] = outputs[i] * (1 - lpCoeff) + this.fdnLpState[i] * lpCoeff;
+                outputs[i] = this.fdnLpState[i];
+
+                this.fdnModPhases[i] += modRate * (1 + i * 0.1) / this.sampleRate;
+                if (this.fdnModPhases[i] > Math.PI * 2) this.fdnModPhases[i] -= Math.PI * 2;
+            }
+
+            // Hadamard-like mixing matrix
+            const mixed = [
+                (outputs[0] + outputs[1] + outputs[2] + outputs[3]) * 0.5,
+                (outputs[0] - outputs[1] + outputs[2] - outputs[3]) * 0.5,
+                (outputs[0] + outputs[1] - outputs[2] - outputs[3]) * 0.5,
+                (outputs[0] - outputs[1] - outputs[2] + outputs[3]) * 0.5
+            ];
+
+            // Write back with feedback
+            for (let i = 0; i < 4; i++) {
+                const feedbackSample = mixed[i] * this.fdnFeedback + input * this.fdnInput;
+                this.fdnBuffers[i][this.fdnWritePos[i]] = Math.tanh(feedbackSample);
+                this.fdnWritePos[i] = (this.fdnWritePos[i] + 1) % this.fdnBuffers[i].length;
+            }
+
+            // Stereo output
+            return {
+                left: (outputs[0] + outputs[2]) * 0.5,
+                right: (outputs[1] + outputs[3]) * 0.5
+            };
+        }
+
+        process(inputs, outputs, parameters) {
+            const output = outputs[0];
+            const outL = output[0];
+            const outR = output[1] || output[0];
+
+            for (let i = 0; i < outL.length; i++) {
+                // Square clock
+                this.clockPhase += this.clockFreq / this.sampleRate;
+                if (this.clockPhase >= 1) this.clockPhase -= 1;
+                this.clockOutput = this.clockPhase < this.clockPW ? 1 : 0;
+
+                if (this.autoTrigger) {
+                    // Gate 1
+                    const rate1 = (this.gate1.mult / this.gate1.div) * this.gate1.rate;
+                    this.gate1.phase += rate1 / this.sampleRate;
+                    if (this.gate1.phase >= 1) {
+                        this.gate1.phase -= 1;
+                        if (Math.random() < this.gate1.prob) {
+                            this.triggerGrain();
+                        }
+                    }
+
+                    // Gate 2 triggers random value change
+                    const rate2 = (this.gate2.mult / this.gate2.div) * this.gate2.rate;
+                    this.gate2.phase += rate2 / this.sampleRate;
+                    if (this.gate2.phase >= 1) {
+                        this.gate2.phase -= 1;
+                        if (Math.random() < this.gate2.prob) {
+                            this.randomTarget = Math.random() * 2 - 1;
+                        }
+                    }
+                }
+
+                // Slew the random value
+                const slewRate = 1 / (this.slewTime * this.sampleRate);
+                if (this.randomValue < this.randomTarget) {
+                    this.randomValue = Math.min(this.randomValue + slewRate, this.randomTarget);
+                } else {
+                    this.randomValue = Math.max(this.randomValue - slewRate, this.randomTarget);
+                }
+
+                // Process grains
+                let grainOut = 0;
+                for (let g = this.grains.length - 1; g >= 0; g--) {
+                    const grain = this.grains[g];
+
+                    if (grain.phase < grain.duration) {
+                        // Hann window
+                        const env = 0.5 * (1 - Math.cos(2 * Math.PI * grain.phase / grain.duration));
+
+                        const pos = Math.floor(grain.position);
+                        const frac = grain.position - pos;
+
+                        if (pos >= 0 && pos < grain.buffer.length - 1) {
+                            const s0 = grain.buffer[pos];
+                            const s1 = grain.buffer[pos + 1];
+                            grainOut += (s0 + (s1 - s0) * frac) * env;
+                        }
+
+                        grain.position += grain.speed;
+                        grain.phase++;
+                    } else {
+                        this.grains.splice(g, 1);
+                    }
+                }
+
+                // Apply VCA level
+                let sample = grainOut * this.level;
+
+                // Clocked Delay
+                const clockPeriod = 1 / this.clockFreq;
+                const delaySeconds = clockPeriod * (this.delMult / this.delDiv);
+                const delaySamples = Math.min(this.delayBuffer.length - 1, Math.floor(delaySeconds * this.sampleRate));
+
+                const delayReadPos = (this.delayWritePos - delaySamples + this.delayBuffer.length) % this.delayBuffer.length;
+                const delayOut = this.delayBuffer[delayReadPos];
+
+                this.delayBuffer[this.delayWritePos] = sample + delayOut * this.delFeedback;
+                this.delayWritePos = (this.delayWritePos + 1) % this.delayBuffer.length;
+
+                const delayMix = sample * (1 - this.delWet) + delayOut * this.delWet;
+
+                // Stereo spread from delay
+                const spreadL = delayMix * (1 + this.delSpread);
+                const spreadR = delayMix * (1 - this.delSpread);
+
+                // FDN Reverb
+                const fdn = this.processFDN((spreadL + spreadR) * 0.5);
+
+                let finalL = spreadL * (1 - this.fdnWet) + fdn.left * this.fdnWet;
+                let finalR = spreadR * (1 - this.fdnWet) + fdn.right * this.fdnWet;
+
+                // Apply meter/output
+                finalL *= this.meter;
+                finalR *= this.meter;
+
+                // Soft clip
+                outL[i] = Math.tanh(finalL);
+                outR[i] = Math.tanh(finalR);
+            }
+
+            return true;
+        }
+    }
+
+    registerProcessor('spook-processor', SpookProcessor);
+    </script>
+
+    <script>
+    let audioContext, workletNode, analyser;
+    let isPlaying = false;
+    let pedalboardUI;
+    let loadedSamples = [];
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+    const sampleFiles = [
+        'Glitch Metal Drill5.wav', 'Glitch Metal Drill8.wav',
+        'Glitch Metal Hi12.wav', 'Glitch Metal Hi13.wav', 'Glitch Metal Hi14.wav',
+        'Glitch Metal Hi15.wav', 'Glitch Metal Hi16.wav', 'Glitch Metal Hi17.wav',
+        'Glitch Metal Hi2.wav', 'Glitch Metal Hi3.wav', 'Glitch Metal Hi4.wav',
+        'Glitch Metal Hi5.wav', 'Glitch Metal Hi6.wav', 'Glitch Metal Hi7.wav',
+        'Glitch Metal Hi8.wav', 'Glitch Metal Hi9.wav',
+        'Glitch Metal Kick10.wav', 'Glitch Metal Kick11.wav', 'Glitch Metal Kick12.wav',
+        'Glitch Metal Kick13.wav', 'Glitch Metal Kick14.wav', 'Glitch Metal Kick15.wav',
+        'Glitch Metal Kick16.wav', 'Glitch Metal Kick2.wav', 'Glitch Metal Kick5.wav',
+        'Glitch Metal Kick6.wav', 'Glitch Metal Kick7.wav', 'Glitch Metal Kick8.wav',
+        'Glitch Metal Kick9.wav',
+        'Glitch Metal Rev2.wav', 'Glitch Metal Rev3.wav', 'Glitch Metal Rev4.wav',
+        'Glitch Metal Snare.wav', 'Glitch Metal Snare10.wav', 'Glitch Metal Snare11.wav',
+        'Glitch Metal Snare12.wav', 'Glitch Metal Snare13.wav', 'Glitch Metal Snare14.wav',
+        'Glitch Metal Snare15.wav', 'Glitch Metal Snare16.wav', 'Glitch Metal Snare17.wav',
+        'Glitch Metal Snare18.wav', 'Glitch Metal Snare19.wav', 'Glitch Metal Snare2.wav',
+        'Glitch Metal Snare3.wav', 'Glitch Metal Snare4.wav', 'Glitch Metal Snare6.wav',
+        'Glitch Metal Snare7.wav', 'Glitch Metal Snare8.wav', 'Glitch Metal Snare9.wav',
+        'Glitch Metal2.wav', 'Glitch Metal8.wav',
+        'Glitch MetalLoop5.wav', 'Glitch MetalLoop6.wav'
+    ];
+
+    async function loadSamples() {
+        const sampleInfo = document.getElementById('sampleInfo');
+        sampleInfo.textContent = 'Loading samples...';
+        sampleInfo.className = 'sample-info loading';
+
+        const basePath = '../samples/spook/';
+        loadedSamples = [];
+        let loadedCount = 0;
+
+        for (const file of sampleFiles) {
+            try {
+                const response = await fetch(basePath + file);
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    loadedSamples.push(audioBuffer.getChannelData(0));
+                    loadedCount++;
+                }
+            } catch (e) {
+                // Skip failed loads
+            }
+        }
+
+        if (workletNode && loadedSamples.length > 0) {
+            workletNode.port.postMessage({
+                type: 'samples',
+                buffers: loadedSamples.map(b => b.buffer)
+            });
+        }
+
+        sampleInfo.textContent = `${loadedCount} Klang Glitch Kit samples loaded`;
+        sampleInfo.className = 'sample-info ready';
+    }
+
+    
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        const processorCode = document.querySelector('script:not([src])').textContent;
+        const blob = new Blob([processorCode], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+
+        await audioContext.audioWorklet.addModule(url);
+
+        workletNode = new AudioWorkletNode(audioContext, 'spook-processor');
+
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+
+        const container = document.getElementById('pedalboard-container');
+        pedalboardUI = new PedalboardUI(container, audioContext);
+        const fxNode = await pedalboardUI.init();
+        pedalboardUI.connect(workletNode);
+        fxNode.connect(analyser);
+        analyser.connect(audioContext.destination);
+
+        // Initialize features if phonebook-features.js is loaded
+        if (typeof StickyHeader !== 'undefined') {
+            stickyHeader = new StickyHeader({
+                patchName: 'spook',
+                patchId: 'er-301-patches-hyperscale-spook'
+            });
+            await stickyHeader.init();
+            await stickyHeader.initRecorder(audioContext, fxNode, audioContext.destination);
+        }
+
+        if (typeof getMidiLearn !== 'undefined') {
+            midiLearn = await getMidiLearn('er-301-patches-hyperscale-spook');
+        }
+
+        if (typeof getModulationMatrix !== 'undefined') {
+            modMatrix = getModulationMatrix();
+            modMatrixUI = new ModMatrixUI(
+                document.querySelector('.patch-content') || document.body,
+                { modMatrix: modMatrix }
+            );
+            modMatrixUI.init();
+        }
+
+        // Auto-register all sliders for MIDI Learn and Mod Matrix
+        if (typeof autoRegisterControls !== 'undefined') {
+            await autoRegisterControls({
+                patchId: 'er-301-patches-hyperscale-spook',
+                prefix: 'spook',
+                modMatrixUI: modMatrixUI
+            });
+        }
+
+        await loadSamples();
+        setupMIDI();
+        visualize();
+    }
+
+    function setupMIDI() {
+        if (navigator.requestMIDIAccess) {
+            navigator.requestMIDIAccess().then(midiAccess => {
+                const inputs = midiAccess.inputs.values();
+                for (let input of inputs) {
+                    input.onmidimessage = handleMIDI;
+                    document.getElementById('midiStatus').textContent = `MIDI: ${input.name}`;
+                    document.getElementById('midiStatus').className = 'midi-status connected';
+                }
+            });
+        }
+    }
+
+    function handleMIDI(event) {
+        const [status, note, velocity] = event.data;
+        const command = status >> 4;
+
+        if (command === 9 && velocity > 0) {
+            workletNode.port.postMessage({
+                type: 'midiNote',
+                note: note,
+                velocity: velocity / 127
+            });
+        }
+    }
+
+    function visualize() {
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth * 2;
+        canvas.height = canvas.offsetHeight * 2;
+
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        function draw() {
+            requestAnimationFrame(draw);
+            analyser.getByteTimeDomainData(dataArray);
+
+            ctx.fillStyle = '#0a0a14';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#9b59b6';
+            ctx.beginPath();
+
+            const sliceWidth = canvas.width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = v * canvas.height / 2;
+
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+
+                x += sliceWidth;
+            }
+
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.stroke();
+        }
+
+        draw();
+    }
+
+    // UI bindings
+    document.getElementById('playBtn').addEventListener('click', async () => {
+        if (!audioContext) {
+            await initAudio();
+        }
+
+        if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+        }
+
+        isPlaying = !isPlaying;
+        document.getElementById('playBtn').textContent = isPlaying ? '⏸' : '▶';
+
+        if (isPlaying) {
+            if (modMatrix) modMatrix.start();
+        } else {
+            if (modMatrix) modMatrix.stop();
+        }
+
+        if (workletNode) {
+            workletNode.port.postMessage({
+                type: 'parameter',
+                param: 'autoTrigger',
+                value: isPlaying && document.getElementById('autoTrigBtn').classList.contains('active')
+            });
+        }
+    });
+
+    document.getElementById('autoTrigBtn').addEventListener('click', function() {
+        this.classList.toggle('active');
+        if (workletNode) {
+            workletNode.port.postMessage({
+                type: 'parameter',
+                param: 'autoTrigger',
+                value: this.classList.contains('active') && isPlaying
+            });
+        }
+    });
+
+    document.getElementById('sampleInput').addEventListener('change', async function(e) {
+        if (!audioContext) await initAudio();
+
+        const files = Array.from(e.target.files);
+        const sampleInfo = document.getElementById('sampleInfo');
+        sampleInfo.textContent = 'Loading custom samples...';
+        sampleInfo.className = 'sample-info loading';
+
+        loadedSamples = [];
+        for (const file of files) {
+            const arrayBuffer = await file.arrayBuffer();
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            loadedSamples.push(audioBuffer.getChannelData(0));
+        }
+
+        if (workletNode) {
+            workletNode.port.postMessage({
+                type: 'samples',
+                buffers: loadedSamples.map(b => b.buffer)
+            });
+        }
+
+        sampleInfo.textContent = `${files.length} custom samples loaded`;
+        sampleInfo.className = 'sample-info ready';
+    });
+
+    document.getElementById('clearSamples').addEventListener('click', async () => {
+        if (audioContext) {
+            loadedSamples = [];
+            if (workletNode) {
+                workletNode.port.postMessage({
+                    type: 'samples',
+                    buffers: []
+                });
+            }
+            document.getElementById('sampleInfo').textContent = 'No samples loaded';
+            document.getElementById('sampleInfo').className = 'sample-info';
+        }
+    });
+
+    // Parameter controls
+    const paramMappings = {
+        'prob1': { param: 'gate1.prob', display: null, format: v => v.toFixed(2), path: ['gate1', 'prob'] },
+        'mult1': { param: 'gate1.mult', display: null, format: v => v, path: ['gate1', 'mult'] },
+        'div1': { param: 'gate1.div', display: null, format: v => v, path: ['gate1', 'div'] },
+        'prob2': { param: 'gate2.prob', display: null, format: v => v.toFixed(2), path: ['gate2', 'prob'] },
+        'mult2': { param: 'gate2.mult', display: null, format: v => v, path: ['gate2', 'mult'] },
+        'div2': { param: 'gate2.div', display: null, format: v => v, path: ['gate2', 'div'] },
+        'clockFreq': { param: 'clockFreq', display: null, format: v => v.toFixed(3) + ' Hz' },
+        'clockPW': { param: 'clockPW', display: null, format: v => v.toFixed(2) },
+        'squeal': { param: 'squeal', display: 'squealDisplay', format: v => v.toFixed(2) },
+        'slice': { param: 'slice', display: 'sliceDisplay', format: v => v.toFixed(2) },
+        'duration': { param: 'duration', display: null, format: v => v.toFixed(2) },
+        'jitter': { param: 'jitter', display: null, format: v => v.toFixed(3) },
+        'delMult': { param: 'delMult', display: null, format: v => v },
+        'delDiv': { param: 'delDiv', display: null, format: v => v },
+        'delFeedback': { param: 'delFeedback', display: null, format: v => v.toFixed(2) },
+        'delSpread': { param: 'delSpread', display: null, format: v => v.toFixed(2) },
+        'delWet': { param: 'delWet', display: null, format: v => v.toFixed(2) },
+        'fdnDelay': { param: 'fdnDelay', display: null, format: v => v.toFixed(2) },
+        'fdnFeedback': { param: 'fdnFeedback', display: null, format: v => v.toFixed(2) },
+        'fdnTone': { param: 'fdnTone', display: null, format: v => v.toFixed(2) },
+        'fdnMod': { param: 'fdnMod', display: null, format: v => v.toFixed(2) },
+        'fdnWet': { param: 'fdnWet', display: 'fdnDisplay', format: v => v.toFixed(2) },
+        'level': { param: 'level', display: null, format: v => v.toFixed(2) },
+        'meter': { param: 'meter', display: 'meterDisplay', format: v => v.toFixed(2) }
+    };
+
+    Object.keys(paramMappings).forEach(id => {
+        const input = document.getElementById(id);
+        const mapping = paramMappings[id];
+
+        if (input) {
+            input.addEventListener('input', function() {
+                const value = parseFloat(this.value);
+                const displayValue = mapping.format(value);
+
+                document.getElementById(id + 'Val').textContent = displayValue;
+
+                if (mapping.display) {
+                    document.getElementById(mapping.display).textContent = displayValue;
+                }
+
+                if (workletNode) {
+                    workletNode.port.postMessage({
+                        type: 'parameter',
+                        param: mapping.param,
+                        value: value
+                    });
+                }
+            });
+        }
+    });
+
+    // Info panel
+    document.addEventListener('DOMContentLoaded', () => {
+        if (typeof ER301InfoPanel !== 'undefined') {
+            new ER301InfoPanel(document.body, {
+                title: 'spook',
+                author: 'mudlogger',
+                origin: 'ER-301 Hyperscale Units',
+                description: 'A haunting glitch metal drum machine featuring dual Clocked Random Gates for complex polyrhythmic triggering. The Klang Glitch Kit samples (54 industrial/metallic sounds) are processed through Clocked Stretch for granular manipulation. A Square oscillator provides clock modulation for the Clocked Delay, while the Pingable Scaled Random modulates slice selection and FDN tone. The Feedback Delay Network creates lush, modulated reverb tails.',
+                controls: [
+                    { name: 'Gate 1 Prob/Mult/Div', range: 'Various', description: 'First Clocked Random Gate for main triggering' },
+                    { name: 'Gate 2 Prob/Mult/Div', range: 'Various', description: 'Second gate triggers random value changes' },
+                    { name: 'Clock Freq', range: '0.01-2 Hz', description: 'Square wave clock frequency' },
+                    { name: 'Squeal', range: '-1 to +1', description: 'Sample pitch/speed control' },
+                    { name: 'Slice', range: '0-1', description: 'Sample selection position' },
+                    { name: 'Duration', range: '0.01-0.5 s', description: 'Grain duration' },
+                    { name: 'Delay Mult/Div', range: '1-32', description: 'Clock-synced delay time ratio' },
+                    { name: 'FDN Delay/Feedback/Tone/Mod', range: 'Various', description: 'Feedback Delay Network reverb controls' }
+                ],
+                tips: [
+                    'Gate 1 controls main sample triggering',
+                    'Gate 2 modulates random sample/tone selection',
+                    'Low clock freq creates long evolving delays',
+                    'High FDN feedback for infinite reverb tails',
+                    'MIDI notes control squeal/pitch'
+                ]
+            });
+        }
+    });
+    </script>
+</body>
+</html>

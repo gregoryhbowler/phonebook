@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOLO - ER-301 Autogen301</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 100px;
+        }
+        .shattr-section {
+            background: #100d18;
+            border: 1px solid #3a2a4a;
+            border-radius: 8px;
+            padding: 1em;
+            margin-bottom: 1em;
+        }
+        .shattr-section h3 {
+            margin: 0 0 0.75em 0;
+            font-size: 0.9em;
+            color: #9a6aff;
+        }
+        .shattr-section.shattr2 {
+            background: #18100d;
+            border-color: #4a3a2a;
+        }
+        .shattr-section.shattr2 h3 {
+            color: #ff9a6a;
+        }
+        .sample-controls {
+            display: flex;
+            gap: 0.5em;
+            margin-bottom: 0.75em;
+        }
+        .sample-controls button {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #888;
+            padding: 0.5em 1em;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        .sample-controls button:hover {
+            border-color: #9a6aff;
+            color: #9a6aff;
+        }
+        .noise-viz {
+            height: 40px;
+            background: linear-gradient(90deg, #1a1a1a, #2a2a2a);
+            border-radius: 4px;
+            margin: 0.5em 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .noise-bar {
+            position: absolute;
+            bottom: 0;
+            width: 3px;
+            background: #9a6aff;
+            transition: height 0.05s;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>YOLO</h1>
+                <p>Dual Shatttr texture generator with clocked random gates and noise modulation</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Shatttr 1 Section -->
+            <div class="shattr-section">
+                <h3>Shatttr 1</h3>
+                <div class="sample-controls">
+                    <button id="importSamples1Btn">Import Sample 1</button>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Tune</label>
+                        <input type="range" id="tune1" min="-24" max="24" value="-0.8" step="0.1">
+                        <span class="param-value" id="tune1Val">-0.8 st</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Density</label>
+                        <input type="range" id="density1" min="0.01" max="1" value="0.21" step="0.01">
+                        <span class="param-value" id="density1Val">21%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Decay</label>
+                        <input type="range" id="decay1" min="0.01" max="2" value="0.32" step="0.01">
+                        <span class="param-value" id="decay1Val">0.32s</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Pink Noise</label>
+                        <input type="range" id="pinkNoise1" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="pinkNoise1Val">30%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Velvet Rate</label>
+                        <input type="range" id="velvetRate1" min="10" max="500" value="120" step="1">
+                        <span class="param-value" id="velvetRate1Val">120 Hz</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shatttr 2 Section -->
+            <div class="shattr-section shattr2">
+                <h3>Shatttr 2</h3>
+                <div class="sample-controls">
+                    <button id="importSamples2Btn">Import Sample 2</button>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Tune</label>
+                        <input type="range" id="tune2" min="-24" max="24" value="0" step="0.1">
+                        <span class="param-value" id="tune2Val">0 st</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Density</label>
+                        <input type="range" id="density2" min="0.01" max="1" value="0.15" step="0.01">
+                        <span class="param-value" id="density2Val">15%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Decay</label>
+                        <input type="range" id="decay2" min="0.01" max="2" value="0.45" step="0.01">
+                        <span class="param-value" id="decay2Val">0.45s</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Pink Noise</label>
+                        <input type="range" id="pinkNoise2" min="0" max="1" value="0.25" step="0.01">
+                        <span class="param-value" id="pinkNoise2Val">25%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Velvet Rate</label>
+                        <input type="range" id="velvetRate2" min="10" max="500" value="80" step="1">
+                        <span class="param-value" id="velvetRate2Val">80 Hz</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Global Clock Section -->
+            <span class="section-label">Clock & Timing</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Tempo</label>
+                        <input type="range" id="tempo" min="60" max="300" value="234" step="1">
+                        <span class="param-value" id="tempoVal">234 BPM</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Random Scale</label>
+                        <input type="range" id="randomScale" min="0" max="1" value="0.25" step="0.01">
+                        <span class="param-value" id="randomScaleVal">0.25</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Quantize Levels</label>
+                        <input type="range" id="quantLevels" min="2" max="256" value="125" step="1">
+                        <span class="param-value" id="quantLevelsVal">125</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delay Section -->
+            <span class="section-label">Clocked Delay</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Time Mult</label>
+                        <input type="range" id="delayMult" min="1" max="8" value="4" step="1">
+                        <span class="param-value" id="delayMultVal">4x</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="delayFeedback" min="0" max="0.95" value="0.45" step="0.01">
+                        <span class="param-value" id="delayFeedbackVal">45%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mix</label>
+                        <input type="range" id="delayMix" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="delayMixVal">30%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reverb Section -->
+            <span class="section-label">Freeverb</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Size</label>
+                        <input type="range" id="reverbSize" min="0" max="1" value="0.65" step="0.01">
+                        <span class="param-value" id="reverbSizeVal">0.65</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Damping</label>
+                        <input type="range" id="reverbDamp" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="reverbDampVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mix</label>
+                        <input type="range" id="reverbMix" min="0" max="1" value="0.35" step="0.01">
+                        <span class="param-value" id="reverbMixVal">0.35</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Master Section -->
+            <span class="section-label">Master</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Mix 1/2</label>
+                        <input type="range" id="channelMix" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="channelMixVal">50%</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="volume" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="volumeVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <pre class="code-block">
+// YOLO - ER-301 Autogen301
+// Original by mudlogger
+//
+// Dual Shatttr texture generator with:
+// - Two independent Shatttr channels
+// - Variable Speed Player for sample triggering
+// - Clocked Random Gate (Accents) with probability
+// - Pingable Scaled Random for pitch variation
+// - Velvet Noise + Pink Noise generators
+// - ADSR envelopes for each channel
+// - Clocked Delay synced to tempo
+// - Freeverb with modulated parameters
+//
+// Shatttr is a granular/sample-mangling effect
+// that shatters incoming samples into fragments</pre>
+        </main>
+    </div>
+
+    <script>
+        // Phonebook features
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        // Audio context and nodes
+        let audioContext;
+        let workletNode;
+        let analyser;
+        let pedalboardNode = null;
+        let pedalboardUI = null;
+        let isPlaying = false;
+
+        // Sample buffers for each Shatttr channel
+        let sampleBuffer1 = null;
+        let sampleBuffer2 = null;
+
+        // Noise generators
+        let velvetNoise1, velvetNoise2;
+        let pinkNoise1, pinkNoise2;
+
+        // Clocked triggering state
+        let clockPhase = 0;
+        let nextTrigTime1 = 0;
+        let nextTrigTime2 = 0;
+        let lastRandomPitch1 = 0;
+        let lastRandomPitch2 = 0;
+
+        // Pink noise generator using Voss-McCartney algorithm
+        function createPinkNoiseNode(ctx) {
+            const bufferSize = 4096;
+            const processor = ctx.createScriptProcessor(bufferSize, 1, 1);
+
+            let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+
+            processor.onaudioprocess = (e) => {
+                const output = e.outputBuffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    const white = Math.random() * 2 - 1;
+                    b0 = 0.99886 * b0 + white * 0.0555179;
+                    b1 = 0.99332 * b1 + white * 0.0750759;
+                    b2 = 0.96900 * b2 + white * 0.1538520;
+                    b3 = 0.86650 * b3 + white * 0.3104856;
+                    b4 = 0.55000 * b4 + white * 0.5329522;
+                    b5 = -0.7616 * b5 - white * 0.0168980;
+                    output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+                    b6 = white * 0.115926;
+                }
+            };
+
+            return processor;
+        }
+
+        // Velvet noise generator (sparse impulse noise)
+        function createVelvetNoiseNode(ctx, density) {
+            const bufferSize = 2048;
+            const processor = ctx.createScriptProcessor(bufferSize, 0, 1);
+
+            let phase = 0;
+
+            processor.onaudioprocess = (e) => {
+                const output = e.outputBuffer.getChannelData(0);
+                const sampleRate = ctx.sampleRate;
+                const avgSpacing = sampleRate / density;
+
+                for (let i = 0; i < bufferSize; i++) {
+                    if (Math.random() < (1 / avgSpacing)) {
+                        output[i] = Math.random() > 0.5 ? 1 : -1;
+                    } else {
+                        output[i] = 0;
+                    }
+                }
+            };
+
+            return processor;
+        }
+
+        // ADSR envelope
+        function createEnvelope(ctx, attack, decay, sustain, release) {
+            return {
+                trigger: (gainNode, time) => {
+                    const now = time || ctx.currentTime;
+                    gainNode.gain.cancelScheduledValues(now);
+                    gainNode.gain.setValueAtTime(0, now);
+                    gainNode.gain.linearRampToValueAtTime(1, now + attack);
+                    gainNode.gain.linearRampToValueAtTime(sustain, now + attack + decay);
+                    gainNode.gain.linearRampToValueAtTime(0, now + attack + decay + release);
+                }
+            };
+        }
+
+        // Load default samples
+        async function loadDefaultSamples() {
+            const basePath = '../samples/autogen301/yolo/';
+
+            try {
+                const response1 = await fetch(basePath + 'Fracture Hit1.wav');
+                if (response1.ok) {
+                    const arrayBuffer = await response1.arrayBuffer();
+                    sampleBuffer1 = await audioContext.decodeAudioData(arrayBuffer);
+                }
+            } catch (err) {
+                console.warn('Could not load sample 1:', err);
+            }
+
+            try {
+                const response2 = await fetch(basePath + 'Cwejman S1 - Cranky Clap Modulator 2.wav');
+                if (response2.ok) {
+                    const arrayBuffer = await response2.arrayBuffer();
+                    sampleBuffer2 = await audioContext.decodeAudioData(arrayBuffer);
+                }
+            } catch (err) {
+                console.warn('Could not load sample 2:', err);
+            }
+        }
+
+        // Import custom sample
+        async function importSample(channelNum) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'audio/*';
+
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+                    if (channelNum === 1) {
+                        sampleBuffer1 = audioBuffer;
+                    } else {
+                        sampleBuffer2 = audioBuffer;
+                    }
+
+                    console.log('Imported sample for channel', channelNum);
+                } catch (err) {
+                    console.warn('Could not load sample:', err);
+                }
+            };
+
+            input.click();
+        }
+
+        // Freeverb implementation
+        function createFreeverb(ctx) {
+            const combTunings = [1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617];
+            const allpassTunings = [556, 441, 341, 225];
+            const combFilters = [];
+
+            const input = ctx.createGain();
+            const output = ctx.createGain();
+            const wet = ctx.createGain();
+            const dry = ctx.createGain();
+
+            wet.gain.value = 0.35;
+            dry.gain.value = 0.65;
+
+            combTunings.forEach(tuning => {
+                const delay = ctx.createDelay(1);
+                delay.delayTime.value = tuning / ctx.sampleRate;
+                const feedback = ctx.createGain();
+                feedback.gain.value = 0.84;
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 4000;
+
+                delay.connect(filter);
+                filter.connect(feedback);
+                feedback.connect(delay);
+
+                combFilters.push({ delay, feedback, filter });
+            });
+
+            return {
+                input,
+                output,
+                wet,
+                dry,
+                combFilters,
+                connect: (dest) => output.connect(dest),
+                setSize: (size) => {
+                    const roomScale = 0.28 + size * 0.7;
+                    combFilters.forEach(cf => cf.feedback.gain.value = roomScale);
+                },
+                setDamp: (damp) => {
+                    const freq = 20000 * (1 - damp);
+                    combFilters.forEach(cf => cf.filter.frequency.value = freq);
+                },
+                setMix: (mix) => {
+                    wet.gain.value = mix;
+                    dry.gain.value = 1 - mix;
+                },
+                process: (inputNode) => {
+                    inputNode.connect(input);
+                    inputNode.connect(dry);
+                    dry.connect(output);
+
+                    const combMixer = ctx.createGain();
+                    combMixer.gain.value = 0.125;
+                    combFilters.forEach(cf => {
+                        input.connect(cf.delay);
+                        cf.filter.connect(combMixer);
+                    });
+
+                    combMixer.connect(wet);
+                    wet.connect(output);
+                }
+            };
+        }
+
+        // Initialize audio
+        async function initAudio() {
+            try {
+                await featuresLoaded;
+
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+                // Load samples
+                await loadDefaultSamples();
+
+                // Create analyser
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+
+                // Create master gain
+                const masterGain = audioContext.createGain();
+                masterGain.gain.value = parseFloat(document.getElementById('volume').value);
+
+                // Create channel mixers
+                const channel1Gain = audioContext.createGain();
+                const channel2Gain = audioContext.createGain();
+                const channelMixValue = parseFloat(document.getElementById('channelMix').value);
+                channel1Gain.gain.value = 1 - channelMixValue;
+                channel2Gain.gain.value = channelMixValue;
+
+                // Create noise generators
+                pinkNoise1 = createPinkNoiseNode(audioContext);
+                pinkNoise2 = createPinkNoiseNode(audioContext);
+
+                const pinkGain1 = audioContext.createGain();
+                const pinkGain2 = audioContext.createGain();
+                pinkGain1.gain.value = parseFloat(document.getElementById('pinkNoise1').value) * 0.1;
+                pinkGain2.gain.value = parseFloat(document.getElementById('pinkNoise2').value) * 0.1;
+
+                pinkNoise1.connect(pinkGain1);
+                pinkNoise2.connect(pinkGain2);
+
+                // Create sample trigger gains (for envelope)
+                const sampleGain1 = audioContext.createGain();
+                const sampleGain2 = audioContext.createGain();
+                sampleGain1.gain.value = 0;
+                sampleGain2.gain.value = 0;
+
+                // Create envelopes
+                const envelope1 = createEnvelope(audioContext, 0.005, parseFloat(document.getElementById('decay1').value), 0.3, 0.1);
+                const envelope2 = createEnvelope(audioContext, 0.005, parseFloat(document.getElementById('decay2').value), 0.3, 0.1);
+
+                // Create clocked delay
+                const delay = audioContext.createDelay(2);
+                const tempo = parseFloat(document.getElementById('tempo').value);
+                const delayMult = parseFloat(document.getElementById('delayMult').value);
+                delay.delayTime.value = (60 / tempo) * delayMult;
+
+                const delayFeedback = audioContext.createGain();
+                delayFeedback.gain.value = parseFloat(document.getElementById('delayFeedback').value);
+
+                const delayMix = audioContext.createGain();
+                delayMix.gain.value = parseFloat(document.getElementById('delayMix').value);
+
+                const delayDry = audioContext.createGain();
+                delayDry.gain.value = 1 - parseFloat(document.getElementById('delayMix').value);
+
+                delay.connect(delayFeedback);
+                delayFeedback.connect(delay);
+                delay.connect(delayMix);
+
+                // Create freeverb
+                const freeverb = createFreeverb(audioContext);
+                freeverb.setSize(parseFloat(document.getElementById('reverbSize').value));
+                freeverb.setDamp(parseFloat(document.getElementById('reverbDamp').value));
+                freeverb.setMix(parseFloat(document.getElementById('reverbMix').value));
+
+                // Connect signal chain
+                // Channel 1
+                pinkGain1.connect(channel1Gain);
+                sampleGain1.connect(channel1Gain);
+
+                // Channel 2
+                pinkGain2.connect(channel2Gain);
+                sampleGain2.connect(channel2Gain);
+
+                // Mix channels
+                const channelMixer = audioContext.createGain();
+                channel1Gain.connect(channelMixer);
+                channel2Gain.connect(channelMixer);
+
+                // To delay
+                channelMixer.connect(delayDry);
+                channelMixer.connect(delay);
+
+                // To reverb
+                const preReverb = audioContext.createGain();
+                delayDry.connect(preReverb);
+                delayMix.connect(preReverb);
+                freeverb.process(preReverb);
+                freeverb.output.connect(masterGain);
+
+                // Store nodes for updates
+                workletNode = {
+                    sampleGain1,
+                    sampleGain2,
+                    pinkGain1,
+                    pinkGain2,
+                    channel1Gain,
+                    channel2Gain,
+                    envelope1,
+                    envelope2,
+                    delay,
+                    delayFeedback,
+                    delayMix,
+                    delayDry,
+                    freeverb,
+                    masterGain,
+                    connect: (dest) => masterGain.connect(dest),
+                    disconnect: () => masterGain.disconnect()
+                };
+
+                // Initialize pedalboard
+                const pedalboardContainer = document.getElementById('pedalboard-container');
+                if (typeof PedalboardUI !== 'undefined' && pedalboardContainer) {
+                    pedalboardUI = new PedalboardUI(pedalboardContainer, audioContext, {
+                        patchId: 'er-301-patches-autogen301-yolo'
+                    });
+                    pedalboardNode = await pedalboardUI.init();
+                    pedalboardUI.connect(masterGain);
+                    pedalboardNode.connect(audioContext.destination);
+                    pedalboardNode.connect(analyser);
+                } else {
+                    masterGain.connect(analyser);
+                    analyser.connect(audioContext.destination);
+                }
+
+                // Initialize phonebook features
+                const outputNode = pedalboardNode || masterGain;
+                if (typeof StickyHeader !== 'undefined') {
+                    stickyHeader = new StickyHeader({
+                        patchName: 'yolo-er-301-autogen301',
+                        patchId: 'er-301-patches-autogen301-yolo'
+                    });
+                    await stickyHeader.init();
+                    await stickyHeader.initRecorder(audioContext, outputNode, audioContext.destination);
+                }
+
+                if (typeof getMidiLearn !== 'undefined') {
+                    midiLearn = await getMidiLearn('er-301-patches-autogen301-yolo');
+                    registerMidiLearnTargets();
+                }
+
+                if (typeof getModulationMatrix !== 'undefined') {
+                    modMatrix = getModulationMatrix();
+                    modMatrixUI = new ModMatrixUI(
+                        document.querySelector('.patch-content') || document.body,
+                        { modMatrix: modMatrix }
+                    );
+                    modMatrixUI.init();
+                }
+
+                // Auto-register all sliders for MIDI Learn and Mod Matrix
+                if (typeof autoRegisterControls !== 'undefined') {
+                    await autoRegisterControls({
+                        patchId: 'er-301-patches-autogen301-yolo',
+                        prefix: 'yolo',
+                        modMatrixUI: modMatrixUI
+                    });
+                }
+
+                document.getElementById('playBtn').disabled = false;
+
+            } catch (err) {
+                console.error('Audio init error:', err);
+            }
+        }
+
+        // Trigger sample on channel
+        function triggerSample(channelNum) {
+            if (!audioContext) return;
+
+            const buffer = channelNum === 1 ? sampleBuffer1 : sampleBuffer2;
+            if (!buffer) return;
+
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+
+            // Apply random pitch variation
+            const tuneParam = channelNum === 1 ? 'tune1' : 'tune2';
+            const baseTune = parseFloat(document.getElementById(tuneParam).value);
+            const randomScale = parseFloat(document.getElementById('randomScale').value);
+            const quantLevels = parseInt(document.getElementById('quantLevels').value);
+
+            // Quantized random pitch
+            const randomOffset = (Math.floor(Math.random() * quantLevels) / quantLevels - 0.5) * randomScale * 12;
+            const totalTune = baseTune + randomOffset;
+            source.playbackRate.value = Math.pow(2, totalTune / 12);
+
+            // Connect to gain and trigger envelope
+            const gainNode = channelNum === 1 ? workletNode.sampleGain1 : workletNode.sampleGain2;
+            const envelope = channelNum === 1 ? workletNode.envelope1 : workletNode.envelope2;
+
+            source.connect(gainNode);
+            envelope.trigger(gainNode, audioContext.currentTime);
+            source.start();
+        }
+
+        // Clocked sequencer tick
+        function sequencerTick() {
+            if (!isPlaying || !audioContext) return;
+
+            const now = audioContext.currentTime;
+            const tempo = parseFloat(document.getElementById('tempo').value);
+            const density1 = parseFloat(document.getElementById('density1').value);
+            const density2 = parseFloat(document.getElementById('density2').value);
+
+            const beatInterval = 60 / tempo;
+
+            // Channel 1 triggering
+            if (now >= nextTrigTime1) {
+                if (Math.random() < density1) {
+                    triggerSample(1);
+                }
+                nextTrigTime1 = now + beatInterval * (0.5 + Math.random() * 1.5);
+            }
+
+            // Channel 2 triggering
+            if (now >= nextTrigTime2) {
+                if (Math.random() < density2) {
+                    triggerSample(2);
+                }
+                nextTrigTime2 = now + beatInterval * (0.5 + Math.random() * 1.5);
+            }
+
+            requestAnimationFrame(sequencerTick);
+        }
+
+        // Visualization
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width = canvas.offsetWidth * 2;
+            const height = canvas.height = canvas.offsetHeight * 2;
+
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            function draw() {
+                if (!isPlaying) {
+                    ctx.fillStyle = '#0a0a0a';
+                    ctx.fillRect(0, 0, width, height);
+                    return;
+                }
+
+                requestAnimationFrame(draw);
+                analyser.getByteFrequencyData(dataArray);
+
+                ctx.fillStyle = 'rgba(10, 10, 10, 0.15)';
+                ctx.fillRect(0, 0, width, height);
+
+                // Draw shattered effect
+                const barCount = 48;
+                const barWidth = width / barCount;
+
+                for (let i = 0; i < barCount; i++) {
+                    const dataIndex = Math.floor(i * (dataArray.length / barCount));
+                    const barHeight = (dataArray[dataIndex] / 255) * height * 0.8;
+
+                    // Shattered purple/orange gradient
+                    const hue = i < barCount / 2 ? 270 : 30;
+                    const sat = 60 + (dataArray[dataIndex] / 255) * 40;
+                    ctx.fillStyle = `hsl(${hue}, ${sat}%, 50%)`;
+
+                    // Random shatter offset
+                    const offsetX = (Math.random() - 0.5) * 4;
+                    const offsetY = (Math.random() - 0.5) * 8;
+
+                    ctx.fillRect(
+                        i * barWidth + offsetX,
+                        height - barHeight + offsetY,
+                        barWidth - 2,
+                        barHeight
+                    );
+                }
+            }
+
+            draw();
+        }
+
+        // Toggle playback
+        async function togglePlay() {
+            if (!audioContext) {
+                await initAudio();
+            }
+
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            isPlaying = !isPlaying;
+            const btn = document.getElementById('playBtn');
+            btn.innerHTML = isPlaying ? '&#9632;' : '&#9654;';
+            btn.classList.toggle('playing', isPlaying);
+
+            if (isPlaying) {
+                if (modMatrix) modMatrix.start();
+                nextTrigTime1 = audioContext.currentTime;
+                nextTrigTime2 = audioContext.currentTime + 0.1;
+                sequencerTick();
+                drawVisualizer();
+            } else {
+                if (modMatrix) modMatrix.stop();
+            }
+        }
+
+        // Parameter handlers
+        function setupParameterHandlers() {
+            // Shatttr 1 parameters
+            document.getElementById('tune1').addEventListener('input', (e) => {
+                document.getElementById('tune1Val').textContent = parseFloat(e.target.value).toFixed(1) + ' st';
+            });
+
+            document.getElementById('density1').addEventListener('input', (e) => {
+                document.getElementById('density1Val').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            document.getElementById('decay1').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('decay1Val').textContent = val.toFixed(2) + 's';
+                if (workletNode) {
+                    workletNode.envelope1 = createEnvelope(audioContext, 0.005, val, 0.3, 0.1);
+                }
+            });
+
+            document.getElementById('pinkNoise1').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('pinkNoise1Val').textContent = Math.round(val * 100) + '%';
+                if (workletNode) workletNode.pinkGain1.gain.value = val * 0.1;
+            });
+
+            document.getElementById('velvetRate1').addEventListener('input', (e) => {
+                document.getElementById('velvetRate1Val').textContent = e.target.value + ' Hz';
+            });
+
+            // Shatttr 2 parameters
+            document.getElementById('tune2').addEventListener('input', (e) => {
+                document.getElementById('tune2Val').textContent = parseFloat(e.target.value).toFixed(1) + ' st';
+            });
+
+            document.getElementById('density2').addEventListener('input', (e) => {
+                document.getElementById('density2Val').textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            document.getElementById('decay2').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('decay2Val').textContent = val.toFixed(2) + 's';
+                if (workletNode) {
+                    workletNode.envelope2 = createEnvelope(audioContext, 0.005, val, 0.3, 0.1);
+                }
+            });
+
+            document.getElementById('pinkNoise2').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('pinkNoise2Val').textContent = Math.round(val * 100) + '%';
+                if (workletNode) workletNode.pinkGain2.gain.value = val * 0.1;
+            });
+
+            document.getElementById('velvetRate2').addEventListener('input', (e) => {
+                document.getElementById('velvetRate2Val').textContent = e.target.value + ' Hz';
+            });
+
+            // Clock parameters
+            document.getElementById('tempo').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('tempoVal').textContent = val + ' BPM';
+                if (workletNode) {
+                    const delayMult = parseFloat(document.getElementById('delayMult').value);
+                    workletNode.delay.delayTime.value = (60 / val) * delayMult;
+                }
+            });
+
+            document.getElementById('randomScale').addEventListener('input', (e) => {
+                document.getElementById('randomScaleVal').textContent = parseFloat(e.target.value).toFixed(2);
+            });
+
+            document.getElementById('quantLevels').addEventListener('input', (e) => {
+                document.getElementById('quantLevelsVal').textContent = e.target.value;
+            });
+
+            // Delay parameters
+            document.getElementById('delayMult').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('delayMultVal').textContent = val + 'x';
+                if (workletNode) {
+                    const tempo = parseFloat(document.getElementById('tempo').value);
+                    workletNode.delay.delayTime.value = (60 / tempo) * val;
+                }
+            });
+
+            document.getElementById('delayFeedback').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('delayFeedbackVal').textContent = Math.round(val * 100) + '%';
+                if (workletNode) workletNode.delayFeedback.gain.value = val;
+            });
+
+            document.getElementById('delayMix').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('delayMixVal').textContent = Math.round(val * 100) + '%';
+                if (workletNode) {
+                    workletNode.delayMix.gain.value = val;
+                    workletNode.delayDry.gain.value = 1 - val;
+                }
+            });
+
+            // Reverb parameters
+            document.getElementById('reverbSize').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('reverbSizeVal').textContent = val.toFixed(2);
+                if (workletNode) workletNode.freeverb.setSize(val);
+            });
+
+            document.getElementById('reverbDamp').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('reverbDampVal').textContent = val.toFixed(2);
+                if (workletNode) workletNode.freeverb.setDamp(val);
+            });
+
+            document.getElementById('reverbMix').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('reverbMixVal').textContent = val.toFixed(2);
+                if (workletNode) workletNode.freeverb.setMix(val);
+            });
+
+            // Master parameters
+            document.getElementById('channelMix').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('channelMixVal').textContent = Math.round(val * 100) + '%';
+                if (workletNode) {
+                    workletNode.channel1Gain.gain.value = 1 - val;
+                    workletNode.channel2Gain.gain.value = val;
+                }
+            });
+
+            document.getElementById('volume').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('volumeVal').textContent = val.toFixed(2);
+                if (workletNode) workletNode.masterGain.gain.value = val;
+            });
+
+            // Sample import buttons
+            document.getElementById('importSamples1Btn').addEventListener('click', () => importSample(1));
+            document.getElementById('importSamples2Btn').addEventListener('click', () => importSample(2));
+        }
+
+        // Initialize info panel
+        function initInfoPanel() {
+            if (typeof ER301InfoPanel !== 'undefined') {
+                ER301InfoPanel.create({
+                    title: 'YOLO',
+                    sections: [
+                        {
+                            title: 'Overview',
+                            content: 'Dual Shatttr texture generator. Shatttr is a granular/sample-mangling effect that shatters incoming samples into random fragments. Features clocked random gates, velvet and pink noise generators, quantized random pitch, clocked delay, and Freeverb.'
+                        },
+                        {
+                            title: 'Controls',
+                            content: 'Tune: Pitch offset for sample playback<br>Density: Probability of triggering samples<br>Decay: ADSR envelope decay time'
+                        },
+                        {
+                            title: 'Signal Flow',
+                            content: 'Clock → Clocked Random Gate → VSP (samples) + Pink Noise → ADSR VCA → Clocked Delay → Freeverb → Out'
+                        },
+                        {
+                            title: 'Notes',
+                            content: 'Two independent Shatttr channels with different samples and timing. Import your own samples for unique textures.'
+                        }
+                    ]
+                });
+            }
+        }
+
+        // Main initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            setupParameterHandlers();
+            initInfoPanel();
+            document.getElementById('playBtn').addEventListener('click', togglePlay);
+        });
+    </script>
+</body>
+</html>

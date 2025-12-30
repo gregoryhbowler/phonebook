@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dialled In - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 100px;
+        }
+        .envelope-display {
+            display: flex;
+            gap: 4px;
+            padding: 10px;
+            background: #0a0a14;
+            border-radius: 6px;
+            margin-bottom: 1em;
+            align-items: center;
+            justify-content: center;
+        }
+        .envelope-bar {
+            width: 8px;
+            height: 40px;
+            background: #1a1a2e;
+            border-radius: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+        .envelope-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: linear-gradient(to top, #d94a90, #4a90d9);
+            border-radius: 2px;
+            transition: height 0.05s;
+        }
+        .pitch-display {
+            padding: 10px 16px;
+            background: #0a0a14;
+            border-radius: 6px;
+            margin-bottom: 1em;
+            text-align: center;
+            font-family: monospace;
+            font-size: 1.2em;
+            color: #4ad9b4;
+        }
+        .fold-display {
+            height: 60px;
+            background: #0a0a14;
+            border-radius: 6px;
+            margin-bottom: 1em;
+            overflow: hidden;
+        }
+        .fold-canvas {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Dialled In</h1>
+                <p>Generative FM synthesizer with wave folding, dual delays, and Andromeda reverb</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Envelope Display -->
+            <div class="envelope-display" id="envDisplay"></div>
+
+            <!-- Pitch Display -->
+            <div class="pitch-display" id="pitchDisplay">--</div>
+
+            <!-- Amie FM Synth Section -->
+            <span class="section-label">Amie FM Synthesizer</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Base Freq</label>
+                        <input type="range" id="freq" min="55" max="880" value="220" step="1">
+                        <span class="param-value" id="freqVal">220</span>
+                    </div>
+                    <div class="param-group">
+                        <label>FM Ratio</label>
+                        <input type="range" id="ratio" min="1" max="16" value="7" step="0.1">
+                        <span class="param-value" id="ratioVal">7.0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>C Fdbk</label>
+                        <input type="range" id="cfdbk" min="0" max="1" value="0.9" step="0.01">
+                        <span class="param-value" id="cfdbkVal">0.90</span>
+                    </div>
+                    <div class="param-group">
+                        <label>M Fdbk</label>
+                        <input type="range" id="mfdbk" min="0" max="1" value="1.0" step="0.01">
+                        <span class="param-value" id="mfdbkVal">1.00</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>FM Wet</label>
+                        <input type="range" id="wet" min="0" max="1" value="0.4" step="0.01">
+                        <span class="param-value" id="wetVal">0.40</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Level</label>
+                        <input type="range" id="level" min="0" max="1" value="0.4" step="0.01">
+                        <span class="param-value" id="levelVal">0.40</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pitch/Scale Section -->
+            <span class="section-label">Pitch & Scale</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Scale</label>
+                        <select id="scale">
+                            <option value="major_pent" selected>Major Pentatonic</option>
+                            <option value="minor_pent">Minor Pentatonic</option>
+                            <option value="major">Major</option>
+                            <option value="minor">Minor</option>
+                            <option value="dorian">Dorian</option>
+                            <option value="chromatic">Chromatic</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Octave Range</label>
+                        <input type="range" id="octRange" min="1" max="8" value="8" step="1">
+                        <span class="param-value" id="octRangeVal">8</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Pitch Chance</label>
+                        <input type="range" id="pitchChance" min="0" max="1" value="0.17" step="0.01">
+                        <span class="param-value" id="pitchChanceVal">0.17</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Slew</label>
+                        <input type="range" id="slew" min="0" max="3" value="1.5" step="0.01">
+                        <span class="param-value" id="slewVal">1.50</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Envelope Section -->
+            <span class="section-label">Arc Envelope</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Rise</label>
+                        <input type="range" id="rise" min="0" max="1" value="0" step="0.001">
+                        <span class="param-value" id="riseVal">0.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Fall</label>
+                        <input type="range" id="fall" min="0.01" max="2" value="0.13" step="0.01">
+                        <span class="param-value" id="fallVal">0.13</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Bend</label>
+                        <input type="range" id="bend" min="-1" max="1" value="-0.5" step="0.01">
+                        <span class="param-value" id="bendVal">-0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Env Chance</label>
+                        <input type="range" id="envChance" min="0" max="1" value="0.14" step="0.01">
+                        <span class="param-value" id="envChanceVal">0.14</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Noise Section -->
+            <span class="section-label">Noise</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>HPF Freq</label>
+                        <input type="range" id="noiseHpf" min="100" max="10000" value="4435" step="1">
+                        <span class="param-value" id="noiseHpfVal">4435</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Resonance</label>
+                        <input type="range" id="noiseRes" min="0" max="1" value="0.35" step="0.01">
+                        <span class="param-value" id="noiseResVal">0.35</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Level</label>
+                        <input type="range" id="noiseLevel" min="0" max="0.2" value="0.05" step="0.001">
+                        <span class="param-value" id="noiseLevelVal">0.050</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fold Section -->
+            <span class="section-label">Wave Folding</span>
+            <div class="param-controls">
+                <div class="fold-display">
+                    <canvas class="fold-canvas" id="foldCanvas"></canvas>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Upper</label>
+                        <input type="range" id="foldUpper" min="0.1" max="2" value="1.0" step="0.01">
+                        <span class="param-value" id="foldUpperVal">1.00</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Lower</label>
+                        <input type="range" id="foldLower" min="0.1" max="3" value="1.9" step="0.01">
+                        <span class="param-value" id="foldLowerVal">1.90</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delay 1 Section -->
+            <span class="section-label">Clocked Delay 1</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Div</label>
+                        <input type="range" id="delay1Div" min="1" max="32" value="19" step="1">
+                        <span class="param-value" id="delay1DivVal">19</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="delay1Fdk" min="0" max="0.95" value="0.56" step="0.01">
+                        <span class="param-value" id="delay1FdkVal">0.56</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Wet</label>
+                        <input type="range" id="delay1Wet" min="0" max="1" value="0.67" step="0.01">
+                        <span class="param-value" id="delay1WetVal">0.67</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Spread</label>
+                        <input type="range" id="delay1Spread" min="-1" max="1" value="0.26" step="0.01">
+                        <span class="param-value" id="delay1SpreadVal">0.26</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reverb Section -->
+            <span class="section-label">Andromeda Nebula Reverb</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Decay</label>
+                        <input type="range" id="verbDecay" min="0.5" max="10" value="4.24" step="0.01">
+                        <span class="param-value" id="verbDecayVal">4.24</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mod</label>
+                        <input type="range" id="verbMod" min="0" max="100" value="63" step="1">
+                        <span class="param-value" id="verbModVal">63</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Low Cut</label>
+                        <input type="range" id="verbLowcut" min="20" max="500" value="82" step="1">
+                        <span class="param-value" id="verbLowcutVal">82</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Dry/Wet</label>
+                        <input type="range" id="verbWet" min="0" max="1" value="0.34" step="0.01">
+                        <span class="param-value" id="verbWetVal">0.34</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delay 2 Section -->
+            <span class="section-label">Clocked Delay 2</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Mult</label>
+                        <input type="range" id="delay2Mult" min="1" max="16" value="13" step="1">
+                        <span class="param-value" id="delay2MultVal">13</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Div</label>
+                        <input type="range" id="delay2Div" min="1" max="32" value="28" step="1">
+                        <span class="param-value" id="delay2DivVal">28</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="delay2Fdk" min="0" max="0.95" value="0.79" step="0.01">
+                        <span class="param-value" id="delay2FdkVal">0.79</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Wet</label>
+                        <input type="range" id="delay2Wet" min="0" max="1" value="0.41" step="0.01">
+                        <span class="param-value" id="delay2WetVal">0.41</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="vol" min="0" max="1.5" value="0.6" step="0.01">
+                        <span class="param-value" id="volVal">0.60</span>
+                    </div>
+                </div>
+            </div>
+
+            <pre class="code-block">
+// Dialled In - ER-301 Hyperscale Unit
+// Original by mudlogger
+//
+// Signal flow:
+// Amie FM Synth (with pitch quantized to Major Pentatonic)
+//   + White Noise (HPF filtered)
+//   -> Clocked Doppler Delay 1
+//   -> Fold (wave folding)
+//   -> VCA
+//   -> Andromeda Nebula Reverb
+//   -> Clocked Doppler Delay 2
+//   -> CPR Compressor
+//
+// Features:
+// - Generative FM synthesis with Amie oscillator
+// - Pingable Scaled Random pitch generation
+// - Arc envelope with chance-based triggering
+// - Dual clocked doppler delays
+// - Wave folding for harmonics
+// - Lush Andromeda Nebula reverb
+            </pre>
+
+            <p class="status" id="status">Click play to start</p>
+
+            <div id="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        // AudioWorklet Processor Code
+        const processorCode = `
+// ============================================================================
+// UTILITY CLASSES
+// ============================================================================
+class OnePole {
+    constructor(coeff = 0.5) {
+        this.coeff = coeff;
+        this.z1 = 0;
+    }
+    process(x) {
+        this.z1 = x * (1 - this.coeff) + this.z1 * this.coeff;
+        return this.z1;
+    }
+    setCoeff(c) { this.coeff = Math.max(0, Math.min(0.9999, c)); }
+}
+
+class DCBlocker {
+    constructor() { this.x1 = 0; this.y1 = 0; }
+    process(x) {
+        const y = x - this.x1 + 0.995 * this.y1;
+        this.x1 = x; this.y1 = y;
+        return y;
+    }
+}
+
+class DelayLine {
+    constructor(maxDelay) {
+        this.buffer = new Float32Array(maxDelay);
+        this.maxDelay = maxDelay;
+        this.writeIndex = 0;
+    }
+    write(sample) {
+        this.buffer[this.writeIndex] = sample;
+        this.writeIndex = (this.writeIndex + 1) % this.maxDelay;
+    }
+    readLinear(delaySamples) {
+        const delay = Math.max(0, Math.min(delaySamples, this.maxDelay - 1));
+        const intDelay = Math.floor(delay);
+        const frac = delay - intDelay;
+        let idx0 = this.writeIndex - intDelay - 1;
+        let idx1 = this.writeIndex - intDelay;
+        if (idx0 < 0) idx0 += this.maxDelay;
+        if (idx1 < 0) idx1 += this.maxDelay;
+        return this.buffer[idx1] + frac * (this.buffer[idx0] - this.buffer[idx1]);
+    }
+}
+
+// ============================================================================
+// SLEW LIMITER
+// ============================================================================
+class SlewLimiter {
+    constructor(sr) {
+        this.sr = sr;
+        this.value = 0;
+    }
+    process(target, riseTime, fallTime) {
+        const delta = target - this.value;
+        const time = delta > 0 ? riseTime : fallTime;
+        const rate = time > 0 ? 1 / (time * this.sr) : 1;
+        this.value += Math.sign(delta) * Math.min(Math.abs(delta), rate);
+        return this.value;
+    }
+}
+
+// ============================================================================
+// AMIE FM OSCILLATOR
+// ============================================================================
+class Amie {
+    constructor(sr) {
+        this.sr = sr;
+        this.carrierPhase = Math.random();
+        this.modPhase = Math.random();
+        this.carrierFeedback = 0;
+        this.modFeedback = 0;
+    }
+
+    process(freq, ratio, cFdbk, mFdbk, wet) {
+        const modFreq = freq * ratio;
+
+        // Modulator with feedback
+        const modOut = Math.sin(2 * Math.PI * this.modPhase + mFdbk * this.modFeedback * Math.PI);
+        this.modFeedback = modOut;
+        this.modPhase += modFreq / this.sr;
+        if (this.modPhase > 1) this.modPhase -= 1;
+
+        // Carrier with feedback and FM
+        const fmAmount = modOut * wet * 2;
+        const carrierOut = Math.sin(2 * Math.PI * this.carrierPhase + fmAmount + cFdbk * this.carrierFeedback * Math.PI);
+        this.carrierFeedback = carrierOut;
+        this.carrierPhase += freq / this.sr;
+        if (this.carrierPhase > 1) this.carrierPhase -= 1;
+
+        return carrierOut;
+    }
+}
+
+// ============================================================================
+// ARC ENVELOPE (AD with bend)
+// ============================================================================
+class Arc {
+    constructor(sr) {
+        this.sr = sr;
+        this.phase = 0;
+        this.active = false;
+        this.rise = 0;
+        this.fall = 0.13;
+        this.bend = -0.5;
+        this.height = 1.0;
+        this.loop = true;
+        this.wasInRise = false;
+        this.eor = false; // End of Rise flag
+    }
+
+    trigger() {
+        this.phase = 0;
+        this.active = true;
+        this.wasInRise = true;
+        this.eor = false;
+    }
+
+    process() {
+        this.eor = false; // Reset EOR flag each sample
+
+        if (!this.active) return 0;
+
+        const riseSamples = Math.max(1, this.rise * this.sr);
+        const fallSamples = Math.max(1, this.fall * this.sr);
+        const totalSamples = riseSamples + fallSamples;
+
+        let env = 0;
+        const inRise = this.phase < riseSamples;
+
+        if (inRise) {
+            // Rise phase
+            const t = this.phase / riseSamples;
+            env = this.applyBend(t);
+            this.wasInRise = true;
+        } else if (this.phase < totalSamples) {
+            // Fall phase - check for EOR transition
+            if (this.wasInRise) {
+                this.eor = true; // Fire EOR when transitioning from rise to fall
+                this.wasInRise = false;
+            }
+            const t = (this.phase - riseSamples) / fallSamples;
+            env = 1 - this.applyBend(t);
+        } else {
+            this.active = false;
+            if (this.loop) {
+                this.phase = 0;
+                this.active = true;
+                this.wasInRise = true;
+            }
+            return 0;
+        }
+
+        this.phase++;
+        return env * this.height;
+    }
+
+    applyBend(t) {
+        // Bend: -1 = log curve, 0 = linear, 1 = exp curve
+        if (this.bend === 0) return t;
+        const k = this.bend * 4;
+        if (k > 0) {
+            return Math.pow(t, 1 + k);
+        } else {
+            return 1 - Math.pow(1 - t, 1 - k);
+        }
+    }
+
+    isAtEnd() {
+        return !this.active;
+    }
+}
+
+// ============================================================================
+// SCALE QUANTIZER
+// ============================================================================
+const SCALES = {
+    major_pent: [0, 2, 4, 7, 9],
+    minor_pent: [0, 3, 5, 7, 10],
+    major: [0, 2, 4, 5, 7, 9, 11],
+    minor: [0, 2, 3, 5, 7, 8, 10],
+    dorian: [0, 2, 3, 5, 7, 9, 10],
+    chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+};
+
+function quantizeToScale(semitones, scaleName) {
+    const scale = SCALES[scaleName] || SCALES.major_pent;
+    const octave = Math.floor(semitones / 12);
+    const note = ((semitones % 12) + 12) % 12;
+
+    // Find closest scale degree
+    let closest = scale[0];
+    let minDist = 12;
+    for (const degree of scale) {
+        const dist = Math.abs(note - degree);
+        if (dist < minDist) {
+            minDist = dist;
+            closest = degree;
+        }
+    }
+    return octave * 12 + closest;
+}
+
+// ============================================================================
+// LADDER FILTER (HPF)
+// ============================================================================
+class LadderHPF {
+    constructor(sr) {
+        this.sr = sr;
+        this.s = [0, 0, 0, 0];
+        this.cutoff = 1000;
+        this.resonance = 0;
+    }
+
+    setCutoff(freq) {
+        this.cutoff = Math.max(20, Math.min(freq, this.sr * 0.45));
+    }
+
+    setResonance(res) {
+        this.resonance = Math.max(0, Math.min(res, 1)) * 4;
+    }
+
+    process(input) {
+        const f = 2 * Math.sin(Math.PI * this.cutoff / this.sr);
+        const fb = this.resonance * (1 - 0.15 * f * f);
+
+        const inp = input - fb * this.s[3];
+
+        this.s[0] += f * (Math.tanh(inp) - Math.tanh(this.s[0]));
+        this.s[1] += f * (Math.tanh(this.s[0]) - Math.tanh(this.s[1]));
+        this.s[2] += f * (Math.tanh(this.s[1]) - Math.tanh(this.s[2]));
+        this.s[3] += f * (Math.tanh(this.s[2]) - Math.tanh(this.s[3]));
+
+        // HPF = input - LPF
+        return input - this.s[3];
+    }
+}
+
+// ============================================================================
+// WAVE FOLDER
+// ============================================================================
+function fold(x, upper, lower) {
+    let out = x;
+    // Safety: clamp input to prevent infinite loops
+    if (!isFinite(out)) return 0;
+    out = Math.max(-10, Math.min(10, out));
+
+    // Fold between -lower and upper with iteration limit
+    let iterations = 0;
+    while ((out > upper || out < -lower) && iterations < 20) {
+        if (out > upper) out = 2 * upper - out;
+        if (out < -lower) out = -2 * lower - out;
+        iterations++;
+    }
+    return out;
+}
+
+// ============================================================================
+// CLOCKED DOPPLER DELAY
+// ============================================================================
+class ClockedDopplerDelay {
+    constructor(sr) {
+        this.sr = sr;
+        const maxDelay = Math.floor(sr * 2);
+        this.delayL = new DelayLine(maxDelay);
+        this.delayR = new DelayLine(maxDelay);
+        this.dampL = new OnePole(0.3);
+        this.dampR = new OnePole(0.3);
+        this.lfoPhase = 0;
+        this.basePeriod = 0.13; // Clock period
+    }
+
+    process(inputL, inputR, mult, div, feedback, wet, spread) {
+        // Calculate delay time from clock
+        const delayTime = (this.basePeriod * mult) / Math.max(1, div);
+        const delaySamples = Math.max(1, Math.min(delayTime * this.sr, this.sr * 2 - 1));
+
+        // LFO for doppler
+        this.lfoPhase += 0.5 / this.sr;
+        if (this.lfoPhase > 1) this.lfoPhase -= 1;
+        const lfo = Math.sin(2 * Math.PI * this.lfoPhase);
+
+        // Spread affects L/R timing
+        const spreadSamples = spread * 0.01 * this.sr;
+        const delayL = delaySamples + lfo * spreadSamples;
+        const delayR = delaySamples - lfo * spreadSamples;
+
+        let wetL = this.dampL.process(this.delayL.readLinear(Math.max(1, delayL)));
+        let wetR = this.dampR.process(this.delayR.readLinear(Math.max(1, delayR)));
+
+        // Safety: soft clip feedback to prevent runaway
+        const fbL = Math.tanh(inputL + wetR * feedback);
+        const fbR = Math.tanh(inputR + wetL * feedback);
+
+        this.delayL.write(fbL);
+        this.delayR.write(fbR);
+
+        return [
+            inputL * (1 - wet) + wetL * wet,
+            inputR * (1 - wet) + wetR * wet
+        ];
+    }
+}
+
+// ============================================================================
+// ANDROMEDA NEBULA REVERB (FDN-style)
+// ============================================================================
+class AndromedaReverb {
+    constructor(sr) {
+        this.sr = sr;
+
+        // Delay lines for FDN
+        const sizes = [1557, 1617, 1491, 1422, 1277, 1356, 1188, 1116].map(s => Math.floor(s * sr / 44100));
+        this.delays = sizes.map(s => new DelayLine(s + 100));
+        this.delaySizes = sizes;
+        this.state = new Float32Array(8);
+
+        // Filters
+        this.lpfL = new OnePole(0.7);
+        this.lpfR = new OnePole(0.7);
+        this.hpfL = new OnePole(0.99);
+        this.hpfR = new OnePole(0.99);
+        this.dcL = new DCBlocker();
+        this.dcR = new DCBlocker();
+
+        // Modulation
+        this.modPhase = 0;
+    }
+
+    process(inputL, inputR, decay, mod, lowcut, highcut, wet) {
+        // Modulation
+        this.modPhase += (mod / 100) * 0.5 / this.sr;
+        if (this.modPhase > 1) this.modPhase -= 1;
+        const modVal = Math.sin(2 * Math.PI * this.modPhase) * 0.002 * mod;
+
+        // Read from delays with modulation
+        const reads = [];
+        for (let i = 0; i < 8; i++) {
+            const modSize = this.delaySizes[i] * (1 + modVal * (i % 2 ? 1 : -1));
+            reads.push(this.delays[i].readLinear(Math.max(1, modSize)));
+        }
+
+        // Hadamard-like mixing
+        const newState = new Float32Array(8);
+        const decayFactor = Math.pow(10, -3 / (decay * this.sr / this.delaySizes[0]));
+
+        for (let i = 0; i < 8; i++) {
+            let sum = 0;
+            for (let j = 0; j < 8; j++) {
+                sum += reads[j] * (((i ^ j) & 1) ? -0.35 : 0.35);
+            }
+            newState[i] = Math.tanh(sum * decayFactor); // Soft clip to prevent runaway
+        }
+
+        // Input injection
+        newState[0] += inputL * 0.5;
+        newState[1] += inputR * 0.5;
+
+        // Write to delays with safety clipping
+        for (let i = 0; i < 8; i++) {
+            this.delays[i].write(Math.tanh(newState[i]));
+        }
+
+        // Output taps
+        let outL = reads[0] + reads[2] + reads[4] + reads[6];
+        let outR = reads[1] + reads[3] + reads[5] + reads[7];
+
+        // Apply filters
+        const hpCoeff = Math.exp(-2 * Math.PI * lowcut / this.sr);
+        const lpCoeff = Math.exp(-2 * Math.PI * highcut / this.sr);
+        this.hpfL.setCoeff(hpCoeff);
+        this.hpfR.setCoeff(hpCoeff);
+        this.lpfL.setCoeff(1 - lpCoeff);
+        this.lpfR.setCoeff(1 - lpCoeff);
+
+        outL = this.lpfL.process(outL - this.hpfL.process(outL));
+        outR = this.lpfR.process(outR - this.hpfR.process(outR));
+
+        // DC block and soft clip
+        outL = Math.tanh(this.dcL.process(outL) * 0.5);
+        outR = Math.tanh(this.dcR.process(outR) * 0.5);
+
+        return [
+            inputL * (1 - wet) + outL * wet,
+            inputR * (1 - wet) + outR * wet
+        ];
+    }
+}
+
+// ============================================================================
+// CPR COMPRESSOR
+// ============================================================================
+class CPR {
+    constructor(sr) {
+        this.sr = sr;
+        this.envelope = 0;
+        this.ratio = 2.0;
+        this.threshold = -6;
+        this.attack = 0.001;
+        this.release = 0.05;
+        this.makeupGain = 1.0;
+    }
+
+    process(inputL, inputR) {
+        const inputLevel = Math.max(Math.abs(inputL), Math.abs(inputR));
+        const inputDb = 20 * Math.log10(inputLevel + 1e-10);
+
+        const coeff = inputDb > this.envelope
+            ? Math.exp(-1 / (this.attack * this.sr))
+            : Math.exp(-1 / (this.release * this.sr));
+
+        this.envelope = coeff * this.envelope + (1 - coeff) * inputDb;
+
+        let gainReduction = 0;
+        if (this.envelope > this.threshold) {
+            gainReduction = (this.envelope - this.threshold) * (1 - 1/this.ratio);
+        }
+
+        const gain = Math.pow(10, -gainReduction / 20) * this.makeupGain;
+        return [inputL * gain, inputR * gain];
+    }
+}
+
+// ============================================================================
+// DIALLED IN PROCESSOR
+// ============================================================================
+class DialledInProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+
+        this.params = {
+            freq: 220,
+            ratio: 7,
+            cfdbk: 0.9,
+            mfdbk: 1.0,
+            wet: 0.4,
+            level: 0.4,
+            scale: 'major_pent',
+            octRange: 8,
+            pitchChance: 0.17,
+            slew: 1.5,
+            rise: 0,
+            fall: 0.13,
+            bend: -0.5,
+            envChance: 0.14,
+            noiseHpf: 4435,
+            noiseRes: 0.35,
+            noiseLevel: 0.05,
+            foldUpper: 1.0,
+            foldLower: 1.9,
+            delay1Div: 19,
+            delay1Fdk: 0.56,
+            delay1Wet: 0.67,
+            delay1Spread: 0.26,
+            verbDecay: 4.24,
+            verbMod: 63,
+            verbLowcut: 82,
+            verbWet: 0.34,
+            delay2Mult: 13,
+            delay2Div: 28,
+            delay2Fdk: 0.79,
+            delay2Wet: 0.41,
+            vol: 0.6
+        };
+
+        // DSP components
+        this.amie = new Amie(this.sr);
+        this.arc = new Arc(this.sr);
+        this.arc.loop = true;
+        this.pitchSlew = new SlewLimiter(this.sr);
+        this.noiseHpf = new LadderHPF(this.sr);
+        this.delay1 = new ClockedDopplerDelay(this.sr);
+        this.reverb = new AndromedaReverb(this.sr);
+        this.delay2 = new ClockedDopplerDelay(this.sr);
+        this.cpr = new CPR(this.sr);
+        this.dcL = new DCBlocker();
+        this.dcR = new DCBlocker();
+
+        // Random state
+        this.currentPitch = 0;
+        this.targetPitch = 0;
+
+        // Visualization
+        this.envValue = 0;
+        this.frameCount = 0;
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'params') {
+                Object.assign(this.params, e.data.params);
+                this.arc.rise = this.params.rise;
+                this.arc.fall = this.params.fall;
+                this.arc.bend = this.params.bend;
+                this.noiseHpf.setCutoff(this.params.noiseHpf);
+                this.noiseHpf.setResonance(this.params.noiseRes);
+            }
+        };
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1];
+
+        if (!outL || !outR) return true;
+
+        for (let i = 0; i < outL.length; i++) {
+            // Process envelope and check for End-of-Rise (EOR)
+            const env = this.arc.process();
+
+            // On EOR (peak of envelope), chance to change pitch
+            if (this.arc.eor) {
+                if (Math.random() < this.params.pitchChance) {
+                    // Random semitones within octave range
+                    const semitones = Math.floor(Math.random() * this.params.octRange * 12) - (this.params.octRange * 6);
+                    this.targetPitch = quantizeToScale(semitones, this.params.scale);
+                }
+            }
+
+            // Keep envelope looping
+            if (!this.arc.active) {
+                this.arc.trigger();
+            }
+
+            // Slew the pitch
+            this.currentPitch = this.pitchSlew.process(this.targetPitch, this.params.slew, this.params.slew);
+
+            // Calculate frequency
+            const freq = this.params.freq * Math.pow(2, this.currentPitch / 12);
+
+            // Amie FM synthesis
+            let synth = this.amie.process(
+                freq,
+                this.params.ratio,
+                this.params.cfdbk,
+                this.params.mfdbk,
+                this.params.wet
+            );
+            synth *= env * this.params.level;
+
+            // White noise through HPF
+            const noise = (Math.random() * 2 - 1);
+            const filteredNoise = this.noiseHpf.process(noise) * this.params.noiseLevel;
+
+            // Mix synth and noise
+            let mixL = synth + filteredNoise;
+            let mixR = synth + filteredNoise;
+
+            // Delay 1
+            [mixL, mixR] = this.delay1.process(
+                mixL, mixR,
+                1, this.params.delay1Div,
+                this.params.delay1Fdk,
+                this.params.delay1Wet,
+                this.params.delay1Spread
+            );
+
+            // Wave folding
+            mixL = fold(mixL, this.params.foldUpper, this.params.foldLower);
+            mixR = fold(mixR, this.params.foldUpper, this.params.foldLower);
+
+            // VCA (already applied via env)
+
+            // Reverb
+            [mixL, mixR] = this.reverb.process(
+                mixL, mixR,
+                this.params.verbDecay,
+                this.params.verbMod,
+                this.params.verbLowcut,
+                12544,
+                this.params.verbWet
+            );
+
+            // Delay 2
+            [mixL, mixR] = this.delay2.process(
+                mixL, mixR,
+                this.params.delay2Mult, this.params.delay2Div,
+                this.params.delay2Fdk,
+                this.params.delay2Wet,
+                -0.13
+            );
+
+            // CPR compressor
+            [mixL, mixR] = this.cpr.process(mixL, mixR);
+
+            // DC blocking
+            mixL = this.dcL.process(mixL);
+            mixR = this.dcR.process(mixR);
+
+            // Output
+            outL[i] = Math.tanh(mixL * this.params.vol * 1.5);
+            outR[i] = Math.tanh(mixR * this.params.vol * 1.5);
+
+            this.envValue = env;
+        }
+
+        this.frameCount++;
+        if (this.frameCount % 8 === 0) {
+            this.port.postMessage({
+                type: 'state',
+                env: this.envValue,
+                pitch: this.currentPitch
+            });
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('dialled-in-processor', DialledInProcessor);
+`;
+
+        let audioContext, workletNode, analyser, dataArray;
+        let pedalboard = null;
+        let isPlaying = false;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        function setupUI() {
+            // Create envelope display bars
+            const envDisplay = document.getElementById('envDisplay');
+            for (let i = 0; i < 16; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'envelope-bar';
+                bar.innerHTML = '<div class="envelope-fill" id="env-' + i + '"></div>';
+                envDisplay.appendChild(bar);
+            }
+
+            // Slider configurations
+            const sliderConfigs = [
+                { id: 'freq', decimals: 0 },
+                { id: 'ratio', decimals: 1 },
+                { id: 'cfdbk', decimals: 2 },
+                { id: 'mfdbk', decimals: 2 },
+                { id: 'wet', decimals: 2 },
+                { id: 'level', decimals: 2 },
+                { id: 'octRange', decimals: 0 },
+                { id: 'pitchChance', decimals: 2 },
+                { id: 'slew', decimals: 2 },
+                { id: 'rise', decimals: 2 },
+                { id: 'fall', decimals: 2 },
+                { id: 'bend', decimals: 2 },
+                { id: 'envChance', decimals: 2 },
+                { id: 'noiseHpf', decimals: 0 },
+                { id: 'noiseRes', decimals: 2 },
+                { id: 'noiseLevel', decimals: 3 },
+                { id: 'foldUpper', decimals: 2 },
+                { id: 'foldLower', decimals: 2 },
+                { id: 'delay1Div', decimals: 0 },
+                { id: 'delay1Fdk', decimals: 2 },
+                { id: 'delay1Wet', decimals: 2 },
+                { id: 'delay1Spread', decimals: 2 },
+                { id: 'verbDecay', decimals: 2 },
+                { id: 'verbMod', decimals: 0 },
+                { id: 'verbLowcut', decimals: 0 },
+                { id: 'verbWet', decimals: 2 },
+                { id: 'delay2Mult', decimals: 0 },
+                { id: 'delay2Div', decimals: 0 },
+                { id: 'delay2Fdk', decimals: 2 },
+                { id: 'delay2Wet', decimals: 2 },
+                { id: 'vol', decimals: 2 }
+            ];
+
+            sliderConfigs.forEach(config => {
+                const slider = document.getElementById(config.id);
+                const display = document.getElementById(config.id + 'Val');
+                if (slider && display) {
+                    slider.addEventListener('input', () => {
+                        const val = parseFloat(slider.value);
+                        display.textContent = config.decimals === 0 ? val : val.toFixed(config.decimals);
+                        updateParams();
+                    });
+                }
+            });
+
+            // Scale selector
+            document.getElementById('scale').addEventListener('change', updateParams);
+
+            // Draw fold curve
+            drawFoldCurve();
+            document.getElementById('foldUpper').addEventListener('input', drawFoldCurve);
+            document.getElementById('foldLower').addEventListener('input', drawFoldCurve);
+        }
+
+        function drawFoldCurve() {
+            const canvas = document.getElementById('foldCanvas');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+            canvas.width = width * 2;
+            canvas.height = height * 2;
+            ctx.scale(2, 2);
+
+            const upper = parseFloat(document.getElementById('foldUpper').value);
+            const lower = parseFloat(document.getElementById('foldLower').value);
+
+            ctx.fillStyle = '#0a0a14';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.strokeStyle = '#4a90d9';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+
+            for (let i = 0; i <= width; i++) {
+                const x = (i / width) * 4 - 2; // -2 to 2
+                let y = x;
+                // Simple fold
+                while (y > upper || y < -lower) {
+                    if (y > upper) y = 2 * upper - y;
+                    if (y < -lower) y = -2 * lower - y;
+                }
+                const screenY = height / 2 - (y / 2) * (height / 2);
+                if (i === 0) {
+                    ctx.moveTo(i, screenY);
+                } else {
+                    ctx.lineTo(i, screenY);
+                }
+            }
+            ctx.stroke();
+        }
+
+        function updateParams() {
+            if (!workletNode) return;
+
+            workletNode.port.postMessage({
+                type: 'params',
+                params: {
+                    freq: parseFloat(document.getElementById('freq').value),
+                    ratio: parseFloat(document.getElementById('ratio').value),
+                    cfdbk: parseFloat(document.getElementById('cfdbk').value),
+                    mfdbk: parseFloat(document.getElementById('mfdbk').value),
+                    wet: parseFloat(document.getElementById('wet').value),
+                    level: parseFloat(document.getElementById('level').value),
+                    scale: document.getElementById('scale').value,
+                    octRange: parseInt(document.getElementById('octRange').value),
+                    pitchChance: parseFloat(document.getElementById('pitchChance').value),
+                    slew: parseFloat(document.getElementById('slew').value),
+                    rise: parseFloat(document.getElementById('rise').value),
+                    fall: parseFloat(document.getElementById('fall').value),
+                    bend: parseFloat(document.getElementById('bend').value),
+                    envChance: parseFloat(document.getElementById('envChance').value),
+                    noiseHpf: parseFloat(document.getElementById('noiseHpf').value),
+                    noiseRes: parseFloat(document.getElementById('noiseRes').value),
+                    noiseLevel: parseFloat(document.getElementById('noiseLevel').value),
+                    foldUpper: parseFloat(document.getElementById('foldUpper').value),
+                    foldLower: parseFloat(document.getElementById('foldLower').value),
+                    delay1Div: parseInt(document.getElementById('delay1Div').value),
+                    delay1Fdk: parseFloat(document.getElementById('delay1Fdk').value),
+                    delay1Wet: parseFloat(document.getElementById('delay1Wet').value),
+                    delay1Spread: parseFloat(document.getElementById('delay1Spread').value),
+                    verbDecay: parseFloat(document.getElementById('verbDecay').value),
+                    verbMod: parseInt(document.getElementById('verbMod').value),
+                    verbLowcut: parseInt(document.getElementById('verbLowcut').value),
+                    verbWet: parseFloat(document.getElementById('verbWet').value),
+                    delay2Mult: parseInt(document.getElementById('delay2Mult').value),
+                    delay2Div: parseInt(document.getElementById('delay2Div').value),
+                    delay2Fdk: parseFloat(document.getElementById('delay2Fdk').value),
+                    delay2Wet: parseFloat(document.getElementById('delay2Wet').value),
+                    vol: parseFloat(document.getElementById('vol').value)
+                }
+            });
+        }
+
+        function updateVisualization(env, pitch) {
+            // Update envelope bars
+            for (let i = 0; i < 16; i++) {
+                const fill = document.getElementById('env-' + i);
+                if (fill) {
+                    const h = env * 100 * (0.5 + 0.5 * Math.sin(i * 0.5 + Date.now() * 0.005));
+                    fill.style.height = h + '%';
+                }
+            }
+
+            // Update pitch display
+            const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            const semitones = Math.round(pitch);
+            const octave = Math.floor(semitones / 12) + 4;
+            const noteIndex = ((semitones % 12) + 12) % 12;
+            document.getElementById('pitchDisplay').textContent = noteNames[noteIndex] + octave + ' (' + (semitones > 0 ? '+' : '') + semitones + ' st)';
+        }
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext();
+
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+
+            workletNode = new AudioWorkletNode(audioContext, 'dialled-in-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'state') {
+                    updateVisualization(e.data.env, e.data.pitch);
+                }
+            };
+
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboard = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboard.init();
+
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'dialled-in-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-dialled-in'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-dialled-in');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-dialled-in',
+                    prefix: 'in',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Analyzer
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+            fxNode.connect(analyser);
+
+            updateParams();
+        }
+
+        // Visualizer
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        function drawVisualizer() {
+            requestAnimationFrame(drawVisualizer);
+
+            const width = canvas.offsetWidth;
+            const height = canvas.offsetHeight;
+
+            ctx.fillStyle = '#0a0a14';
+            ctx.fillRect(0, 0, width, height);
+
+            if (!analyser) return;
+
+            analyser.getByteFrequencyData(dataArray);
+
+            const barCount = 64;
+            const barWidth = width / barCount;
+            const maxHeight = height * 0.9;
+
+            for (let i = 0; i < barCount; i++) {
+                const dataIndex = Math.floor(i * dataArray.length / barCount);
+                const value = dataArray[dataIndex] / 255;
+                const barHeight = value * maxHeight;
+
+                // Pink/magenta gradient for synth
+                const hue = 320 + i * 0.8;
+                ctx.fillStyle = `hsla(${hue}, 70%, 55%, ${0.3 + value * 0.7})`;
+                ctx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
+            }
+        }
+        drawVisualizer();
+
+        // Play button
+        document.getElementById('playBtn').addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+            }
+
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            isPlaying = !isPlaying;
+            document.getElementById('playBtn').innerHTML = isPlaying ? '&#10074;&#10074;' : '&#9654;';
+            document.getElementById('status').textContent = isPlaying ? 'Playing generative FM...' : 'Paused';
+
+            if (!isPlaying && audioContext) {
+                audioContext.suspend();
+            }
+        });
+
+        setupUI();
+
+        // Info panel
+        const infoPanel = new ER301InfoPanel(document.body, {
+            title: 'Dialled In',
+            author: 'mudlogger',
+            origin: 'ER-301 Hyperscale Unit',
+            description: 'A generative FM synthesizer with pitch quantization, wave folding, dual clocked doppler delays, and the lush Andromeda Nebula reverb. Self-playing ambient textures.',
+            controls: [
+                { name: 'Base Freq', range: '55-880 Hz', description: 'Base frequency of the FM carrier oscillator' },
+                { name: 'FM Ratio', range: '1-16', description: 'Frequency ratio between modulator and carrier' },
+                { name: 'C Fdbk', range: '0-1', description: 'Carrier feedback - adds harmonic complexity' },
+                { name: 'M Fdbk', range: '0-1', description: 'Modulator feedback - creates richer modulation' },
+                { name: 'FM Wet', range: '0-1', description: 'Amount of FM modulation applied' },
+                { name: 'Level', range: '0-1', description: 'Synth output level (envelope-controlled)' },
+                { name: 'Scale', range: 'Select', description: 'Musical scale for pitch quantization' },
+                { name: 'Octave Range', range: '1-8', description: 'Range of octaves for random pitch generation' },
+                { name: 'Pitch Chance', range: '0-1', description: 'Probability of pitch change on envelope end' },
+                { name: 'Slew', range: '0-3s', description: 'Portamento/glide time between pitches' },
+                { name: 'Rise', range: '0-1s', description: 'Envelope attack time' },
+                { name: 'Fall', range: '0.01-2s', description: 'Envelope decay/release time' },
+                { name: 'Bend', range: '-1 to 1', description: 'Envelope curve shape (-1=log, 0=linear, 1=exp)' },
+                { name: 'Env Chance', range: '0-1', description: 'Probability of retriggering envelope' },
+                { name: 'Noise HPF', range: '100-10000 Hz', description: 'High-pass filter cutoff for noise layer' },
+                { name: 'Noise Level', range: '0-0.2', description: 'Amount of filtered noise mixed in' },
+                { name: 'Fold Upper/Lower', range: '0.1-3', description: 'Wave folding thresholds for harmonic distortion' },
+                { name: 'Delay 1/2', range: 'Various', description: 'Dual clocked doppler delays with feedback' },
+                { name: 'Verb Decay', range: '0.5-10s', description: 'Reverb decay time' },
+                { name: 'Verb Wet', range: '0-1', description: 'Reverb mix amount' }
+            ],
+            tips: [
+                'This is a self-playing generative patch - just press play and listen',
+                'Adjust Pitch Chance and Env Chance to control how often notes change',
+                'Lower Slew values create sharper pitch transitions, higher = smoother glides',
+                'The wave folder adds harmonics - try extreme Lower values for gritty textures',
+                'Reduce delays wet amount for a cleaner, less ambient sound',
+                'Try different scales - Dorian creates a more melancholic mood'
+            ]
+        });
+    </script>
+</body>
+</html>

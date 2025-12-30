@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dorian - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 100px;
+        }
+        .voice-display {
+            display: flex;
+            gap: 16px;
+            padding: 12px;
+            background: #0a0a14;
+            border-radius: 6px;
+            margin-bottom: 1em;
+            justify-content: center;
+        }
+        .voice-indicator {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .voice-indicator .label {
+            font-size: 0.65em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .voice-indicator .dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #1a1a2e;
+            transition: all 0.1s;
+        }
+        .voice-indicator .dot.active1 {
+            background: #d94a90;
+            box-shadow: 0 0 12px #d94a90;
+        }
+        .voice-indicator .dot.active2 {
+            background: #4a90d9;
+            box-shadow: 0 0 12px #4a90d9;
+        }
+        .pitch-display {
+            display: flex;
+            gap: 16px;
+            padding: 12px;
+            background: #0a0a14;
+            border-radius: 6px;
+            margin-bottom: 1em;
+            justify-content: center;
+            font-family: monospace;
+        }
+        .pitch-box {
+            text-align: center;
+            min-width: 80px;
+        }
+        .pitch-box .label {
+            font-size: 0.65em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .pitch-box .note {
+            font-size: 1.3em;
+            color: #4ad9b4;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Dorian</h1>
+                <p>Dual-voice generative FM synth in Dorian mode with spread delay and Freeverb</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Voice Activity Display -->
+            <div class="voice-display">
+                <div class="voice-indicator">
+                    <div class="dot" id="voice1Dot"></div>
+                    <span class="label">Voice 1</span>
+                </div>
+                <div class="voice-indicator">
+                    <div class="dot" id="voice2Dot"></div>
+                    <span class="label">Voice 2</span>
+                </div>
+            </div>
+
+            <!-- Pitch Display -->
+            <div class="pitch-display">
+                <div class="pitch-box">
+                    <span class="label">Voice 1</span>
+                    <div class="note" id="pitch1">--</div>
+                </div>
+                <div class="pitch-box">
+                    <span class="label">Voice 2</span>
+                    <div class="note" id="pitch2">--</div>
+                </div>
+            </div>
+
+            <!-- Tempo & Probability Section -->
+            <span class="section-label">Tempo & Probability</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Tempo BPM</label>
+                        <input type="range" id="tempo" min="30" max="200" value="58" step="1">
+                        <span class="param-value" id="tempoVal">58</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Prob 1</label>
+                        <input type="range" id="prob1" min="0" max="1" value="0.57" step="0.01">
+                        <span class="param-value" id="prob1Val">0.57</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Prob 2</label>
+                        <input type="range" id="prob2" min="0" max="1" value="0.35" step="0.01">
+                        <span class="param-value" id="prob2Val">0.35</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice 1 Section -->
+            <span class="section-label">Voice 1 (220Hz)</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Octave</label>
+                        <input type="range" id="oct1" min="-1" max="2" value="0" step="1">
+                        <span class="param-value" id="oct1Val">0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Decay</label>
+                        <input type="range" id="decay1" min="0" max="1" value="0.32" step="0.01">
+                        <span class="param-value" id="decay1Val">0.32</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Release</label>
+                        <input type="range" id="release1" min="0" max="3" value="0.37" step="0.01">
+                        <span class="param-value" id="release1Val">0.37</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice 2 Section -->
+            <span class="section-label">Voice 2 (55Hz)</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Octave</label>
+                        <input type="range" id="oct2" min="-2" max="2" value="1" step="1">
+                        <span class="param-value" id="oct2Val">1</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Decay</label>
+                        <input type="range" id="decay2" min="0" max="2" value="0.78" step="0.01">
+                        <span class="param-value" id="decay2Val">0.78</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Release</label>
+                        <input type="range" id="release2" min="0" max="3" value="0.69" step="0.01">
+                        <span class="param-value" id="release2Val">0.69</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delay Section -->
+            <span class="section-label">Spread Delay</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Delay Time</label>
+                        <input type="range" id="delayTime" min="0.01" max="1" value="0.05" step="0.01">
+                        <span class="param-value" id="delayTimeVal">0.05</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Spread</label>
+                        <input type="range" id="spread" min="0" max="1" value="0.52" step="0.01">
+                        <span class="param-value" id="spreadVal">0.52</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Feedback</label>
+                        <input type="range" id="delayFeedback" min="0" max="0.95" value="0.056" step="0.01">
+                        <span class="param-value" id="delayFeedbackVal">0.06</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Delay Mix</label>
+                        <input type="range" id="delayMix" min="0" max="1" value="0.19" step="0.01">
+                        <span class="param-value" id="delayMixVal">0.19</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reverb Section -->
+            <span class="section-label">Freeverb</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Size</label>
+                        <input type="range" id="reverbSize" min="0" max="1" value="0.99" step="0.01">
+                        <span class="param-value" id="reverbSizeVal">0.99</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Damp</label>
+                        <input type="range" id="reverbDamp" min="0" max="1" value="0.2" step="0.01">
+                        <span class="param-value" id="reverbDampVal">0.20</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Width</label>
+                        <input type="range" id="reverbWidth" min="0" max="1" value="0.82" step="0.01">
+                        <span class="param-value" id="reverbWidthVal">0.82</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Reverb Mix</label>
+                        <input type="range" id="reverbMix" min="0" max="1" value="0.28" step="0.01">
+                        <span class="param-value" id="reverbMixVal">0.28</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Master Volume</label>
+                        <input type="range" id="masterVol" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="masterVolVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pedalboard-container" class="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        const processorCode = `
+// Dorian - Dual FM Synth with Spread Delay and Freeverb
+class DorianProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+        this.playing = false;
+
+        // Dorian scale: D E F G A B C (intervals: 0, 2, 3, 5, 7, 9, 10)
+        this.dorianScale = [0, 2, 3, 5, 7, 9, 10];
+
+        // Clock
+        this.clockPhase = 0;
+        this.lastClock = 0;
+
+        // Voice 1 - Amie FM (220Hz base)
+        this.v1 = {
+            carrierPhase: 0,
+            modulatorPhase: 0,
+            carrierFdbk: 0,
+            modulatorFdbk: 0,
+            env: 0,
+            envStage: 'off',
+            pitch: 220,
+            targetPitch: 220,
+            lastTrig: false
+        };
+
+        // Voice 2 - Amie FM (55Hz base)
+        this.v2 = {
+            carrierPhase: 0,
+            modulatorPhase: 0,
+            carrierFdbk: 0,
+            modulatorFdbk: 0,
+            env: 0,
+            envStage: 'off',
+            pitch: 55,
+            targetPitch: 55,
+            microDelayPhase: 0,
+            lastTrig: false
+        };
+
+        // Pingable Scaled Random state
+        this.randomValue1 = Math.random();
+        this.randomValue2 = Math.random();
+
+        // Spread Delay
+        const maxDelay = Math.ceil(this.sr * 1.1);
+        this.delayLineL = new Float32Array(maxDelay);
+        this.delayLineR = new Float32Array(maxDelay);
+        this.delayWriteIdx = 0;
+
+        // Freeverb - 8 comb filters + 4 allpass per channel
+        this.combTunings = [1557, 1617, 1491, 1422, 1277, 1356, 1188, 1116];
+        this.allpassTunings = [556, 441, 341, 225];
+        this.combsL = this.combTunings.map(t => ({ buf: new Float32Array(t + 23), idx: 0, filter: 0 }));
+        this.combsR = this.combTunings.map(t => ({ buf: new Float32Array(t + 23 + 23), idx: 0, filter: 0 }));
+        this.allpassL = this.allpassTunings.map(t => ({ buf: new Float32Array(t), idx: 0 }));
+        this.allpassR = this.allpassTunings.map(t => ({ buf: new Float32Array(t + 23), idx: 0 }));
+
+        // Slew limiter for reverb size
+        this.slewedSize = 0.99;
+
+        // DC blockers
+        this.dcL = { x1: 0, y1: 0 };
+        this.dcR = { x1: 0, y1: 0 };
+
+        // Parameters
+        this.params = {
+            tempo: 58,
+            prob1: 0.57,
+            prob2: 0.35,
+            oct1: 0,
+            oct2: 1,
+            decay1: 0.32,
+            release1: 0.37,
+            decay2: 0.78,
+            release2: 0.69,
+            delayTime: 0.05,
+            spread: 0.52,
+            delayFeedback: 0.056,
+            delayMix: 0.19,
+            reverbSize: 0.99,
+            reverbDamp: 0.2,
+            reverbWidth: 0.82,
+            reverbMix: 0.28,
+            masterVol: 0.7
+        };
+
+        this.port.onmessage = (e) => {
+            if (e.data.type === 'start') this.playing = true;
+            if (e.data.type === 'stop') this.playing = false;
+            if (e.data.type === 'param') {
+                this.params[e.data.name] = e.data.value;
+            }
+        };
+    }
+
+    quantizeToDorian(randomValue, octave) {
+        // Random value 0-1 maps to scale degrees
+        const degree = Math.floor(randomValue * 7);
+        const semitones = this.dorianScale[degree];
+        return semitones + (octave * 12);
+    }
+
+    semitonesToFreq(basePitch, semitones) {
+        return basePitch * Math.pow(2, semitones / 12);
+    }
+
+    dcBlock(sample, state) {
+        const R = 0.995;
+        const y = sample - state.x1 + R * state.y1;
+        state.x1 = sample;
+        state.y1 = y;
+        return y;
+    }
+
+    processComb(input, comb, damp, roomsize) {
+        const buf = comb.buf;
+        const output = buf[comb.idx];
+        comb.filter = output * (1 - damp) + comb.filter * damp;
+        buf[comb.idx] = input + comb.filter * roomsize;
+        comb.idx = (comb.idx + 1) % buf.length;
+        return output;
+    }
+
+    processAllpass(input, ap) {
+        const buf = ap.buf;
+        const bufout = buf[ap.idx];
+        const output = -input + bufout;
+        buf[ap.idx] = input + bufout * 0.5;
+        ap.idx = (ap.idx + 1) % buf.length;
+        return output;
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1];
+
+        if (!this.playing) {
+            outL.fill(0);
+            outR.fill(0);
+            return true;
+        }
+
+        const clockInc = (this.params.tempo / 60) * 3 / this.sr; // x3 multiplier from original
+        const microDelayOffset = 0.02 * this.sr; // 20ms
+
+        for (let i = 0; i < outL.length; i++) {
+            // Clock
+            this.clockPhase += clockInc;
+            const clock = this.clockPhase >= 1 ? 1 : 0;
+            if (this.clockPhase >= 1) this.clockPhase -= 1;
+
+            const clockEdge = clock > 0 && this.lastClock === 0;
+            this.lastClock = clock;
+
+            // Voice 1 trigger (immediate on clock)
+            if (clockEdge) {
+                // Chance gate for pitch change
+                if (Math.random() < 0.39) {
+                    this.randomValue1 = Math.random() * 0.21; // scale 0.21
+                    const semitones = this.quantizeToDorian(this.randomValue1 / 0.21, this.params.oct1);
+                    this.v1.targetPitch = this.semitonesToFreq(220, semitones);
+                }
+
+                // Chance gate for envelope trigger
+                if (Math.random() < this.params.prob1) {
+                    this.v1.env = 1;
+                    this.v1.envStage = 'decay';
+                    this.v1.lastTrig = true;
+                    this.port.postMessage({ type: 'voice1', active: true });
+                }
+            }
+
+            // Voice 2 trigger (delayed by 20ms via micro delay offset in original)
+            const v2ClockPhase = this.clockPhase - (microDelayOffset / this.sr * clockInc * this.sr);
+            const v2Clock = (v2ClockPhase >= 0 && v2ClockPhase < clockInc) ? 1 : 0;
+
+            if (v2Clock && !this.v2.lastTrig) {
+                // Chance gate for pitch change
+                if (Math.random() < 0.39) {
+                    this.randomValue2 = Math.random() * 0.21 + 0.17; // scale 0.21, offset 0.17
+                    const semitones = this.quantizeToDorian((this.randomValue2 - 0.17) / 0.21, this.params.oct2);
+                    this.v2.targetPitch = this.semitonesToFreq(55, semitones);
+                }
+
+                // Chance gate for envelope trigger
+                if (Math.random() < this.params.prob2) {
+                    this.v2.env = 1;
+                    this.v2.envStage = 'decay';
+                    this.v2.lastTrig = true;
+                    this.port.postMessage({ type: 'voice2', active: true });
+                }
+            }
+            if (!v2Clock) this.v2.lastTrig = false;
+
+            // Pitch slew (simple lowpass)
+            this.v1.pitch += (this.v1.targetPitch - this.v1.pitch) * 0.01;
+            this.v2.pitch += (this.v2.targetPitch - this.v2.pitch) * 0.01;
+
+            // ADSR envelopes (DR style - attack 0.003/0.01, no sustain)
+            // Voice 1 envelope
+            if (this.v1.envStage === 'decay') {
+                const decayCoeff = Math.exp(-1 / (this.params.decay1 * this.sr));
+                this.v1.env *= decayCoeff;
+                if (this.v1.env < 0.001) {
+                    this.v1.envStage = 'release';
+                }
+            } else if (this.v1.envStage === 'release') {
+                const releaseCoeff = Math.exp(-1 / (this.params.release1 * this.sr));
+                this.v1.env *= releaseCoeff;
+                if (this.v1.env < 0.0001) {
+                    this.v1.env = 0;
+                    this.v1.envStage = 'off';
+                    this.port.postMessage({ type: 'voice1', active: false });
+                }
+            }
+
+            // Voice 2 envelope
+            if (this.v2.envStage === 'decay') {
+                const decayCoeff = Math.exp(-1 / (this.params.decay2 * this.sr));
+                this.v2.env *= decayCoeff;
+                if (this.v2.env < 0.001) {
+                    this.v2.envStage = 'release';
+                }
+            } else if (this.v2.envStage === 'release') {
+                const releaseCoeff = Math.exp(-1 / (this.params.release2 * this.sr));
+                this.v2.env *= releaseCoeff;
+                if (this.v2.env < 0.0001) {
+                    this.v2.env = 0;
+                    this.v2.envStage = 'off';
+                    this.port.postMessage({ type: 'voice2', active: false });
+                }
+            }
+
+            // Amie FM synthesis - Voice 1 (220Hz base, ratio 3, csat 1.6, msat 1.5)
+            const v1ModFreq = this.v1.pitch * 3; // ratio
+            this.v1.modulatorPhase += v1ModFreq / this.sr;
+            if (this.v1.modulatorPhase >= 1) this.v1.modulatorPhase -= 1;
+
+            const v1ModOut = Math.tanh(Math.sin(this.v1.modulatorPhase * 2 * Math.PI + this.v1.modulatorFdbk) * 1.5);
+            this.v1.modulatorFdbk = v1ModOut * 0; // mfdbk 0
+
+            this.v1.carrierPhase += this.v1.pitch / this.sr;
+            if (this.v1.carrierPhase >= 1) this.v1.carrierPhase -= 1;
+
+            const v1CarOut = Math.tanh(Math.sin(this.v1.carrierPhase * 2 * Math.PI + v1ModOut * 0.5 + this.v1.carrierFdbk) * 1.6);
+            this.v1.carrierFdbk = v1CarOut * 0; // cfdbk 0
+
+            const voice1 = v1CarOut * this.v1.env * 0.5 * 0.316; // level 0.5, gain -10dB
+
+            // Amie FM synthesis - Voice 2 (55Hz base, ratio 3, csat 1.9, msat 2.7, cfdbk 0.2)
+            const v2ModFreq = this.v2.pitch * 3;
+            this.v2.modulatorPhase += v2ModFreq / this.sr;
+            if (this.v2.modulatorPhase >= 1) this.v2.modulatorPhase -= 1;
+
+            const v2ModOut = Math.tanh(Math.sin(this.v2.modulatorPhase * 2 * Math.PI + this.v2.modulatorFdbk) * 2.7);
+            this.v2.modulatorFdbk = v2ModOut * 0; // mfdbk 0
+
+            this.v2.carrierPhase += this.v2.pitch / this.sr;
+            if (this.v2.carrierPhase >= 1) this.v2.carrierPhase -= 1;
+
+            const v2CarOut = Math.tanh(Math.sin(this.v2.carrierPhase * 2 * Math.PI + v2ModOut * 0.5 + this.v2.carrierFdbk) * 1.9);
+            this.v2.carrierFdbk = v2CarOut * 0.2; // cfdbk 0.2
+
+            const voice2 = v2CarOut * this.v2.env * 0.5 * 0.316;
+
+            // Mix voices
+            let mixL = voice1 + voice2;
+            let mixR = voice1 + voice2;
+
+            // Spread Delay
+            const delaySamplesBase = this.params.delayTime * this.sr;
+            const spreadOffset = this.params.spread * delaySamplesBase * 0.5;
+            const delaySamplesL = Math.floor(delaySamplesBase - spreadOffset);
+            const delaySamplesR = Math.floor(delaySamplesBase + spreadOffset);
+
+            const delayReadL = (this.delayWriteIdx - delaySamplesL + this.delayLineL.length) % this.delayLineL.length;
+            const delayReadR = (this.delayWriteIdx - delaySamplesR + this.delayLineR.length) % this.delayLineR.length;
+
+            const delayOutL = this.delayLineL[delayReadL];
+            const delayOutR = this.delayLineR[delayReadR];
+
+            this.delayLineL[this.delayWriteIdx] = mixL + delayOutL * this.params.delayFeedback;
+            this.delayLineR[this.delayWriteIdx] = mixR + delayOutR * this.params.delayFeedback;
+            this.delayWriteIdx = (this.delayWriteIdx + 1) % this.delayLineL.length;
+
+            mixL = mixL * (1 - this.params.delayMix) + delayOutL * this.params.delayMix;
+            mixR = mixR * (1 - this.params.delayMix) + delayOutR * this.params.delayMix;
+
+            // Freeverb with slewed size
+            const slewRate = 0.096; // from original
+            const slewCoeff = Math.exp(-1 / (slewRate * this.sr));
+            this.slewedSize += (this.params.reverbSize - this.slewedSize) * (1 - slewCoeff);
+
+            const roomsize = this.slewedSize * 0.28 + 0.7;
+            const damp = this.params.reverbDamp;
+            const width = this.params.reverbWidth;
+
+            const reverbInput = (mixL + mixR) * 0.015;
+
+            // Process combs
+            let combOutL = 0, combOutR = 0;
+            for (let c = 0; c < 8; c++) {
+                combOutL += this.processComb(reverbInput, this.combsL[c], damp, roomsize);
+                combOutR += this.processComb(reverbInput, this.combsR[c], damp, roomsize);
+            }
+
+            // Process allpasses
+            let apOutL = combOutL, apOutR = combOutR;
+            for (let a = 0; a < 4; a++) {
+                apOutL = this.processAllpass(apOutL, this.allpassL[a]);
+                apOutR = this.processAllpass(apOutR, this.allpassR[a]);
+            }
+
+            // Stereo width
+            const wet1 = (1 + width) / 2;
+            const wet2 = (1 - width) / 2;
+            const reverbL = apOutL * wet1 + apOutR * wet2;
+            const reverbR = apOutR * wet1 + apOutL * wet2;
+
+            // Mix reverb
+            mixL = mixL * (1 - this.params.reverbMix) + reverbL * this.params.reverbMix;
+            mixR = mixR * (1 - this.params.reverbMix) + reverbR * this.params.reverbMix;
+
+            // DC block
+            mixL = this.dcBlock(mixL, this.dcL);
+            mixR = this.dcBlock(mixR, this.dcR);
+
+            // Output with master volume
+            outL[i] = Math.tanh(mixL * this.params.masterVol * 0.891); // main gain
+            outR[i] = Math.tanh(mixR * this.params.masterVol * 0.891);
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('dorian-processor', DorianProcessor);
+`;
+
+        let audioContext, workletNode, pedalboard;
+        let isPlaying = false;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        const playBtn = document.getElementById('playBtn');
+        const voice1Dot = document.getElementById('voice1Dot');
+        const voice2Dot = document.getElementById('voice2Dot');
+        const pitch1 = document.getElementById('pitch1');
+        const pitch2 = document.getElementById('pitch2');
+
+        // Note names
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        function freqToNote(freq) {
+            const noteNum = 12 * Math.log2(freq / 440) + 69;
+            const note = Math.round(noteNum);
+            const octave = Math.floor(note / 12) - 1;
+            const noteName = noteNames[note % 12];
+            return noteName + octave;
+        }
+
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            // Wait for features to load first
+            await featuresLoaded;
+
+            audioContext = new AudioContext({ sampleRate: 48000 });
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            await audioContext.audioWorklet.addModule(url);
+            workletNode = new AudioWorkletNode(audioContext, 'dorian-processor', {
+                numberOfInputs: 0,
+                numberOfOutputs: 1,
+                outputChannelCount: [2]
+            });
+            // Setup pedalboard
+            const container = document.getElementById('pedalboard-container');
+            pedalboard = new PedalboardUI(container, audioContext);
+            const fxNode = await pedalboard.init();
+            pedalboard.connect(workletNode);
+            fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'dorian-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-dorian'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-dorian');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-dorian',
+                    prefix: 'dorian',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+            // Handle messages from processor
+            workletNode.port.onmessage = (e) => {
+                if (e.data.type === 'voice1') {
+                    voice1Dot.classList.toggle('active1', e.data.active);
+                }
+                if (e.data.type === 'voice2') {
+                    voice2Dot.classList.toggle('active2', e.data.active);
+                }
+            };
+
+            // Visualizer
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            fxNode.connect(analyser);
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            function draw() {
+                requestAnimationFrame(draw);
+                analyser.getByteTimeDomainData(dataArray);
+                ctx.fillStyle = '#0a0a14';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#d94a90';
+                ctx.beginPath();
+                const sliceWidth = canvas.width / dataArray.length;
+                let x = 0;
+                for (let i = 0; i < dataArray.length; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * canvas.height / 2;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                    x += sliceWidth;
+                }
+                ctx.stroke();
+            }
+            draw();
+        }
+
+        playBtn.onclick = async () => {
+            if (!audioContext) await initAudio();
+            if (audioContext.state === 'suspended') await audioContext.resume();
+
+            isPlaying = !isPlaying;
+            playBtn.textContent = isPlaying ? '⏹' : '▶';
+            workletNode.port.postMessage({ type: isPlaying ? 'start' : 'stop' });
+        };
+
+        // Parameter controls
+        const params = [
+            'tempo', 'prob1', 'prob2', 'oct1', 'oct2',
+            'decay1', 'release1', 'decay2', 'release2',
+            'delayTime', 'spread', 'delayFeedback', 'delayMix',
+            'reverbSize', 'reverbDamp', 'reverbWidth', 'reverbMix',
+            'masterVol'
+        ];
+
+        params.forEach(name => {
+            const input = document.getElementById(name);
+            const display = document.getElementById(name + 'Val');
+            if (input && display) {
+                input.oninput = () => {
+                    const val = parseFloat(input.value);
+                    display.textContent = Number.isInteger(val) ? val : val.toFixed(2);
+                    if (workletNode) {
+                        workletNode.port.postMessage({ type: 'param', name, value: val });
+                    }
+                };
+            }
+        });
+
+        // Info panel
+        if (typeof ER301InfoPanel !== 'undefined') {
+            new ER301InfoPanel(document.body, {
+                title: 'Dorian',
+                author: 'mudlogger',
+                origin: 'ER-301 Hyperscale Units',
+                description: 'Dual-voice generative FM synthesizer in Dorian mode. Two Amie FM voices (220Hz and 55Hz base) generate probabilistic melodies quantized to the Dorian scale. Voice 2 is slightly offset for polyrhythmic texture.',
+                controls: [
+                    { name: 'Tempo BPM', range: '30-200', description: 'Master clock tempo' },
+                    { name: 'Prob 1/2', range: '0-1', description: 'Probability of each voice triggering' },
+                    { name: 'Octave 1/2', range: '-2 to +2', description: 'Octave shift for each voice' },
+                    { name: 'Decay 1/2', range: '0-2s', description: 'Envelope decay time' },
+                    { name: 'Release 1/2', range: '0-3s', description: 'Envelope release time' },
+                    { name: 'Delay Time', range: '10-1000ms', description: 'Spread delay base time' },
+                    { name: 'Spread', range: '0-1', description: 'Stereo spread amount' },
+                    { name: 'Reverb Size', range: '0-1', description: 'Freeverb room size (slewed)' }
+                ],
+                tips: [
+                    'Lower probabilities create sparser textures',
+                    'Voice 2 has a lower base frequency for bass notes',
+                    'High reverb size with low damp creates infinite tails',
+                    'The Dorian scale gives a jazzy, minor feel'
+                ]
+            });
+        }
+    </script>
+</body>
+</html>

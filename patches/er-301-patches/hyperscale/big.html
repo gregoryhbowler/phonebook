@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Big - ER-301 Hyperscale</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 100px;
+        }
+        .gate-btn {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #888;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .gate-btn:hover {
+            border-color: #4a90d9;
+        }
+        .gate-btn.active {
+            background: #4a90d9;
+            border-color: #4a90d9;
+            color: white;
+        }
+        .scale-select {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #ccc;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            width: 100%;
+        }
+        .scale-select:focus {
+            border-color: #4a90d9;
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>Big</h1>
+                <p>Generative FM synth with scale quantizer, noise, fold and FDN reverb</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Oscillator Section -->
+            <span class="section-label">Amie FM Oscillator</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Frequency</label>
+                        <input type="range" id="freq" min="20" max="1000" value="220" step="1">
+                        <span class="param-value" id="freqVal">220 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>FM Ratio</label>
+                        <input type="range" id="ratio" min="0.5" max="8" value="3" step="0.1">
+                        <span class="param-value" id="ratioVal">3.0</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Carrier Feedback</label>
+                        <input type="range" id="cfdbk" min="0" max="1" value="0.4" step="0.01">
+                        <span class="param-value" id="cfdbkVal">0.40</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mod Feedback</label>
+                        <input type="range" id="mfdbk" min="0" max="1" value="1.0" step="0.01">
+                        <span class="param-value" id="mfdbkVal">1.00</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>FM Depth</label>
+                        <input type="range" id="wet" min="0" max="1" value="0.4" step="0.01">
+                        <span class="param-value" id="wetVal">0.40</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Level</label>
+                        <input type="range" id="level" min="0" max="1" value="0.4" step="0.01">
+                        <span class="param-value" id="levelVal">0.40</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quantizer Section -->
+            <span class="section-label">Scale Quantizer</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Root Note</label>
+                        <select class="scale-select" id="root">
+                            <option value="0">C</option>
+                            <option value="1">C#</option>
+                            <option value="2">D</option>
+                            <option value="3">D#</option>
+                            <option value="4">E</option>
+                            <option value="5">F</option>
+                            <option value="6">F#</option>
+                            <option value="7">G</option>
+                            <option value="8">G#</option>
+                            <option value="9">A</option>
+                            <option value="10">A#</option>
+                            <option value="11">B</option>
+                        </select>
+                    </div>
+                    <div class="param-group">
+                        <label>Scale</label>
+                        <select class="scale-select" id="scale">
+                            <option value="major">Major</option>
+                            <option value="minor">Natural Minor</option>
+                            <option value="dorian">Dorian</option>
+                            <option value="phrygian">Phrygian</option>
+                            <option value="lydian">Lydian</option>
+                            <option value="mixolydian">Mixolydian</option>
+                            <option value="locrian">Locrian</option>
+                            <option value="pentatonic">Pentatonic</option>
+                            <option value="blues">Blues</option>
+                            <option value="chromatic">Chromatic</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Octave Range</label>
+                        <input type="range" id="octRange" min="1" max="4" value="2" step="1">
+                        <span class="param-value" id="octRangeVal">2</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Base Octave</label>
+                        <input type="range" id="octBase" min="1" max="6" value="3" step="1">
+                        <span class="param-value" id="octBaseVal">3</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modulation Section -->
+            <span class="section-label">Modulation</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Clock Speed</label>
+                        <input type="range" id="clock" min="0.1" max="10" value="2" step="0.1">
+                        <span class="param-value" id="clockVal">2.0 Hz</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Chance</label>
+                        <input type="range" id="chance" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="chanceVal">0.70</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Slew Time</label>
+                        <input type="range" id="slew" min="0.001" max="0.5" value="0.012" step="0.001">
+                        <span class="param-value" id="slewVal">12 ms</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Envelope Time</label>
+                        <input type="range" id="envTime" min="0.01" max="2" value="0.3" step="0.01">
+                        <span class="param-value" id="envTimeVal">0.30 s</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Noise Section -->
+            <span class="section-label">Noise</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Noise Level</label>
+                        <input type="range" id="noise" min="0" max="0.5" value="0.1" step="0.01">
+                        <span class="param-value" id="noiseVal">0.10</span>
+                    </div>
+                    <div class="param-group">
+                        <label>HP Cutoff</label>
+                        <input type="range" id="hpf" min="20" max="2000" value="200" step="10">
+                        <span class="param-value" id="hpfVal">200 Hz</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Effects Section -->
+            <span class="section-label">Effects</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Fold Amount</label>
+                        <input type="range" id="fold" min="1" max="8" value="2" step="0.1">
+                        <span class="param-value" id="foldVal">2.0</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Delay Time</label>
+                        <input type="range" id="delayTime" min="0.01" max="0.5" value="0.15" step="0.01">
+                        <span class="param-value" id="delayTimeVal">150 ms</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Delay Feedback</label>
+                        <input type="range" id="delayFdbk" min="0" max="0.9" value="0.4" step="0.01">
+                        <span class="param-value" id="delayFdbkVal">0.40</span>
+                    </div>
+                    <div class="param-group">
+                        <label>FDN Mix</label>
+                        <input type="range" id="fdnMix" min="0" max="1" value="0.3" step="0.01">
+                        <span class="param-value" id="fdnMixVal">0.30</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <span class="section-label">Output</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="vol" min="0" max="1.5" value="0.7" step="0.01">
+                        <span class="param-value" id="volVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <pre class="code-block">
+// Big - ER-301 Hyperscale Unit
+// Original by mudlogger
+//
+// Signal flow:
+// Clocked Random -> Scale Quantizer -> Amie (2-op FM)
+//   + White Noise -> Ladder HPF
+//   -> Fold -> Delay -> FDN Reverb -> Output
+            </pre>
+
+            <p class="status" id="status">Click play to start</p>
+
+            <div id="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        // AudioWorklet Processor Code
+        const processorCode = `
+// ============================================================================
+// DELAY LINE
+// ============================================================================
+class DelayLine {
+    constructor(maxDelay) {
+        this.buffer = new Float32Array(maxDelay);
+        this.maxDelay = maxDelay;
+        this.writeIndex = 0;
+    }
+
+    write(sample) {
+        this.buffer[this.writeIndex] = sample;
+        this.writeIndex = (this.writeIndex + 1) % this.maxDelay;
+    }
+
+    read(delaySamples) {
+        let readIndex = this.writeIndex - Math.floor(delaySamples);
+        if (readIndex < 0) readIndex += this.maxDelay;
+        return this.buffer[readIndex];
+    }
+
+    readLinear(delaySamples) {
+        const delay = Math.max(0, Math.min(delaySamples, this.maxDelay - 1));
+        const intDelay = Math.floor(delay);
+        const frac = delay - intDelay;
+        let idx0 = this.writeIndex - intDelay - 1;
+        let idx1 = this.writeIndex - intDelay;
+        if (idx0 < 0) idx0 += this.maxDelay;
+        if (idx1 < 0) idx1 += this.maxDelay;
+        return this.buffer[idx1] + frac * (this.buffer[idx0] - this.buffer[idx1]);
+    }
+}
+
+// ============================================================================
+// ONE-POLE FILTER
+// ============================================================================
+class OnePole {
+    constructor(coeff = 0.99) {
+        this.coeff = coeff;
+        this.z1 = 0;
+    }
+
+    setFrequency(freq, sr) {
+        this.coeff = Math.exp(-2 * Math.PI * freq / sr);
+    }
+
+    lp(input) {
+        this.z1 = input + this.coeff * (this.z1 - input);
+        return this.z1;
+    }
+
+    hp(input) {
+        this.z1 = input + this.coeff * (this.z1 - input);
+        return input - this.z1;
+    }
+}
+
+// ============================================================================
+// LADDER FILTER (simplified 4-pole)
+// ============================================================================
+class LadderFilter {
+    constructor(sr) {
+        this.sr = sr;
+        this.cutoff = 1000;
+        this.resonance = 0;
+        this.s = [0, 0, 0, 0];
+    }
+
+    setCutoff(freq) {
+        this.cutoff = Math.max(20, Math.min(freq, this.sr * 0.45));
+    }
+
+    setResonance(r) {
+        this.resonance = Math.max(0, Math.min(r, 0.95));
+    }
+
+    process(input, isHP = false) {
+        const f = 2 * Math.sin(Math.PI * this.cutoff / this.sr);
+        const k = this.resonance * 4;
+
+        const fb = input - k * this.s[3];
+        this.s[0] += f * (Math.tanh(fb) - Math.tanh(this.s[0]));
+        this.s[1] += f * (Math.tanh(this.s[0]) - Math.tanh(this.s[1]));
+        this.s[2] += f * (Math.tanh(this.s[1]) - Math.tanh(this.s[2]));
+        this.s[3] += f * (Math.tanh(this.s[2]) - Math.tanh(this.s[3]));
+
+        if (isHP) {
+            return input - this.s[3];
+        }
+        return this.s[3];
+    }
+}
+
+// ============================================================================
+// AMIE - 2-Operator FM Synthesizer
+// ============================================================================
+class Amie {
+    constructor(sr) {
+        this.sr = sr;
+        this.carrierPhase = Math.random();
+        this.modPhase = Math.random();
+        this.carrierFB = 0;
+        this.modFB = 0;
+        this.prevCarrier = 0;
+        this.prevMod = 0;
+    }
+
+    process(freq, ratio, cfdbk, mfdbk, wet) {
+        // Modulator
+        const modFreq = freq * ratio;
+        this.modPhase += modFreq / this.sr;
+        if (this.modPhase >= 1) this.modPhase -= 1;
+
+        // Modulator with feedback
+        const modFB = mfdbk * this.prevMod;
+        const modOut = Math.sin(2 * Math.PI * this.modPhase + modFB * 4);
+        this.prevMod = modOut;
+
+        // Carrier with FM and feedback
+        const fm = modOut * wet * 2 * Math.PI;
+        this.carrierPhase += freq / this.sr;
+        if (this.carrierPhase >= 1) this.carrierPhase -= 1;
+
+        const carrierFB = cfdbk * this.prevCarrier;
+        const carrierOut = Math.sin(2 * Math.PI * this.carrierPhase + fm + carrierFB * 4);
+        this.prevCarrier = carrierOut;
+
+        // Soft saturation
+        return Math.tanh(carrierOut * 1.5);
+    }
+}
+
+// ============================================================================
+// SCALE QUANTIZER
+// ============================================================================
+const SCALES = {
+    major: [0, 2, 4, 5, 7, 9, 11],
+    minor: [0, 2, 3, 5, 7, 8, 10],
+    dorian: [0, 2, 3, 5, 7, 9, 10],
+    phrygian: [0, 1, 3, 5, 7, 8, 10],
+    lydian: [0, 2, 4, 6, 7, 9, 11],
+    mixolydian: [0, 2, 4, 5, 7, 9, 10],
+    locrian: [0, 1, 3, 5, 6, 8, 10],
+    pentatonic: [0, 2, 4, 7, 9],
+    blues: [0, 3, 5, 6, 7, 10],
+    chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+};
+
+function quantize(value, root, scale, octRange, octBase) {
+    const scaleNotes = SCALES[scale] || SCALES.major;
+    const noteIndex = Math.floor(value * scaleNotes.length * octRange);
+    const octave = Math.floor(noteIndex / scaleNotes.length) + octBase;
+    const scaleIndex = noteIndex % scaleNotes.length;
+    const semitone = root + scaleNotes[scaleIndex] + (octave * 12);
+    return 440 * Math.pow(2, (semitone - 69) / 12);
+}
+
+// ============================================================================
+// FEEDBACK DELAY NETWORK (4x4)
+// ============================================================================
+class FDN {
+    constructor(sr) {
+        this.sr = sr;
+        // Prime-number delay times for diffuse reverb
+        const times = [0.029, 0.037, 0.043, 0.053];
+        this.delays = times.map(t => new DelayLine(Math.floor(sr * t) + 1));
+        this.delaySamples = times.map(t => Math.floor(sr * t));
+        this.damping = new Array(4).fill(null).map(() => new OnePole(0.3));
+        this.feedback = 0.4;
+        this.mix = 0.3;
+    }
+
+    setFeedback(fb) {
+        this.feedback = Math.max(0, Math.min(fb, 0.95));
+    }
+
+    setMix(m) {
+        this.mix = Math.max(0, Math.min(m, 1));
+    }
+
+    process(inputL, inputR) {
+        const input = (inputL + inputR) * 0.5;
+
+        // Read from delays
+        const d = this.delays.map((delay, i) => delay.read(this.delaySamples[i]));
+
+        // Hadamard-like mixing matrix
+        const mixed = [
+            d[0] + d[1] + d[2] + d[3],
+            d[0] - d[1] + d[2] - d[3],
+            d[0] + d[1] - d[2] - d[3],
+            d[0] - d[1] - d[2] + d[3]
+        ].map(x => x * 0.5);
+
+        // Write back with damping and feedback
+        for (let i = 0; i < 4; i++) {
+            const damped = this.damping[i].lp(mixed[i] * this.feedback);
+            this.delays[i].write(input + damped);
+        }
+
+        // Output
+        const wetL = (d[0] + d[2]) * 0.5;
+        const wetR = (d[1] + d[3]) * 0.5;
+
+        return [
+            inputL * (1 - this.mix) + wetL * this.mix,
+            inputR * (1 - this.mix) + wetR * this.mix
+        ];
+    }
+}
+
+// ============================================================================
+// WAVE FOLDER
+// ============================================================================
+function fold(input, amount) {
+    let x = input * amount;
+    // Triangle wave folding
+    while (Math.abs(x) > 1) {
+        if (x > 1) x = 2 - x;
+        else if (x < -1) x = -2 - x;
+    }
+    return x;
+}
+
+// ============================================================================
+// BIG PROCESSOR
+// ============================================================================
+class BigProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+
+        this.sr = sampleRate;
+
+        // Amie FM oscillator
+        this.amie = new Amie(this.sr);
+
+        // Noise with HP filter
+        this.hpf = new LadderFilter(this.sr);
+        this.hpf.setCutoff(200);
+
+        // Delay
+        this.delay = new DelayLine(Math.floor(this.sr * 0.5));
+        this.delayTime = 0.15 * this.sr;
+        this.smoothDelayTime = this.delayTime;
+
+        // FDN reverb
+        this.fdn = new FDN(this.sr);
+
+        // Slew limiter for pitch
+        this.slewedPitch = 220;
+        this.slewCoeff = 0.01;
+
+        // Envelope
+        this.envelope = 0;
+        this.envTarget = 0;
+        this.envAttack = 0.01;
+        this.envRelease = 0.3;
+
+        // Clock and random
+        this.clockPhase = 0;
+        this.currentPitch = 220;
+        this.targetPitch = 220;
+
+        // Parameters
+        this.params = {
+            freq: 220,
+            ratio: 3,
+            cfdbk: 0.4,
+            mfdbk: 1.0,
+            wet: 0.4,
+            level: 0.4,
+            root: 0,
+            scale: 'major',
+            octRange: 2,
+            octBase: 3,
+            clock: 2,
+            chance: 0.7,
+            slew: 0.012,
+            envTime: 0.3,
+            noise: 0.1,
+            hpf: 200,
+            fold: 2,
+            delayTime: 0.15,
+            delayFdbk: 0.4,
+            fdnMix: 0.3,
+            vol: 0.7
+        };
+
+        this.port.onmessage = (e) => {
+            const data = e.data;
+            if (data.freq !== undefined) this.params.freq = data.freq;
+            if (data.ratio !== undefined) this.params.ratio = data.ratio;
+            if (data.cfdbk !== undefined) this.params.cfdbk = data.cfdbk;
+            if (data.mfdbk !== undefined) this.params.mfdbk = data.mfdbk;
+            if (data.wet !== undefined) this.params.wet = data.wet;
+            if (data.level !== undefined) this.params.level = data.level;
+            if (data.root !== undefined) this.params.root = parseInt(data.root);
+            if (data.scale !== undefined) this.params.scale = data.scale;
+            if (data.octRange !== undefined) this.params.octRange = data.octRange;
+            if (data.octBase !== undefined) this.params.octBase = data.octBase;
+            if (data.clock !== undefined) this.params.clock = data.clock;
+            if (data.chance !== undefined) this.params.chance = data.chance;
+            if (data.slew !== undefined) {
+                this.params.slew = data.slew;
+                this.slewCoeff = 1 / (data.slew * this.sr);
+            }
+            if (data.envTime !== undefined) {
+                this.params.envTime = data.envTime;
+                this.envRelease = data.envTime;
+            }
+            if (data.noise !== undefined) this.params.noise = data.noise;
+            if (data.hpf !== undefined) {
+                this.params.hpf = data.hpf;
+                this.hpf.setCutoff(data.hpf);
+            }
+            if (data.fold !== undefined) this.params.fold = data.fold;
+            if (data.delayTime !== undefined) {
+                this.params.delayTime = data.delayTime;
+                this.delayTime = data.delayTime * this.sr;
+            }
+            if (data.delayFdbk !== undefined) this.params.delayFdbk = data.delayFdbk;
+            if (data.fdnMix !== undefined) {
+                this.params.fdnMix = data.fdnMix;
+                this.fdn.setMix(data.fdnMix);
+            }
+            if (data.vol !== undefined) this.params.vol = data.vol;
+        };
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        for (let i = 0; i < left.length; i++) {
+            // Clock
+            this.clockPhase += this.params.clock / this.sr;
+            if (this.clockPhase >= 1) {
+                this.clockPhase -= 1;
+
+                // Chance gate
+                if (Math.random() < this.params.chance) {
+                    // Pick new random pitch from scale
+                    const randomVal = Math.random();
+                    this.targetPitch = quantize(
+                        randomVal,
+                        this.params.root,
+                        this.params.scale,
+                        this.params.octRange,
+                        this.params.octBase
+                    );
+                    this.envTarget = 1;
+                }
+            }
+
+            // Slew pitch
+            this.slewedPitch += (this.targetPitch - this.slewedPitch) * this.slewCoeff;
+
+            // Envelope (AR)
+            if (this.envTarget > 0.5) {
+                // Attack
+                this.envelope += (1 - this.envelope) * (1 / (this.envAttack * this.sr));
+                if (this.envelope > 0.99) this.envTarget = 0;
+            } else {
+                // Release
+                this.envelope += (0 - this.envelope) * (1 / (this.envRelease * this.sr));
+            }
+
+            // Amie FM synth
+            const fmOut = this.amie.process(
+                this.slewedPitch,
+                this.params.ratio,
+                this.params.cfdbk,
+                this.params.mfdbk,
+                this.params.wet
+            ) * this.params.level * this.envelope;
+
+            // White noise through HP filter
+            const noise = (Math.random() * 2 - 1) * this.params.noise;
+            const filteredNoise = this.hpf.process(noise, true);
+
+            // Mix synth and noise
+            let signal = fmOut + filteredNoise * this.envelope;
+
+            // Wave folder
+            signal = fold(signal, this.params.fold);
+
+            // Delay
+            this.smoothDelayTime += (this.delayTime - this.smoothDelayTime) * 0.001;
+            const delayed = this.delay.readLinear(this.smoothDelayTime);
+            this.delay.write(signal + delayed * this.params.delayFdbk);
+            signal = signal * 0.7 + delayed * 0.3;
+
+            // FDN reverb
+            const [reverbL, reverbR] = this.fdn.process(signal, signal);
+
+            // Volume and soft limit
+            let outL = Math.tanh(reverbL * this.params.vol);
+            let outR = Math.tanh(reverbR * this.params.vol);
+
+            left[i] = outL;
+            if (right) right[i] = outR;
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('big-processor', BigProcessor);
+`;
+
+        // Global variables
+        let audioContext = null;
+        let workletNode = null;
+        let pedalboard = null;
+        let analyser = null;
+        let isPlaying = false;
+        let infoPanel = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+        // Initialize audio
+        
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            try {
+                // Wait for features to load first
+                await featuresLoaded;
+
+                audioContext = new AudioContext({ sampleRate: 48000 });
+
+                const blob = new Blob([processorCode], { type: 'text/javascript' });
+                const url = URL.createObjectURL(blob);
+                await audioContext.audioWorklet.addModule(url);
+                URL.revokeObjectURL(url);
+
+                workletNode = new AudioWorkletNode(audioContext, 'big-processor', {
+                    numberOfInputs: 0,
+                    numberOfOutputs: 1,
+                    outputChannelCount: [2]
+                });
+
+                // Setup pedalboard
+                const container = document.getElementById('pedalboard-container');
+                pedalboard = new PedalboardUI(container, audioContext);
+                const fxNode = await pedalboard.init();
+
+                pedalboard.connect(workletNode);
+                fxNode.connect(audioContext.destination);
+
+            // Initialize features if phonebook-features.js is loaded
+            if (typeof StickyHeader !== 'undefined') {
+                stickyHeader = new StickyHeader({
+                    patchName: 'big-er-301-hyperscale',
+                    patchId: 'er-301-patches-hyperscale-big'
+                });
+                await stickyHeader.init();
+                await stickyHeader.initRecorder(audioContext, fxNode || workletNode, audioContext.destination);
+            }
+
+            if (typeof getMidiLearn !== 'undefined') {
+                midiLearn = await getMidiLearn('er-301-patches-hyperscale-big');
+            }
+
+            if (typeof getModulationMatrix !== 'undefined') {
+                modMatrix = getModulationMatrix();
+                modMatrixUI = new ModMatrixUI(
+                    document.querySelector('.patch-content'),
+                    { modMatrix: modMatrix }
+                );
+                modMatrixUI.init();
+            }
+
+            // Auto-register all sliders for MIDI Learn and Mod Matrix
+            if (typeof autoRegisterControls !== 'undefined') {
+                await autoRegisterControls({
+                    patchId: 'er-301-patches-hyperscale-big',
+                    prefix: 'big',
+                    modMatrixUI: modMatrixUI
+                });
+            }
+
+                // Analyzer
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+                fxNode.connect(analyser);
+
+                // Initialize parameters
+                sendParams();
+
+                document.getElementById('status').textContent = 'Ready';
+
+            } catch (err) {
+                console.error('Audio init error:', err);
+                document.getElementById('status').textContent = 'Error: ' + err.message;
+            }
+        }
+
+        // Send all parameters
+        function sendParams() {
+            if (!workletNode) return;
+
+            const sliders = ['freq', 'ratio', 'cfdbk', 'mfdbk', 'wet', 'level', 'octRange', 'octBase',
+                           'clock', 'chance', 'slew', 'envTime', 'noise', 'hpf', 'fold',
+                           'delayTime', 'delayFdbk', 'fdnMix', 'vol'];
+            sliders.forEach(param => {
+                const input = document.getElementById(param);
+                if (input) {
+                    workletNode.port.postMessage({ [param]: parseFloat(input.value) });
+                }
+            });
+
+            // Selects
+            workletNode.port.postMessage({ root: document.getElementById('root').value });
+            workletNode.port.postMessage({ scale: document.getElementById('scale').value });
+        }
+
+        // Setup controls
+        function setupControls() {
+            const sliderParams = [
+                { id: 'freq', unit: ' Hz', decimals: 0 },
+                { id: 'ratio', unit: '', decimals: 1 },
+                { id: 'cfdbk', unit: '', decimals: 2 },
+                { id: 'mfdbk', unit: '', decimals: 2 },
+                { id: 'wet', unit: '', decimals: 2 },
+                { id: 'level', unit: '', decimals: 2 },
+                { id: 'octRange', unit: '', decimals: 0 },
+                { id: 'octBase', unit: '', decimals: 0 },
+                { id: 'clock', unit: ' Hz', decimals: 1 },
+                { id: 'chance', unit: '', decimals: 2 },
+                { id: 'slew', unit: ' ms', decimals: 0, mult: 1000 },
+                { id: 'envTime', unit: ' s', decimals: 2 },
+                { id: 'noise', unit: '', decimals: 2 },
+                { id: 'hpf', unit: ' Hz', decimals: 0 },
+                { id: 'fold', unit: '', decimals: 1 },
+                { id: 'delayTime', unit: ' ms', decimals: 0, mult: 1000 },
+                { id: 'delayFdbk', unit: '', decimals: 2 },
+                { id: 'fdnMix', unit: '', decimals: 2 },
+                { id: 'vol', unit: '', decimals: 2 }
+            ];
+
+            sliderParams.forEach(param => {
+                const input = document.getElementById(param.id);
+                const display = document.getElementById(param.id + 'Val');
+
+                input.addEventListener('input', () => {
+                    const val = parseFloat(input.value);
+                    const displayVal = param.mult ? val * param.mult : val;
+                    display.textContent = displayVal.toFixed(param.decimals) + param.unit;
+                    if (workletNode) {
+                        workletNode.port.postMessage({ [param.id]: val });
+                    }
+                });
+            });
+
+            // Select controls
+            ['root', 'scale'].forEach(id => {
+                document.getElementById(id).addEventListener('change', (e) => {
+                    if (workletNode) {
+                        workletNode.port.postMessage({ [id]: e.target.value });
+                    }
+                });
+            });
+        }
+
+        // Visualizer
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        let history = [];
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const width = canvas.width / window.devicePixelRatio;
+            const height = canvas.height / window.devicePixelRatio;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteTimeDomainData(dataArray);
+
+            // Calculate RMS
+            let sum = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                const val = (dataArray[i] - 128) / 128;
+                sum += val * val;
+            }
+            const rms = Math.sqrt(sum / bufferLength);
+
+            history.push(rms);
+            if (history.length > width) history.shift();
+
+            ctx.fillStyle = '#0a0a0f';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.strokeStyle = '#6366f1';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            for (let i = 0; i < history.length; i++) {
+                const x = i;
+                const y = height - (history[i] * height * 4);
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+
+            if (isPlaying) {
+                requestAnimationFrame(drawVisualizer);
+            }
+        }
+
+        // Play button
+        const playBtn = document.getElementById('playBtn');
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+            }
+
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            isPlaying = !isPlaying;
+            playBtn.textContent = isPlaying ? '⏸' : '▶';
+
+            if (isPlaying) {
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            } else {
+                if (modMatrix) modMatrix.stop();
+            }
+        });
+
+        // Info panel
+        document.addEventListener('DOMContentLoaded', () => {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            setupControls();
+
+            // Create info panel
+            infoPanel = new ER301InfoPanel(document.body, {
+                title: 'Big',
+                author: 'mudlogger',
+                origin: 'ER-301 Hyperscale Units',
+                description: 'A generative FM synthesizer patch. Uses the Amie 2-operator FM oscillator with clocked random pitch selection through a scale quantizer. White noise is filtered through a ladder HPF and mixed with the synth. Signal is then wave-folded and processed through delay and a 4x4 Feedback Delay Network for diffuse reverb.',
+                controls: [
+                    { name: 'Frequency', range: '20-1000 Hz', description: 'Base frequency (modulated by quantizer)' },
+                    { name: 'FM Ratio', range: '0.5-8', description: 'Modulator to carrier frequency ratio' },
+                    { name: 'Carrier/Mod Feedback', range: '0-1', description: 'Feedback amount for FM operators' },
+                    { name: 'FM Depth', range: '0-1', description: 'Modulation depth (wet amount)' },
+                    { name: 'Root/Scale', range: 'Select', description: 'Scale quantizer root note and mode' },
+                    { name: 'Octave Range/Base', range: '1-4/1-6', description: 'Pitch range for random selection' },
+                    { name: 'Clock Speed', range: '0.1-10 Hz', description: 'Rate of random pitch changes' },
+                    { name: 'Chance', range: '0-1', description: 'Probability of note trigger' },
+                    { name: 'Slew Time', range: '1-500 ms', description: 'Portamento/glide time' },
+                    { name: 'Fold Amount', range: '1-8', description: 'Wave folding intensity' },
+                    { name: 'FDN Mix', range: '0-1', description: 'Feedback delay network reverb mix' }
+                ],
+                tips: [
+                    'Try different scales for varied melodic content',
+                    'Slow clock with high chance creates ambient textures',
+                    'High FM ratio with feedback creates bell-like tones',
+                    'Increase fold amount for harsh, complex harmonics',
+                    'Long slew times create smooth, gliding melodies'
+                ]
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1975 - ER-301 Autogen301</title>
+    <link rel="stylesheet" href="../../../styles.css">
+    <link rel="stylesheet" href="../../../lib/effect-ui.css">
+    <script src="../../../lib/pedalboard-effects.js"></script>
+    <script src="../../../lib/effect-ui.js"></script>
+    <script type="module" src="../../../lib/phonebook-features.js"></script>
+    <script src="../lib/er301-info-panel.js"></script>
+    <style>
+        .section-label {
+            font-size: 0.7em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5em;
+            display: block;
+        }
+        .param-controls {
+            border-bottom: 1px solid #222;
+            padding-bottom: 1em;
+            margin-bottom: 1em;
+        }
+        .param-row {
+            display: flex;
+            gap: 1em;
+            flex-wrap: wrap;
+        }
+        .param-row .param-group {
+            flex: 1;
+            min-width: 100px;
+        }
+        .arp-section {
+            background: #0d0d18;
+            border: 1px solid #2a2a4a;
+            border-radius: 8px;
+            padding: 1em;
+            margin-bottom: 1em;
+        }
+        .arp-section h3 {
+            margin: 0 0 0.75em 0;
+            font-size: 0.9em;
+            color: #6a6aff;
+        }
+        .arp-section.arp2 h3 {
+            color: #ff6a6a;
+        }
+    </style>
+</head>
+<body>
+    <div class="patch-page">
+        <header class="patch-header">
+            <a href="../../../index.html" class="back-link">&larr; Back</a>
+            <div class="patch-info">
+                <h1>1975</h1>
+                <p>Dual arpeggiator synth with LFO modulation, Strike LPG, and Freeverb</p>
+            </div>
+        </header>
+
+        <main class="patch-content">
+            <canvas id="visualizer"></canvas>
+
+            <div class="controls">
+                <button class="play-btn" id="playBtn">&#9654;</button>
+            </div>
+
+            <!-- Arpeggiator 1 Section -->
+            <div class="arp-section">
+                <h3>Arpeggiator 1 (Sine)</h3>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Length 1</label>
+                        <input type="range" id="length1" min="0.01" max="2" value="0.1" step="0.01">
+                        <span class="param-value" id="length1Val">0.10</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Range 1</label>
+                        <input type="range" id="range1" min="0" max="3" value="1.25" step="0.01">
+                        <span class="param-value" id="range1Val">1.25</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Octave 1</label>
+                        <input type="range" id="oct1" min="-2" max="2" value="0" step="1">
+                        <span class="param-value" id="oct1Val">0</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Decay 1</label>
+                        <input type="range" id="decay1" min="0.01" max="1" value="0.11" step="0.01">
+                        <span class="param-value" id="decay1Val">0.11</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Barrel 1</label>
+                        <input type="range" id="barrel1" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="barrel1Val">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>LFO 1</label>
+                        <input type="range" id="lfo1" min="0.1" max="10" value="2" step="0.1">
+                        <span class="param-value" id="lfo1Val">2.0 Hz</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Arpeggiator 2 Section -->
+            <div class="arp-section arp2">
+                <h3>Arpeggiator 2 (Formant)</h3>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Length 2</label>
+                        <input type="range" id="length2" min="0.01" max="2" value="0.15" step="0.01">
+                        <span class="param-value" id="length2Val">0.15</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Range 2</label>
+                        <input type="range" id="range2" min="0" max="3" value="1.25" step="0.01">
+                        <span class="param-value" id="range2Val">1.25</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Octave 2</label>
+                        <input type="range" id="oct2" min="-2" max="2" value="0" step="1">
+                        <span class="param-value" id="oct2Val">0</span>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Decay 2</label>
+                        <input type="range" id="decay2" min="0.01" max="1" value="0.11" step="0.01">
+                        <span class="param-value" id="decay2Val">0.11</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Barrel 2</label>
+                        <input type="range" id="barrel2" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="barrel2Val">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>LFO 2</label>
+                        <input type="range" id="lfo2" min="0.1" max="10" value="2.5" step="0.1">
+                        <span class="param-value" id="lfo2Val">2.5 Hz</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Global Controls -->
+            <span class="section-label">Global</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Osc 2 Vol</label>
+                        <input type="range" id="osc2Vol" min="0" max="1" value="0.5" step="0.01">
+                        <span class="param-value" id="osc2VolVal">0.50</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Saturation</label>
+                        <input type="range" id="saturation" min="1" max="8" value="3.99" step="0.01">
+                        <span class="param-value" id="saturationVal">3.99</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Volume</label>
+                        <input type="range" id="volume" min="0" max="1" value="0.7" step="0.01">
+                        <span class="param-value" id="volumeVal">0.70</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reverb Section -->
+            <span class="section-label">Reverb</span>
+            <div class="param-controls">
+                <div class="param-row">
+                    <div class="param-group">
+                        <label>Size</label>
+                        <input type="range" id="reverbSize" min="0" max="1" value="0.76" step="0.01">
+                        <span class="param-value" id="reverbSizeVal">0.76</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Damping</label>
+                        <input type="range" id="reverbDamp" min="0" max="1" value="0.67" step="0.01">
+                        <span class="param-value" id="reverbDampVal">0.67</span>
+                    </div>
+                    <div class="param-group">
+                        <label>Mix</label>
+                        <input type="range" id="reverbMix" min="0" max="1" value="0.34" step="0.01">
+                        <span class="param-value" id="reverbMixVal">0.34</span>
+                    </div>
+                </div>
+            </div>
+
+            <pre class="code-block">
+// 1975 - ER-301 Autogen301
+// Original by mudlogger
+//
+// Dual arpeggiator synth with:
+// - Infinity Arp 1 -> Sine Osc -> Strike LPG -> Tanh
+// - Infinity Arp 2 -> Formant Osc -> Strike LPG -> Tanh
+// - LFO modulation per channel
+// - EQ3, Filter Delay, Freeverb, CPR
+            </pre>
+
+            <p class="status" id="status">Click play to start</p>
+
+            <div id="pedalboard-container"></div>
+        </main>
+    </div>
+
+    <script>
+        // AudioWorklet Processor Code
+        const processorCode = `
+// ============================================================================
+// DELAY LINE
+// ============================================================================
+class DelayLine {
+    constructor(maxDelay) {
+        this.buffer = new Float32Array(maxDelay);
+        this.maxDelay = maxDelay;
+        this.writeIndex = 0;
+    }
+
+    write(sample) {
+        this.buffer[this.writeIndex] = sample;
+        this.writeIndex = (this.writeIndex + 1) % this.maxDelay;
+    }
+
+    read(delaySamples) {
+        let readIndex = this.writeIndex - Math.floor(delaySamples);
+        if (readIndex < 0) readIndex += this.maxDelay;
+        return this.buffer[readIndex];
+    }
+
+    readLinear(delaySamples) {
+        const delay = Math.max(0, Math.min(delaySamples, this.maxDelay - 1));
+        const intDelay = Math.floor(delay);
+        const frac = delay - intDelay;
+        let idx0 = this.writeIndex - intDelay - 1;
+        let idx1 = this.writeIndex - intDelay;
+        if (idx0 < 0) idx0 += this.maxDelay;
+        if (idx1 < 0) idx1 += this.maxDelay;
+        return this.buffer[idx1] + frac * (this.buffer[idx0] - this.buffer[idx1]);
+    }
+}
+
+// ============================================================================
+// ONE-POLE FILTER
+// ============================================================================
+class OnePole {
+    constructor(coeff = 0.99) {
+        this.coeff = coeff;
+        this.z1 = 0;
+    }
+
+    setFrequency(freq, sr) {
+        this.coeff = Math.exp(-2 * Math.PI * freq / sr);
+    }
+
+    lp(input) {
+        this.z1 = input + this.coeff * (this.z1 - input);
+        return this.z1;
+    }
+
+    hp(input) {
+        this.z1 = input + this.coeff * (this.z1 - input);
+        return input - this.z1;
+    }
+}
+
+// ============================================================================
+// DC BLOCKER
+// ============================================================================
+class DCBlocker {
+    constructor() {
+        this.x1 = 0;
+        this.y1 = 0;
+        this.R = 0.995;
+    }
+    process(x) {
+        const y = x - this.x1 + this.R * this.y1;
+        this.x1 = x;
+        this.y1 = y;
+        return y;
+    }
+}
+
+// ============================================================================
+// FREEVERB
+// ============================================================================
+class Freeverb {
+    constructor(sr) {
+        this.sr = sr;
+        const combTunings = [1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617];
+        const allpassTunings = [556, 441, 341, 225];
+        const stereospread = 23;
+
+        this.combsL = combTunings.map(t => new DelayLine(Math.floor(t * sr / 44100) + 1));
+        this.combsR = combTunings.map(t => new DelayLine(Math.floor((t + stereospread) * sr / 44100) + 1));
+        this.combTimesL = combTunings.map(t => Math.floor(t * sr / 44100));
+        this.combTimesR = combTunings.map(t => Math.floor((t + stereospread) * sr / 44100));
+
+        this.allpassL = allpassTunings.map(t => new DelayLine(Math.floor(t * sr / 44100) + 1));
+        this.allpassR = allpassTunings.map(t => new DelayLine(Math.floor((t + stereospread) * sr / 44100) + 1));
+        this.allpassTimesL = allpassTunings.map(t => Math.floor(t * sr / 44100));
+        this.allpassTimesR = allpassTunings.map(t => Math.floor((t + stereospread) * sr / 44100));
+
+        this.combFiltersL = combTunings.map(() => new OnePole(0.2));
+        this.combFiltersR = combTunings.map(() => new OnePole(0.2));
+
+        this.size = 0.76;
+        this.damp = 0.67;
+        this.wet = 0.34;
+        this.width = 0.99;
+
+        this.dcL = new DCBlocker();
+        this.dcR = new DCBlocker();
+    }
+
+    setSize(s) { this.size = Math.max(0, Math.min(s, 1)); }
+    setDamping(d) { this.damp = Math.max(0, Math.min(d, 1)); }
+    setWet(w) { this.wet = Math.max(0, Math.min(w, 1)); }
+
+    process(inputL, inputR) {
+        const input = (inputL + inputR) * 0.5;
+        const limitedInput = Math.max(-1, Math.min(1, input)) * 0.015;
+
+        let outL = 0, outR = 0;
+        const feedback = this.size * 0.28 + 0.7;
+        const dampCoeff = this.damp * 0.4;
+
+        for (let i = 0; i < 8; i++) {
+            this.combFiltersL[i].coeff = dampCoeff;
+            this.combFiltersR[i].coeff = dampCoeff;
+
+            const readL = this.combsL[i].read(this.combTimesL[i]);
+            const readR = this.combsR[i].read(this.combTimesR[i]);
+
+            const filteredL = this.combFiltersL[i].lp(readL);
+            const filteredR = this.combFiltersR[i].lp(readR);
+
+            this.combsL[i].write(limitedInput + filteredL * feedback);
+            this.combsR[i].write(limitedInput + filteredR * feedback);
+
+            outL += readL;
+            outR += readR;
+        }
+
+        for (let i = 0; i < 4; i++) {
+            const readL = this.allpassL[i].read(this.allpassTimesL[i]);
+            const readR = this.allpassR[i].read(this.allpassTimesR[i]);
+
+            this.allpassL[i].write(outL + readL * 0.5);
+            this.allpassR[i].write(outR + readR * 0.5);
+
+            outL = readL - outL * 0.5;
+            outR = readR - outR * 0.5;
+        }
+
+        outL = this.dcL.process(outL);
+        outR = this.dcR.process(outR);
+
+        const wet1 = this.wet * (this.width / 2 + 0.5);
+        const wet2 = this.wet * ((1 - this.width) / 2);
+        const dry = 1 - this.wet;
+
+        return [
+            Math.tanh(inputL * dry + outL * wet1 + outR * wet2),
+            Math.tanh(inputR * dry + outR * wet1 + outL * wet2)
+        ];
+    }
+}
+
+// ============================================================================
+// STRIKE LPG (Low Pass Gate)
+// ============================================================================
+class StrikeLPG {
+    constructor(sr) {
+        this.sr = sr;
+        this.envelope = 0;
+        this.triggered = false;
+        this.rise = 0.001;
+        this.fall = 0.11;
+        this.bend = -0.97;
+        this.height = 1.0;
+        this.filter = new OnePole(0.5);
+    }
+
+    trigger() {
+        this.triggered = true;
+    }
+
+    setFall(f) {
+        this.fall = Math.max(0.01, Math.min(f, 2));
+    }
+
+    process(input) {
+        if (this.triggered) {
+            const riseRate = 1 / (this.rise * this.sr);
+            this.envelope += riseRate;
+            if (this.envelope >= this.height) {
+                this.envelope = this.height;
+                this.triggered = false;
+            }
+        } else {
+            const fallRate = 1 / (this.fall * this.sr);
+            this.envelope -= fallRate;
+            if (this.envelope < 0) this.envelope = 0;
+        }
+
+        // LPG behavior: envelope controls both amplitude and filter
+        const envCurved = Math.pow(this.envelope, 1 - this.bend * 0.5);
+        const cutoff = 200 + envCurved * 10000;
+        this.filter.setFrequency(cutoff, this.sr);
+
+        return this.filter.lp(input) * envCurved;
+    }
+}
+
+// ============================================================================
+// INFINITY ARP
+// ============================================================================
+class InfinityArp {
+    constructor(sr) {
+        this.sr = sr;
+        this.phase = 0;
+        this.currentNote = 0;
+        this.noteValue = 0;
+        this.triggered = false;
+        this.length = 0.1;
+        this.range = 1.25;
+        this.variance = 0.2;
+        this.octave = 0;
+
+        // Scale: chromatic by default, 120 levels grid quantizer
+        this.quantLevels = 120;
+    }
+
+    setLength(l) { this.length = Math.max(0.01, l); }
+    setRange(r) { this.range = r; }
+    setOctave(o) { this.octave = Math.round(o); }
+
+    process(clockRate) {
+        const phaseInc = clockRate / this.sr;
+        this.phase += phaseInc;
+
+        if (this.phase >= 1) {
+            this.phase -= 1;
+            this.triggered = true;
+
+            // Generate new note with variance
+            const baseNote = (Math.random() * this.range * 12) | 0;
+            const variance = (Math.random() - 0.5) * 2 * this.variance * 5;
+            this.currentNote = baseNote + variance + this.octave * 12;
+
+            // Grid quantize to 120 levels then map to semitones
+            const quantized = Math.round(this.currentNote * this.quantLevels / 12) * 12 / this.quantLevels;
+            this.noteValue = quantized;
+        } else {
+            this.triggered = false;
+        }
+
+        // Convert note to frequency (A4 = 440Hz, note 0 = C4)
+        const freq = 261.63 * Math.pow(2, this.noteValue / 12);
+        return { freq, triggered: this.triggered };
+    }
+}
+
+// ============================================================================
+// FORMANT OSCILLATOR
+// ============================================================================
+class FormantOsc {
+    constructor(sr) {
+        this.sr = sr;
+        this.phase = 0;
+        this.formant1 = 700;
+        this.formant2 = 1200;
+        this.formant3 = 2400;
+    }
+
+    process(freq, modulation) {
+        this.phase += freq / this.sr;
+        if (this.phase >= 1) this.phase -= 1;
+
+        // Modulate formant frequencies
+        const f1 = this.formant1 * (1 + modulation * 0.5);
+        const f2 = this.formant2 * (1 + modulation * 0.3);
+        const f3 = this.formant3 * (1 + modulation * 0.2);
+
+        // Generate formant-like sound using additive synthesis
+        const t = this.phase * 2 * Math.PI;
+        const fundamental = Math.sin(t);
+
+        // Add formant harmonics
+        const harm1 = Math.sin(t * (f1 / freq)) * 0.5;
+        const harm2 = Math.sin(t * (f2 / freq)) * 0.3;
+        const harm3 = Math.sin(t * (f3 / freq)) * 0.15;
+
+        return (fundamental + harm1 + harm2 + harm3) * 0.4;
+    }
+}
+
+// ============================================================================
+// SINE OSCILLATOR WITH FEEDBACK
+// ============================================================================
+class SineOscFB {
+    constructor() {
+        this.phase = 0;
+        this.prevOut = 0;
+        this.feedback = 0;
+    }
+
+    process(freq, sr) {
+        this.phase += freq / sr;
+        if (this.phase >= 1) this.phase -= 1;
+
+        const out = Math.sin(2 * Math.PI * this.phase + this.prevOut * this.feedback);
+        this.prevOut = out;
+        return out;
+    }
+}
+
+// ============================================================================
+// ALIASING TRIANGLE LFO
+// ============================================================================
+class TriangleLFO {
+    constructor() {
+        this.phase = Math.random();
+    }
+
+    process(freq, sr) {
+        this.phase += freq / sr;
+        if (this.phase >= 1) this.phase -= 1;
+
+        // Triangle wave: -1 to 1
+        return this.phase < 0.5
+            ? this.phase * 4 - 1
+            : 3 - this.phase * 4;
+    }
+}
+
+// ============================================================================
+// COMPRESSOR (CPR)
+// ============================================================================
+class CPR {
+    constructor(sr) {
+        this.sr = sr;
+        this.envelope = 0;
+        this.ratio = 1.9;
+        this.threshold = 0.41;
+        this.attack = 0.001;
+        this.release = 0.055;
+        this.makeupGain = 1.0;
+    }
+
+    process(input, sidechain = null) {
+        const sc = sidechain !== null ? Math.abs(sidechain) : Math.abs(input);
+
+        // Envelope follower
+        const target = sc;
+        if (target > this.envelope) {
+            this.envelope += (target - this.envelope) / (this.attack * this.sr);
+        } else {
+            this.envelope += (target - this.envelope) / (this.release * this.sr);
+        }
+
+        // Gain reduction
+        let gain = 1.0;
+        if (this.envelope > this.threshold) {
+            const dbOver = 20 * Math.log10(this.envelope / this.threshold);
+            const reduction = dbOver * (1 - 1 / this.ratio);
+            gain = Math.pow(10, -reduction / 20);
+        }
+
+        return input * gain * this.makeupGain;
+    }
+}
+
+// ============================================================================
+// 1975 PROCESSOR
+// ============================================================================
+class Processor1975 extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.sr = sampleRate;
+
+        // Arpeggiators
+        this.arp1 = new InfinityArp(this.sr);
+        this.arp2 = new InfinityArp(this.sr);
+
+        // Oscillators
+        this.sineOsc = new SineOscFB();
+        this.formantOsc = new FormantOsc(this.sr);
+
+        // LFOs
+        this.lfo1Tri = new TriangleLFO();
+        this.lfo1Sine = new SineOscFB();
+        this.lfo2Tri = new TriangleLFO();
+        this.lfo2Sine = new SineOscFB();
+
+        // Strike LPGs
+        this.lpg1 = new StrikeLPG(this.sr);
+        this.lpg2 = new StrikeLPG(this.sr);
+
+        // Effects
+        this.freeverb = new Freeverb(this.sr);
+        this.cpr = new CPR(this.sr);
+
+        // Delay
+        this.delayL = new DelayLine(Math.floor(this.sr * 0.5));
+        this.delayR = new DelayLine(Math.floor(this.sr * 0.5));
+        this.delayTime = 0.15 * this.sr;
+        this.delayFeedback = 0.3;
+
+        // Parameters
+        this.params = {
+            length1: 0.1,
+            range1: 1.25,
+            oct1: 0,
+            decay1: 0.11,
+            barrel1: 0.5,
+            lfo1: 2,
+            length2: 0.15,
+            range2: 1.25,
+            oct2: 0,
+            decay2: 0.11,
+            barrel2: 0.5,
+            lfo2: 2.5,
+            osc2Vol: 0.5,
+            saturation: 3.99,
+            volume: 0.7,
+            reverbSize: 0.76,
+            reverbDamp: 0.67,
+            reverbMix: 0.34
+        };
+
+        this.port.onmessage = (e) => {
+            Object.assign(this.params, e.data);
+
+            this.arp1.setLength(this.params.length1);
+            this.arp1.setRange(this.params.range1);
+            this.arp1.setOctave(this.params.oct1);
+            this.lpg1.setFall(this.params.decay1);
+
+            this.arp2.setLength(this.params.length2);
+            this.arp2.setRange(this.params.range2);
+            this.arp2.setOctave(this.params.oct2);
+            this.lpg2.setFall(this.params.decay2);
+
+            this.freeverb.setSize(this.params.reverbSize);
+            this.freeverb.setDamping(this.params.reverbDamp);
+            this.freeverb.setWet(this.params.reverbMix);
+        };
+    }
+
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        const left = output[0];
+        const right = output[1];
+
+        if (!left) return true;
+
+        for (let i = 0; i < left.length; i++) {
+            // Arp 1 clock rate based on length
+            const clock1 = 1 / this.params.length1;
+            const arp1Out = this.arp1.process(clock1);
+
+            // Arp 2 clock rate
+            const clock2 = 1 / this.params.length2;
+            const arp2Out = this.arp2.process(clock2);
+
+            // LFO modulation
+            const lfo1TriOut = this.lfo1Tri.process(this.params.lfo1, this.sr);
+            const lfo1SineOut = this.lfo1Sine.process(this.params.lfo1 * 0.7, this.sr);
+            const lfo2TriOut = this.lfo2Tri.process(this.params.lfo2, this.sr);
+            const lfo2SineOut = this.lfo2Sine.process(this.params.lfo2 * 0.7, this.sr);
+
+            // Barrel modulation
+            const mod1 = lfo1TriOut * this.params.barrel1 + lfo1SineOut * (1 - this.params.barrel1);
+            const mod2 = lfo2TriOut * this.params.barrel2 + lfo2SineOut * (1 - this.params.barrel2);
+
+            // Trigger LPGs
+            if (arp1Out.triggered) this.lpg1.trigger();
+            if (arp2Out.triggered) this.lpg2.trigger();
+
+            // Oscillators with modulation
+            const freq1 = arp1Out.freq * (1 + mod1 * 0.1);
+            const freq2 = arp2Out.freq * (1 + mod2 * 0.1);
+
+            const osc1 = this.sineOsc.process(freq1, this.sr);
+            const osc2 = this.formantOsc.process(freq2, mod2);
+
+            // Through LPGs
+            let sig1 = this.lpg1.process(osc1);
+            let sig2 = this.lpg2.process(osc2) * this.params.osc2Vol;
+
+            // Tanh saturation
+            sig1 = Math.tanh(sig1 * this.params.saturation);
+            sig2 = Math.tanh(sig2 * this.params.saturation);
+
+            // Mix to stereo
+            let mixL = sig1 * 0.7 + sig2 * 0.3;
+            let mixR = sig1 * 0.3 + sig2 * 0.7;
+
+            // Filter delay
+            const delayedL = this.delayL.readLinear(this.delayTime);
+            const delayedR = this.delayR.readLinear(this.delayTime * 1.1);
+
+            this.delayL.write(mixL + delayedL * this.delayFeedback);
+            this.delayR.write(mixR + delayedR * this.delayFeedback);
+
+            mixL = mixL * 0.7 + delayedL * 0.3;
+            mixR = mixR * 0.7 + delayedR * 0.3;
+
+            // Freeverb
+            const [reverbL, reverbR] = this.freeverb.process(mixL, mixR);
+
+            // CPR compression with sidechain from arp2
+            const outL = this.cpr.process(reverbL, sig2);
+            const outR = this.cpr.process(reverbR, sig2);
+
+            // Output with volume
+            left[i] = outL * this.params.volume;
+            right[i] = outR * this.params.volume;
+        }
+
+        return true;
+    }
+}
+
+registerProcessor('processor-1975', Processor1975);
+`;
+
+        // Global variables
+        let audioContext = null;
+        let workletNode = null;
+        let pedalboardUI = null;
+        let pedalboardNode = null;
+        let analyser = null;
+        let isPlaying = false;
+        let infoPanel = null;
+
+        let stickyHeader = null;
+        let modMatrixUI = null;
+        let midiLearn = null;
+        let modMatrix = null;
+
+        // Wait for phonebook features to load (or timeout after 2 seconds)
+        const featuresLoaded = new Promise(resolve => {
+            if (typeof StickyHeader !== 'undefined') {
+                resolve(true);
+            } else {
+                window.addEventListener('phonebook-features-loaded', () => resolve(true), { once: true });
+                setTimeout(() => resolve(false), 2000);
+            }
+        });
+
+        async function initAudio() {
+            try {
+                // Wait for features to load first
+                await featuresLoaded;
+
+                audioContext = new AudioContext({ sampleRate: 48000 });
+
+                const blob = new Blob([processorCode], { type: 'text/javascript' });
+                const url = URL.createObjectURL(blob);
+                await audioContext.audioWorklet.addModule(url);
+                URL.revokeObjectURL(url);
+
+                workletNode = new AudioWorkletNode(audioContext, 'processor-1975', {
+                    numberOfInputs: 0,
+                    numberOfOutputs: 1,
+                    outputChannelCount: [2]
+                });
+
+                // Setup pedalboard
+                const container = document.getElementById('pedalboard-container');
+                pedalboardUI = new PedalboardUI(container, audioContext, {
+                    patchId: 'er-301-patches-autogen301-1975'
+                });
+                pedalboardNode = await pedalboardUI.init();
+
+                pedalboardUI.connect(workletNode);
+                pedalboardNode.connect(audioContext.destination);
+
+                // Initialize features if phonebook-features.js is loaded
+                const outputNode = pedalboardNode || workletNode;
+                if (typeof StickyHeader !== 'undefined') {
+                    stickyHeader = new StickyHeader({
+                        patchName: '1975-er-301-autogen301',
+                        patchId: 'er-301-patches-autogen301-1975'
+                    });
+                    await stickyHeader.init();
+                    await stickyHeader.initRecorder(audioContext, outputNode, audioContext.destination);
+                }
+
+                if (typeof getMidiLearn !== 'undefined') {
+                    midiLearn = await getMidiLearn('er-301-patches-autogen301-1975');
+                }
+
+                if (typeof getModulationMatrix !== 'undefined') {
+                    modMatrix = getModulationMatrix();
+                    modMatrixUI = new ModMatrixUI(
+                        document.querySelector('.patch-content') || document.body,
+                        { modMatrix: modMatrix }
+                    );
+                    modMatrixUI.init();
+                }
+
+                // Auto-register all sliders for MIDI Learn and Mod Matrix
+                if (typeof autoRegisterControls !== 'undefined') {
+                    await autoRegisterControls({
+                        patchId: 'er-301-patches-autogen301-1975',
+                        prefix: '1975',
+                        modMatrixUI: modMatrixUI
+                    });
+                }
+
+                // Analyzer
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+                pedalboardNode.connect(analyser);
+
+                // Initialize parameters
+                sendParams();
+
+                document.getElementById('status').textContent = 'Ready';
+
+            } catch (err) {
+                console.error('Audio init error:', err);
+                document.getElementById('status').textContent = 'Error: ' + err.message;
+            }
+        }
+
+        // Send all parameters
+        function sendParams() {
+            if (!workletNode) return;
+
+            const paramIds = ['length1', 'range1', 'oct1', 'decay1', 'barrel1', 'lfo1',
+                             'length2', 'range2', 'oct2', 'decay2', 'barrel2', 'lfo2',
+                             'osc2Vol', 'saturation', 'volume', 'reverbSize', 'reverbDamp', 'reverbMix'];
+
+            const params = {};
+            paramIds.forEach(id => {
+                const input = document.getElementById(id);
+                if (input) {
+                    params[id] = parseFloat(input.value);
+                }
+            });
+            workletNode.port.postMessage(params);
+        }
+
+        // Setup controls
+        function setupControls() {
+            const sliderParams = [
+                { id: 'length1', unit: '', decimals: 2 },
+                { id: 'range1', unit: '', decimals: 2 },
+                { id: 'oct1', unit: '', decimals: 0 },
+                { id: 'decay1', unit: '', decimals: 2 },
+                { id: 'barrel1', unit: '', decimals: 2 },
+                { id: 'lfo1', unit: ' Hz', decimals: 1 },
+                { id: 'length2', unit: '', decimals: 2 },
+                { id: 'range2', unit: '', decimals: 2 },
+                { id: 'oct2', unit: '', decimals: 0 },
+                { id: 'decay2', unit: '', decimals: 2 },
+                { id: 'barrel2', unit: '', decimals: 2 },
+                { id: 'lfo2', unit: ' Hz', decimals: 1 },
+                { id: 'osc2Vol', unit: '', decimals: 2 },
+                { id: 'saturation', unit: '', decimals: 2 },
+                { id: 'volume', unit: '', decimals: 2 },
+                { id: 'reverbSize', unit: '', decimals: 2 },
+                { id: 'reverbDamp', unit: '', decimals: 2 },
+                { id: 'reverbMix', unit: '', decimals: 2 }
+            ];
+
+            sliderParams.forEach(param => {
+                const input = document.getElementById(param.id);
+                const display = document.getElementById(param.id + 'Val');
+
+                if (input && display) {
+                    input.addEventListener('input', () => {
+                        const val = parseFloat(input.value);
+                        display.textContent = val.toFixed(param.decimals) + param.unit;
+                        sendParams();
+                    });
+                }
+            });
+        }
+
+        // Visualizer
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        let history = [];
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawVisualizer() {
+            if (!analyser) return;
+
+            const width = canvas.width / window.devicePixelRatio;
+            const height = canvas.height / window.devicePixelRatio;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteTimeDomainData(dataArray);
+
+            // Calculate RMS
+            let sum = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                const val = (dataArray[i] - 128) / 128;
+                sum += val * val;
+            }
+            const rms = Math.sqrt(sum / bufferLength);
+
+            history.push(rms);
+            if (history.length > width) history.shift();
+
+            ctx.fillStyle = '#0a0a0f';
+            ctx.fillRect(0, 0, width, height);
+
+            // Gradient for 1975 theme (70s vibe)
+            const gradient = ctx.createLinearGradient(0, height, 0, 0);
+            gradient.addColorStop(0, '#6a6aff');
+            gradient.addColorStop(0.5, '#ff6a6a');
+            gradient.addColorStop(1, '#ffaa6a');
+
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            for (let i = 0; i < history.length; i++) {
+                const x = i;
+                const y = height - (history[i] * height * 4);
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+
+            if (isPlaying) {
+                requestAnimationFrame(drawVisualizer);
+            }
+        }
+
+        // Play button
+        const playBtn = document.getElementById('playBtn');
+        playBtn.addEventListener('click', async () => {
+            if (!audioContext) {
+                await initAudio();
+            }
+
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            isPlaying = !isPlaying;
+            playBtn.textContent = isPlaying ? '⏸' : '▶';
+
+            if (isPlaying) {
+                if (modMatrix) modMatrix.start();
+                drawVisualizer();
+            } else {
+                if (modMatrix) modMatrix.stop();
+            }
+        });
+
+        // Info panel
+        document.addEventListener('DOMContentLoaded', () => {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            setupControls();
+
+            // Create info panel
+            infoPanel = new ER301InfoPanel(document.body, {
+                title: '1975',
+                author: 'mudlogger',
+                origin: 'ER-301 Autogen301',
+                description: 'A dual arpeggiator synthesizer evoking the electronic sounds of 1975. Features two parallel Infinity Arp chains - one with a sine oscillator, one with a formant oscillator - each through Strike LPG envelopes and tanh saturation. LFO modulation via aliasing triangle and sine oscillators controls timbre. EQ3, filter delay, Freeverb, and CPR compression with sidechain from Arp 2 complete the signal chain.',
+                controls: [
+                    { name: 'Length 1/2', range: '0.01-2', description: 'Note length/clock rate for each arpeggiator' },
+                    { name: 'Range 1/2', range: '0-3', description: 'Pitch range in octaves for arp note selection' },
+                    { name: 'Octave 1/2', range: '-2 to +2', description: 'Octave transposition for each chain' },
+                    { name: 'Decay 1/2', range: '0.01-1', description: 'Strike LPG fall time (envelope decay)' },
+                    { name: 'Barrel 1/2', range: '0-1', description: 'LFO modulation blend (Triangle vs Sine)' },
+                    { name: 'LFO 1/2', range: '0.1-10 Hz', description: 'LFO rate for modulation' },
+                    { name: 'Osc 2 Vol', range: '0-1', description: 'Formant oscillator level' },
+                    { name: 'Saturation', range: '1-8', description: 'Tanh distortion amount' },
+                    { name: 'Reverb Size/Damp/Mix', range: '0-1', description: 'Freeverb room size, damping, and wet mix' }
+                ],
+                tips: [
+                    'Set different lengths for polyrhythmic patterns',
+                    'Use higher barrel values for more aggressive modulation',
+                    'Increase saturation for vintage distorted tones',
+                    'Adjust decay for plucky vs sustained notes',
+                    'The formant oscillator (Arp 2) adds vocal character'
+                ]
+            });
+        });
+    </script>
+</body>
+</html>
