@@ -1,0 +1,121 @@
+-- local function round(num, num_decimal_places)
+--     local mult = 10^(num_decimal_places or 0)
+--     return math.floor(num * mult + 0.5) / mult
+-- end
+
+local function trim(s, max_length)
+    if #s > max_length then
+        return string.sub(s, 1, max_length)
+    else
+        return s
+    end
+end
+
+-- Converts a list (array) into a set (table with keys)
+local function list_to_set(list)
+    local set = {}
+    for _, value in ipairs(list) do
+        set[value] = true
+    end
+    return set
+end
+
+-- Utility function to check if a number exists in the set
+local function set_contains(set, number)
+    return set[number] == true
+end
+
+-- Convert exponential range [slo, shi] to linear range [dlo, dhi]
+local function explin(slo, shi, dlo, dhi, f, exp)
+    exp = exp or 1 -- exponentiality factor (1 = plain log scaling)
+
+    -- sanity checks
+    if slo == 0 or shi == 0 or (slo * shi < 0) then
+        error("slo and shi must be non-zero and of the same sign")
+    end
+
+    -- normalize input exponentially
+    local t = (math.log(math.abs(f)) - math.log(math.abs(slo))) /
+        (math.log(math.abs(shi)) - math.log(math.abs(slo)))
+
+    -- apply exponentiality factor
+    t = t ^ exp
+
+    -- scale to linear destination
+    return dlo + (dhi - dlo) * t
+end
+
+-- Convert linear range [slo, shi] to exponential range [dlo, dhi]
+local function linexp(slo, shi, dlo, dhi, f, exp)
+    exp = exp or 1 -- exponentiality factor (1 = plain log scaling)
+
+    -- sanity checks
+    if dlo == 0 or dhi == 0 or (dlo * dhi < 0) then
+        error("dlo and dhi must be non-zero and of the same sign")
+    end
+
+    -- normalize input linearly
+    local t = (f - slo) / (shi - slo)
+
+    -- apply exponentiality factor (inverse of explin's power)
+    t = t ^ (1 / exp)
+
+    -- scale to exponential destination
+    return math.exp(
+        math.log(math.abs(dlo)) +
+        (math.log(math.abs(dhi)) - math.log(math.abs(dlo))) * t
+    )
+end
+
+local function cycle_param(param_id, tbl, delta, wrap)
+    -- for a table-based param, set the param to the next index (+1) or 
+    -- a specified delta
+    if delta == nil then delta = 1 end
+    if wrap == nil then wrap = true end
+    local v = params:get(param_id)
+    local new
+
+    if wrap then
+        new = util.wrap(v + delta, 1, #tbl)
+    else
+        new = util.clamp(v + delta, 1, #tbl)
+    end
+
+    params:set(param_id, new)
+end
+
+local function toggle_param(param_id)
+    local v = params:get(param_id)
+    local new = 1 - v
+    params:set(param_id, new)
+end
+
+
+local function adjust_param(d, param_id, quantum)
+    local incr = d * quantum
+    local curr = params:get_raw(param_id)
+    local new = curr + incr
+    params:set_raw(param_id, new)
+end
+
+
+local function table_contains(tbl, value)
+    for _, v in ipairs(tbl) do
+        if v == value then
+            return true
+        end
+    end
+    return false
+end
+
+return {
+    linexp = linexp,
+    explin = explin,
+    trim = trim,
+    list_to_set = list_to_set,
+    set_contains = set_contains,
+    table_contains = table_contains,
+    cycle_param = cycle_param,
+    adjust_param = adjust_param,
+    toggle_param = toggle_param,
+}

@@ -1,0 +1,17 @@
+{
+    "Lua.diagnostics.globals": [
+        "include",
+        "softcut",
+        "metro",
+        "norns",
+        "params",
+        "_path",
+        "screen",
+        "util",
+        "_norns",
+        "engine"
+    ],
+    "Lua.diagnostics.disable": [
+        "lowercase-global"
+    ]
+}

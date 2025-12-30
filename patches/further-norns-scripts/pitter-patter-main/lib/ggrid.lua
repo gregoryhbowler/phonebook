@@ -1,0 +1,246 @@
+-- local pattern_time = require("pattern")
+local GGrid = {}
+
+local function gcd(a, b)
+  while b ~= 0 do a, b = b, a % b end
+  return a
+end
+
+local function get_line_coordinates(x1, y1, x2, y2)
+
+  local coordinates = {}
+
+  -- Determine if we need to swap points
+  if x1 > x2 then
+    x1, x2 = x2, x1
+    y1, y2 = y2, y1
+  end
+
+  if y1 == y2 then
+    for x = x1, x2 do table.insert(coordinates, {x, y1}) end
+    return coordinates
+  end
+
+  -- Calculate slope
+  local dx = x2 - x1
+  local dy = y2 - y1
+  local divisor = gcd(math.abs(dx), math.abs(dy))
+
+  -- Reduce dx and dy
+  dx = dx / divisor
+  dy = dy / divisor
+
+  -- Generate points for every whole number x
+  local x, y = x1, y1
+  while x <= x2 do
+    table.insert(coordinates, {x, math.floor(y + 0.5)}) -- Round y to nearest integer
+    x = x + 1
+    y = y + dy / math.abs(dx)
+  end
+
+  return coordinates
+end
+
+function GGrid:new(args)
+  local m = setmetatable({}, {__index=GGrid})
+  local args = args == nil and {} or args
+
+  m.grid_on = args.grid_on == nil and true or args.grid_on
+
+  -- initiate the grid
+  local midigrid = util.file_exists(_path.code .. "midigrid")
+  local grid = midigrid and include "midigrid/lib/mg_128" or grid
+  m.g = grid.connect()
+  m.g.key = function(x, y, z)
+    if m.grid_on then m:grid_key(x, y, z) end
+  end
+  print("grid columns: " .. m.g.cols)
+
+  m.width = m.g.cols
+  m.height = m.g.rows
+  if m.width == nil or m.width == 0 then m.width = 16 end
+  if m.height == nil or m.height == 0 then m.height = 8 end
+  m.scroll_y = 0
+
+  -- setup visual
+  m.beat = 0
+  m.visual = {}
+  m.grid_width = m.width
+  for i = 1, m.height do
+    m.visual[i] = {}
+    for j = 1, m.width do m.visual[i][j] = 0 end
+  end
+
+  -- keep track of pressed buttons
+  m.pressed_buttons = {}
+
+  -- grid refreshing
+  m.grid_refresh = metro.init()
+  m.grid_refresh.time = midigrid and 0.12 or 0.03
+  m.grid_refresh.event = function()
+    m:grid_redraw()
+  end
+  m.grid_refresh:start()
+
+  return m
+end
+
+function GGrid:grid_key(x, y, z)
+  self:key_press(y, x, z == 1)
+  self:grid_redraw()
+end
+
+function GGrid:key_press(row, col, on)
+  local flipped_row = self.height - row
+  local ct = clock.get_beats() * clock.get_beat_sec()
+  local time_on = 0
+  if on then
+    self.pressed_buttons[row .. "," .. col] = ct
+  else
+    time_on = ct - self.pressed_buttons[row .. "," .. col]
+    self.pressed_buttons[row .. "," .. col] = nil
+  end
+  if self.sequencer.state == 1 then
+    -- sequence sequencers
+    if on and row < self.height then
+      self.sequencer.matrix_sequence_m[col] = self.sequencer.matrix_sequence_m[col] == row and 0 or row
+    elseif on and row == self.height and col < self.width then
+      self.sequencer:set_param("sequence", col)
+    elseif not on and row == self.height and col == self.width then
+      self.sequencer.state = 1 - self.sequencer.state
+    end
+  else
+    if on and row == self.height and col < self.width - 1 then
+      -- toggle sequence from keyboard
+      self.sequencer:toggle_note(col)
+    elseif on and row < self.height then
+      -- check if other buttons are pressed
+      local row_other = nil
+      local col_other = nil
+      for k, _ in pairs(self.pressed_buttons) do
+        local r, c = k:match("(%d+),(%d+)")
+        r, c = tonumber(r), tonumber(c)
+        if not (r == row and c == col) and r < self.height then
+          row_other = r
+          col_other = c
+          break
+        end
+      end
+      if row_other ~= nil and col_other ~= nil then
+        local flipped_row_other = self.height - row_other
+        -- toggle range 
+        -- toggle each position between flipped_row_other,col_other and flipped_row,col
+        for i, coord in ipairs(get_line_coordinates(col_other, flipped_row_other, col, flipped_row)) do
+          print(i, coord[1], coord[2])
+          if i > 1 then
+            local x, y = coord[1], coord[2]
+            print(x, y)
+            local step_index = (x) + math.floor((self.sequencer.step - 1) / 16) * 16
+            self.sequencer:toggle_pos(step_index, y) -- Use flipped_row
+          end
+        end
+      else
+        -- toggle specific position
+        print(flipped_row, col)
+        local step_index = (col) + math.floor((self.sequencer.step - 1) / 16) * 16
+        self.sequencer:toggle_pos(step_index, flipped_row) -- Use flipped_row
+      end
+    elseif not on and row == self.height and col == self.width and time_on < 0.25 then
+      self.sequencer.state = 1 - self.sequencer.state
+      --   self.sequencer.note_offset = math.floor((self.sequencer.note_offset + 7) / 7) * 7
+    end
+  end
+end
+
+function GGrid:get_visual()
+  -- clear visual
+  for row = 1, self.height do for col = 1, self.width do self.visual[row][col] = 0 end end
+
+  -- illuminate currently pressed button
+  for k, v in pairs(self.pressed_buttons) do
+    local row, col = k:match("(%d+),(%d+)")
+    row = tonumber(row)
+    col = tonumber(col)
+    if row == self.height and col == self.width and v ~= 1234 and self.sequencer ~= nil and self.sequencer.state == 0 then
+      local ct = clock.get_beats() * clock.get_beat_sec()
+      if ct - v > 0.75 then
+        print("time on: ", ct - v)
+        self.pressed_buttons[k] = ct - 0.25
+        self.sequencer.note_offset = math.floor((self.sequencer.note_offset + 7) / 7) * 7
+      end
+    end
+    self.visual[tonumber(row)][tonumber(col)] = 15
+  end
+
+  -- illuminate sequence
+  if self.sequencer ~= nil then
+    -- show sequencer 
+    if self.sequencer.state == 0 then
+      -- figure out which of the 'width' steps to show based on 
+      -- self.sequencer.step and self.width 
+      local step_offset = math.floor((self.sequencer.step - 1) / self.width) * self.width
+      for i = 1, self.width do
+        for j = 1, self.height - 1 do
+          local note_index = self.sequencer:get_note_index(self.height - j)
+          if self.sequencer.matrix[i + step_offset][note_index] > 0 then
+            self.visual[j][i] = 12 - (self.sequencer.scale_full[note_index] % 12) + 2
+          end
+        end
+      end
+
+      -- show current step
+      for i = 1, self.height - 1 do
+        local v = self.visual[i][(self.sequencer.step - 1) % self.width + 1]
+        local note_index = self.sequencer:get_note_index(1)
+        v = v + util.round(util.linlin(0, self.sequencer.note_max, 2, 15, note_index))
+        if v > 15 then v = 15 end
+        self.visual[i][(self.sequencer.step - 1) % self.width + 1] = v
+      end
+
+      -- show limit
+      local limit = self.sequencer:get_param("limit")
+      limit = limit > self.width and self.width or limit
+      for i = 1, self.height - 1 do
+        for j = 1, limit do if self.visual[i][j] == 0 then self.visual[i][j] = 1 end end
+      end
+
+      -- show keyboard
+      for col = 1, self.width - 1 do
+        local note_index = self.sequencer:get_note_index(col)
+        self.visual[self.height][col] = 12 - (self.sequencer.scale_full[note_index] % 12) + 2
+      end
+
+    else
+      -- show all the steps
+      for i = 1, self.width do
+        local v = self.sequencer.matrix_sequence_m[i]
+        if v > 0 and v < self.height then self.visual[v][i] = self.sequencer.matrix_sequence_cur == i and 10 or 5 end
+      end
+      for i = 1, self.height - 1 do
+        local v = self.visual[i][self.sequencer.matrix_sequence_ind]
+        v = v + 2
+        if v > 15 then v = 15 end
+        self.visual[i][self.sequencer.matrix_sequence_ind] = v
+
+      end
+      -- sohw the current sequencer
+      self.visual[self.height][self.sequencer:get_param("sequence")] = 15
+    end
+  end
+  return self.visual
+end
+
+function GGrid:grid_redraw()
+  local gd = self:get_visual()
+  if not self.grid_on then return end
+  self.g:all(0)
+  local s = 1
+  local e = self.grid_width
+  local adj = 0
+  for row = 1, self.height do
+    for col = s, e do if gd[row][col] ~= 0 then self.g:led(col + adj, row, gd[row][col]) end end
+  end
+  self.g:refresh()
+end
+
+return GGrid
