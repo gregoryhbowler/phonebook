@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SuperCollider to Web Audio</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SuperCollider to Web Audio</h1>
+            <p class="subtitle">Experimental audio patches translated to AudioWorklet</p>
+        </header>
+
+        <main>
+            <section class="patch-grid">
+                <h2>June 2023</h2>
+                <div class="patches">
+                    <a href="patches/patch-01-rlpf-pulse.html" class="patch-card">
+                        <span class="patch-number">01</span>
+                        <span class="patch-title">RLPF Pulse Rhythms</span>
+                        <span class="patch-desc">Resonant lowpass filtered pulses with LFNoise rhythmic patterns</span>
+                    </a>
+                    <a href="patches/patch-02-pluck-splay.html" class="patch-card">
+                        <span class="patch-number">02</span>
+                        <span class="patch-title">Pluck Splay</span>
+                        <span class="patch-desc">Karplus-Strong synthesis with bandpass filtered product sequences</span>
+                    </a>
+                    <a href="patches/patch-03-allpass-comb.html" class="patch-card">
+                        <span class="patch-number">03</span>
+                        <span class="patch-title">AllPass Comb Reverb</span>
+                        <span class="patch-desc">Saw waves through cascaded allpass and comb delay networks</span>
+                    </a>
+                    <a href="patches/patch-04-duty-clicks.html" class="patch-card">
+                        <span class="patch-number">04</span>
+                        <span class="patch-title">Duty Clicks</span>
+                        <span class="patch-desc">Nested duty cycles creating complex rhythmic click patterns</span>
+                    </a>
+                    <a href="patches/patch-05-melodic-sequence.html" class="patch-card">
+                        <span class="patch-number">05</span>
+                        <span class="patch-title">Melodic Sequence</span>
+                        <span class="patch-desc">Pbind-style note patterns with stuttered repetition</span>
+                    </a>
+                    <a href="patches/patch-06-tuple-patterns.html" class="patch-card">
+                        <span class="patch-number">06</span>
+                        <span class="patch-title">Tuple Patterns</span>
+                        <span class="patch-desc">Saw and triangle waves with allTuples-derived sequences</span>
+                    </a>
+                    <a href="patches/patch-07-pink-noise-bands.html" class="patch-card">
+                        <span class="patch-number">07</span>
+                        <span class="patch-title">Pink Noise Bands</span>
+                        <span class="patch-desc">Splayed bandpass-filtered pink noise with LFNoise2 modulation</span>
+                    </a>
+                    <a href="patches/patch-08-feedback-dust.html" class="patch-card">
+                        <span class="patch-number">08</span>
+                        <span class="patch-title">Feedback Dust</span>
+                        <span class="patch-desc">Ndef feedback delay network with dust triggers</span>
+                    </a>
+                </div>
+
+                <h2>April 2023</h2>
+                <div class="patches">
+                    <a href="patches/patch-09-ringz-clusters.html" class="patch-card">
+                        <span class="patch-number">09</span>
+                        <span class="patch-title">Ringz Clusters</span>
+                        <span class="patch-desc">Resonator banks with pulse excitation at rounded frequencies</span>
+                    </a>
+                    <a href="patches/patch-10-saw-lpf-pattern.html" class="patch-card">
+                        <span class="patch-number">10</span>
+                        <span class="patch-title">Saw LPF Pattern</span>
+                        <span class="patch-desc">Filtered saw wave with Pbind-style frequency sequencing</span>
+                    </a>
+                    <a href="patches/patch-11-freqshift-rotate.html" class="patch-card">
+                        <span class="patch-number">11</span>
+                        <span class="patch-title">FreqShift Rotate</span>
+                        <span class="patch-desc">Frequency shifting with rotation feedback and dust</span>
+                    </a>
+                    <a href="patches/patch-12-pluck-cusp.html" class="patch-card">
+                        <span class="patch-number">12</span>
+                        <span class="patch-title">Pluck Cusp</span>
+                        <span class="patch-desc">Karplus-Strong with CuspL chaotic map excitation</span>
+                    </a>
+                </div>
+
+                <h2>December 2022</h2>
+                <div class="patches">
+                    <a href="patches/patch-13-lpf-delay-feedback.html" class="patch-card">
+                        <span class="patch-number">13</span>
+                        <span class="patch-title">LPF Delay Feedback</span>
+                        <span class="patch-desc">Lowpass filtered delay feedback with dust and triggers</span>
+                    </a>
+                    <a href="patches/patch-14-pitch-tracking.html" class="patch-card">
+                        <span class="patch-number">14</span>
+                        <span class="patch-title">Pitch Tracking</span>
+                        <span class="patch-desc">Tartini-style pitch tracking controlling delay time</span>
+                    </a>
+                    <a href="patches/patch-15-bpf-latch.html" class="patch-card">
+                        <span class="patch-number">15</span>
+                        <span class="patch-title">BPF Latch</span>
+                        <span class="patch-desc">Bandpass filter with latched frequency from feedback</span>
+                    </a>
+                    <a href="patches/patch-16-resonz-splay.html" class="patch-card">
+                        <span class="patch-number">16</span>
+                        <span class="patch-title">Resonz Splay</span>
+                        <span class="patch-desc">Multi-channel resonators with stereo spread</span>
+                    </a>
+                    <a href="patches/patch-17-allpass-chain.html" class="patch-card">
+                        <span class="patch-number">17</span>
+                        <span class="patch-title">AllPass Chain</span>
+                        <span class="patch-desc">20x cascaded allpass with random gain and tanh saturation</span>
+                    </a>
+                    <a href="patches/patch-18-rlpfd-lftri.html" class="patch-card">
+                        <span class="patch-number">18</span>
+                        <span class="patch-title">RLPFD LFTri</span>
+                        <span class="patch-desc">Resonant lowpass with feedback and triangle modulation</span>
+                    </a>
+                    <a href="patches/patch-19-gverb-nested.html" class="patch-card">
+                        <span class="patch-number">19</span>
+                        <span class="patch-title">GVerb Nested</span>
+                        <span class="patch-desc">Nested GVerb feedback with exponential fade</span>
+                    </a>
+                </div>
+
+                <h2>Hordijk Instruments</h2>
+                <div class="patches">
+                    <a href="patches/benjolis-01.html" class="patch-card">
+                        <span class="patch-number">H1</span>
+                        <span class="patch-title">Benjolis</span>
+                        <span class="patch-desc">Chaotic dual oscillator with rungler shift register modulation</span>
+                    </a>
+                    <a href="patches/blippoo-01.html" class="patch-card">
+                        <span class="patch-number">H2</span>
+                        <span class="patch-title">Blippoo</span>
+                        <span class="patch-desc">Twin Peaks dual filter with cross-modulated oscillators and rungler</span>
+                    </a>
+                </div>
+
+                <h2>Drones</h2>
+                <div class="patches">
+                    <a href="patches/dronecaster-01.html" class="patch-card">
+                        <span class="patch-number">D1</span>
+                        <span class="patch-title">Dronecaster</span>
+                        <span class="patch-desc">Multi-engine drone synthesizer with 20 switchable synthesis modes</span>
+                    </a>
+                    <a href="patches/grendy-01.html" class="patch-card">
+                        <span class="patch-number">D2</span>
+                        <span class="patch-title">Grendy</span>
+                        <span class="patch-desc">Grendel Drone Commander inspired dual-oscillator synth with Moog filter</span>
+                    </a>
+                    <a href="patches/fall-01.html" class="patch-card">
+                        <span class="patch-number">D3</span>
+                        <span class="patch-title">Fall</span>
+                        <span class="patch-desc">Generative sequencer - falling leaves trigger notes through Moog filter</span>
+                    </a>
+                    <a href="patches/haven-01.html" class="patch-card">
+                        <span class="patch-number">D4</span>
+                        <span class="patch-title">Haven</span>
+                        <span class="patch-desc">Dual oscillators with feedback loop and ladder filter - influence over control</span>
+                    </a>
+                    <a href="patches/host-01.html" class="patch-card">
+                        <span class="patch-number">D5</span>
+                        <span class="patch-title">Høst</span>
+                        <span class="patch-desc">Autumn harvest synth - drone layer, polyphonic voices, SVF peaks and delay</span>
+                    </a>
+                    <a href="patches/icarus-01.html" class="patch-card">
+                        <span class="patch-number">D6</span>
+                        <span class="patch-title">Icarus</span>
+                        <span class="patch-desc">Super saw synth with super feedback - Korg Monotron Delay inspired</span>
+                    </a>
+                    <a href="patches/lamination-01.html" class="patch-card">
+                        <span class="patch-number">D7</span>
+                        <span class="patch-title">Lamination</span>
+                        <span class="patch-desc">Formant percussion synthesis with waveshaping and Moog filter</span>
+                    </a>
+                    <a href="patches/m18s-01.html" class="patch-card">
+                        <span class="patch-number">D8</span>
+                        <span class="patch-title">m18s</span>
+                        <span class="patch-desc">Two-voice step sequencer with PolySub and Lamination engines</span>
+                    </a>
+                    <a href="patches/molly-01.html" class="patch-card">
+                        <span class="patch-number">D9</span>
+                        <span class="patch-title">Molly the Poly</span>
+                        <span class="patch-desc">Classic polysynth with Juno-6 voice, Jupiter-8 modulation, CS-80 ring mod</span>
+                    </a>
+                    <a href="patches/meadowphysics-01.html" class="patch-card">
+                        <span class="patch-number">D10</span>
+                        <span class="patch-title">Meadowphysics</span>
+                        <span class="patch-desc">Grid-enabled rhizomatic cascading counter with rule-based polyrhythmic sequencing</span>
+                    </a>
+                    <a href="patches/moln-01.html" class="patch-card">
+                        <span class="patch-number">D11</span>
+                        <span class="patch-title">Moln</span>
+                        <span class="patch-desc">Polyphonic subtractive synth with dual pulse oscillators and PWM</span>
+                    </a>
+                    <a href="patches/mxsynths-01.html" class="patch-card">
+                        <span class="patch-number">D12</span>
+                        <span class="patch-title">mx.synths</span>
+                        <span class="patch-desc">Multi-engine synthesizer with 10 switchable synthesis modes</span>
+                    </a>
+                    <a href="patches/liedmotor-01.html" class="patch-card">
+                        <span class="patch-number">D13</span>
+                        <span class="patch-title">LiedMotor</span>
+                        <span class="patch-desc">Six-voice synthesis engine - FM, Karplus-Strong, Ringz, Resonz</span>
+                    </a>
+                    <a href="patches/passersby-01.html" class="patch-card">
+                        <span class="patch-number">D14</span>
+                        <span class="patch-title">Passersby</span>
+                        <span class="patch-desc">West Coast mono synth with wave folding, FM, LPG and spring reverb</span>
+                    </a>
+                    <a href="patches/xd1-01.html" class="patch-card">
+                        <span class="patch-number">D15</span>
+                        <span class="patch-title">xD1</span>
+                        <span class="patch-desc">DX7-inspired FM polysynth with 6 operators, 32 algorithms and filters</span>
+                    </a>
+                </div>
+
+                <h2>ER-301 Hyperscale</h2>
+                <p class="section-desc">Stereo sample-based units ported from the ER-301 Sound Computer. Original patches by mudlogger.</p>
+                <div class="patches">
+                    <a href="patches/er-301-patches/hyperscale/bend.html" class="patch-card">
+                        <span class="patch-number">E1</span>
+                        <span class="patch-title">Bend</span>
+                        <span class="patch-desc">Sample-based percussion with doppler delay and Dattorro reverb (72 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/bento-box.html" class="patch-card">
+                        <span class="patch-number">E2</span>
+                        <span class="patch-title">Bento Box</span>
+                        <span class="patch-desc">Circuit-bent MPC samples with LFO modulation and reverb (64 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/big.html" class="patch-card">
+                        <span class="patch-number">E3</span>
+                        <span class="patch-title">Big</span>
+                        <span class="patch-desc">Generative FM synth with scale quantizer, fold and FDN reverb</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/bongo-phase.html" class="patch-card">
+                        <span class="patch-number">E4</span>
+                        <span class="patch-title">Bongo Phase</span>
+                        <span class="patch-desc">6-voice polyrhythmic conga sampler with grain delay (48 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/bongo-rom.html" class="patch-card">
+                        <span class="patch-number">E5</span>
+                        <span class="patch-title">Bongo ROM</span>
+                        <span class="patch-desc">6-voice ROM sampler with external triggers (47 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/bottles.html" class="patch-card">
+                        <span class="patch-number">E6</span>
+                        <span class="patch-title">Bottles</span>
+                        <span class="patch-desc">Euclidean sequencer with clocked delay and Dattorro reverb (54 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/chance.html" class="patch-card">
+                        <span class="patch-number">E7</span>
+                        <span class="patch-title">Chance</span>
+                        <span class="patch-desc">Probabilistic sampler with 3 kits, ring mod and delays (57 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/coastal.html" class="patch-card">
+                        <span class="patch-number">E8</span>
+                        <span class="patch-title">Coastal</span>
+                        <span class="patch-desc">Granular sampler with LPG, feedback looper, and Dattorro reverb (119 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/dialled-in.html" class="patch-card">
+                        <span class="patch-number">E9</span>
+                        <span class="patch-title">Dialled In</span>
+                        <span class="patch-desc">Generative FM synth with wave folding and dual Doppler delays</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/dorian.html" class="patch-card">
+                        <span class="patch-number">E10</span>
+                        <span class="patch-title">Dorian</span>
+                        <span class="patch-desc">Dual-voice FM synth in Dorian mode with Freeverb</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/edev.html" class="patch-card">
+                        <span class="patch-number">E11</span>
+                        <span class="patch-title">edev</span>
+                        <span class="patch-desc">4-voice Euclidean sampler with Richard Devine Kit (71 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/edigi.html" class="patch-card">
+                        <span class="patch-number">E12</span>
+                        <span class="patch-title">edigi</span>
+                        <span class="patch-desc">4-voice Euclidean sampler with Wave Alchemy Driven Digital Kit and Freeverb</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/emono.html" class="patch-card">
+                        <span class="patch-number">E13</span>
+                        <span class="patch-title">emono</span>
+                        <span class="patch-desc">4-voice Euclidean sampler with Monolith 2 Kit and spread delay (37 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/endless-bongo.html" class="patch-card">
+                        <span class="patch-number">E14</span>
+                        <span class="patch-title">Endless Bongo</span>
+                        <span class="patch-desc">6-voice generative conga with independent clocks and Freeverb (47 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/endless-marimba.html" class="patch-card">
+                        <span class="patch-number">E15</span>
+                        <span class="patch-title">Endless Marimba</span>
+                        <span class="patch-desc">6-voice generative marimba with independent clocks and Freeverb (3 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/ezil.html" class="patch-card">
+                        <span class="patch-number">E16</span>
+                        <span class="patch-title">Ezil</span>
+                        <span class="patch-desc">West Coast dual oscillator synth with LPG and Doppler delay</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/ezil-rev-2.html" class="patch-card">
+                        <span class="patch-number">E17</span>
+                        <span class="patch-title">Ezil Rev 2</span>
+                        <span class="patch-desc">West Coast dual osc with simplified stereo Doppler delay</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/fragments.html" class="patch-card">
+                        <span class="patch-number">E18</span>
+                        <span class="patch-title">Fragments</span>
+                        <span class="patch-desc">Granular sample player with LFO, delay, Dattorro reverb (98 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/gaston.html" class="patch-card">
+                        <span class="patch-number">E19</span>
+                        <span class="patch-title">Gaston</span>
+                        <span class="patch-desc">Generative FM synth with probability gates, filtered delay, CPR</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/gran.html" class="patch-card">
+                        <span class="patch-number">E20</span>
+                        <span class="patch-title">Gran</span>
+                        <span class="patch-desc">Evolving granular textures with random modulation, delay, Freeverb</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/gritch25.html" class="patch-card">
+                        <span class="patch-number">E21</span>
+                        <span class="patch-title">Gritch25</span>
+                        <span class="patch-desc">Euclidean glitch sampler with FDN reverb, Doppler delay (29 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/grove.html" class="patch-card">
+                        <span class="patch-number">E22</span>
+                        <span class="patch-title">Grove</span>
+                        <span class="patch-desc">West Coast dual formant oscillator with LPG, mod env, filter, delay</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/grove-rev-2.html" class="patch-card">
+                        <span class="patch-number">E23</span>
+                        <span class="patch-title">Grove Rev 2</span>
+                        <span class="patch-desc">Enhanced formant synth with sync, octave controls, stereo delay, auto-trigger</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/hamming.html" class="patch-card">
+                        <span class="patch-number">E24</span>
+                        <span class="patch-title">Hamming</span>
+                        <span class="patch-desc">Grain stretch sampler with grain delay, clocked delay, Freeverb (54 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/hyper-scale.html" class="patch-card">
+                        <span class="patch-number">E25</span>
+                        <span class="patch-title">Hyper Scale</span>
+                        <span class="patch-desc">Flagship generative drum machine with dual gates, pitch random (243 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/hyper301.html" class="patch-card">
+                        <span class="patch-number">E26</span>
+                        <span class="patch-title">Hyper301</span>
+                        <span class="patch-desc">Extended hyperscale with Drills Kit and velvet noise (54 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/jitter.html" class="patch-card">
+                        <span class="patch-number">E27</span>
+                        <span class="patch-title">Jitter</span>
+                        <span class="patch-desc">Dual LFO grain stretch with modulated delays and Dattorro reverb (24 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/kalimba-hell.html" class="patch-card">
+                        <span class="patch-number">E28</span>
+                        <span class="patch-title">Kalimba Hell</span>
+                        <span class="patch-desc">Generative kalimba with scale quantizer, tuned filter delay, Freeverb (12 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/krystal-kastles.html" class="patch-card">
+                        <span class="patch-number">E29</span>
+                        <span class="patch-title">Krystal Kastles</span>
+                        <span class="patch-desc">3-voice crystalline looper with stutter, grains, Andromeda shimmer (1 sample)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/luthier.html" class="patch-card">
+                        <span class="patch-number">E30</span>
+                        <span class="patch-title">Luthier</span>
+                        <span class="patch-desc">String percussion with dual clocked gates, velvet noise, tap tempo (61 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/lutq.html" class="patch-card">
+                        <span class="patch-number">E31</span>
+                        <span class="patch-title">Lutq</span>
+                        <span class="patch-desc">Extended luthier with FM, bit crush, freeze looper, tap tempo (61 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/manq.html" class="patch-card">
+                        <span class="patch-number">E32</span>
+                        <span class="patch-title">Manq</span>
+                        <span class="patch-desc">Abstrakt Konkrete Macro kit with FM, bit crush, freeze looper (91 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/mantis.html" class="patch-card">
+                        <span class="patch-number">E33</span>
+                        <span class="patch-title">Mantis</span>
+                        <span class="patch-desc">S&B Kit with LFO modulation, Doppler delay, Dattorro reverb (72 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/marimba-rom.html" class="patch-card">
+                        <span class="patch-number">E34</span>
+                        <span class="patch-title">Marimba ROM</span>
+                        <span class="patch-desc">6-voice marimba ROM sampler with MIDI, external triggers, Freeverb (3 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/mesh.html" class="patch-card">
+                        <span class="patch-number">E35</span>
+                        <span class="patch-title">Mesh</span>
+                        <span class="patch-desc">Nannou Kit with velvet noise, complex clock div/mul, clocked delay (54 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/metab.html" class="patch-card">
+                        <span class="patch-number">E36</span>
+                        <span class="patch-title">Metab</span>
+                        <span class="patch-desc">Meta kit with FM modulation, bit crush, freeze looper, grain delay (118 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/monolith.html" class="patch-card">
+                        <span class="patch-number">E37</span>
+                        <span class="patch-title">Monolith</span>
+                        <span class="patch-desc">4-voice Euclidean rhythm generator with Doppler delay (51 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/ninja.html" class="patch-card">
+                        <span class="patch-number">E38</span>
+                        <span class="patch-title">Ninja</span>
+                        <span class="patch-desc">MIDI drum machine with clocked stretch, random gate, delay (54 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/noise-merchant.html" class="patch-card">
+                        <span class="patch-number">E39</span>
+                        <span class="patch-title">Noise Merchant</span>
+                        <span class="patch-desc">Dual formant oscillators with SVF filter and feedback modulation</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/ota.html" class="patch-card">
+                        <span class="patch-number">E40</span>
+                        <span class="patch-title">OTA</span>
+                        <span class="patch-desc">Dual osc synth with ring mod, filter, spread delay, reverb</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/ota-rev-2.html" class="patch-card">
+                        <span class="patch-number">E41</span>
+                        <span class="patch-title">OTA Rev 2</span>
+                        <span class="patch-desc">Autogen synth with LPG, scale quantizer, clocked triggers</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/ota-rev-3.html" class="patch-card">
+                        <span class="patch-number">E42</span>
+                        <span class="patch-title">OTA Rev 3</span>
+                        <span class="patch-desc">Aliasing Saw + Pulse synth with Sieve SVF filter, LPG</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/ota-rev-4.html" class="patch-card">
+                        <span class="patch-number">E43</span>
+                        <span class="patch-title">OTA Rev 4</span>
+                        <span class="patch-desc">Full synth with clocked delay, cycling mod envelope, expanded noise</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/piano-esque.html" class="patch-card">
+                        <span class="patch-number">E44</span>
+                        <span class="patch-title">Piano Esque</span>
+                        <span class="patch-desc">Multi-sample Kawai piano with grain stretch, feedback looper (42 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/plaidium.html" class="patch-card">
+                        <span class="patch-number">E45</span>
+                        <span class="patch-title">Plaidium</span>
+                        <span class="patch-desc">Plaid-inspired drum granulator with random gate sequencing (46 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/pole.html" class="patch-card">
+                        <span class="patch-number">E46</span>
+                        <span class="patch-title">Pole</span>
+                        <span class="patch-desc">Minimal techno drum machine with bitcrusher, FM & freeze (131 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/puls.html" class="patch-card">
+                        <span class="patch-number">E47</span>
+                        <span class="patch-title">Puls</span>
+                        <span class="patch-desc">Generative pulse synth with random gate, HP filter & Dattorro reverb</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/rr25.html" class="patch-card">
+                        <span class="patch-number">E48</span>
+                        <span class="patch-title">R+R25</span>
+                        <span class="patch-desc">Blippoo Box-inspired chaotic generative synthesizer</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/rescale.html" class="patch-card">
+                        <span class="patch-number">E49</span>
+                        <span class="patch-title">Rescale</span>
+                        <span class="patch-desc">Granular sample explorer with probability clocks & clocked delay (61 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/ria.html" class="patch-card">
+                        <span class="patch-number">E50</span>
+                        <span class="patch-title">Ria</span>
+                        <span class="patch-desc">RIAA drum machine with FM, freeze looper, EQ & Dattorro reverb (61 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/ringing-rocks.html" class="patch-card">
+                        <span class="patch-number">E51</span>
+                        <span class="patch-title">Ringing Rocks</span>
+                        <span class="patch-desc">Resonant sample explorer with Tuned Filter Delay, Feedback Looper & Freeverb</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/slaughter-house.html" class="patch-card">
+                        <span class="patch-number">E52</span>
+                        <span class="patch-title">Slaughter House</span>
+                        <span class="patch-desc">Dark granular textures with Spread Delay, Grain Delay & Andromeda reverb</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/speak-and-hell.html" class="patch-card">
+                        <span class="patch-number">E53</span>
+                        <span class="patch-title">Speak & Hell</span>
+                        <span class="patch-desc">Speak & Spell samples with Grain Stretch, Tuned Filter Delay & Freeverb</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/spook.html" class="patch-card">
+                        <span class="patch-number">E54</span>
+                        <span class="patch-title">Spook</span>
+                        <span class="patch-desc">Haunting glitch metal with Clocked Stretch, Clocked Delay & FDN reverb</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/sweet-spot.html" class="patch-card">
+                        <span class="patch-number">E55</span>
+                        <span class="patch-title">Sweet Spot</span>
+                        <span class="patch-desc">Generative West Coast synth with LPG, Doppler delay & Freeverb</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/temple-rain.html" class="patch-card">
+                        <span class="patch-number">E56</span>
+                        <span class="patch-title">Temple + Rain</span>
+                        <span class="patch-desc">Atmospheric granular with filters, dub looper & spread delay (64 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/temple-tantrum.html" class="patch-card">
+                        <span class="patch-number">E57</span>
+                        <span class="patch-title">Temple Tantrum</span>
+                        <span class="patch-desc">World percussion sampler with grain stretch, tuned filter delay & Freeverb (29 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/tight-rope.html" class="patch-card">
+                        <span class="patch-number">E58</span>
+                        <span class="patch-title">Tight Rope</span>
+                        <span class="patch-desc">Granular loop slicer with velvet noise triggers & rhythmic clocked delay (1 sample)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/tritone.html" class="patch-card">
+                        <span class="patch-number">E59</span>
+                        <span class="patch-title">Tritone</span>
+                        <span class="patch-desc">Dual oscillator synth tuned a tritone apart with LPG, fold & Doppler delay</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/tritone-rev2.html" class="patch-card">
+                        <span class="patch-number">E60</span>
+                        <span class="patch-title">Tritone Rev 2</span>
+                        <span class="patch-desc">Enhanced tritone with independent stereo delays, noise toggle & mod env bypass</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/tube.html" class="patch-card">
+                        <span class="patch-number">E61</span>
+                        <span class="patch-title">Tube</span>
+                        <span class="patch-desc">Tube kit drum machine with bitcrusher, FM, grain delay & Dattorro reverb (60 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/tunnel-vision.html" class="patch-card">
+                        <span class="patch-number">E62</span>
+                        <span class="patch-title">Tunnel Vision</span>
+                        <span class="patch-desc">Dual-layer granular with Focus macro, Andromeda reverb & Exile Kit (60 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/twisted.html" class="patch-card">
+                        <span class="patch-number">E63</span>
+                        <span class="patch-title">Twisted</span>
+                        <span class="patch-desc">Wavetable synth with 104 human voice waveforms, LPG, drive & Dattorro reverb</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/ultra-violet.html" class="patch-card">
+                        <span class="patch-number">E64</span>
+                        <span class="patch-title">Ultra Violet</span>
+                        <span class="patch-desc">Granular freeze effect with feedback looper, dual ladder filters & Freeverb</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/unskool.html" class="patch-card">
+                        <span class="patch-number">E65</span>
+                        <span class="patch-title">Unskool</span>
+                        <span class="patch-desc">Hip-hop granular sampler with Tap Tempo, Grain Stretch & Freeverb (68 samples)</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/velouria.html" class="patch-card">
+                        <span class="patch-number">E66</span>
+                        <span class="patch-title">Velouria</span>
+                        <span class="patch-desc">Dual FM arpeggiator with Infinity Arp, Scale Quantizer & Clocked Delay</span>
+                    </a>
+                    <a href="patches/er-301-patches/hyperscale/vink.html" class="patch-card">
+                        <span class="patch-number">E67</span>
+                        <span class="patch-title">Vink</span>
+                        <span class="patch-desc">10-band Scorpio Vocoder with Ring Mod, Feedback Looper, Grain Delay & Freeverb</span>
+                    </a>
+                </div>
+
+                <h2>Loftwerk</h2>
+                <p class="section-desc">60s-80s NYC Minimalism inspired by Philip Glass, Steve Reich, and the downtown loft scene. Designed for MIDI Fighter Twister (16 controls per page).</p>
+                <div class="patches">
+                    <a href="patches/loftwerk/figured-arpeggio.html" class="patch-card">
+                        <span class="patch-number">L1</span>
+                        <span class="patch-title">Figured Arpeggio</span>
+                        <span class="patch-desc">Philip Glass-style figured arpeggios with counterpoint and modal exchange</span>
+                    </a>
+                    <a href="patches/loftwerk/figured-arpeggio-v2.html" class="patch-card">
+                        <span class="patch-number">L2</span>
+                        <span class="patch-title">Figured Arpeggio v2</span>
+                        <span class="patch-desc">True Glass additive process with stanzaic form, defective time loops, and recomposition</span>
+                    </a>
+                    <a href="#" class="patch-card coming-soon">
+                        <span class="patch-number">L3</span>
+                        <span class="patch-title">Counterpoint</span>
+                        <span class="patch-desc">Contrary motion voices with ascending/descending patterns</span>
+                    </a>
+                    <a href="#" class="patch-card coming-soon">
+                        <span class="patch-number">L4</span>
+                        <span class="patch-title">Phase Music</span>
+                        <span class="patch-desc">Steve Reich-style phasing patterns with gradual tempo drift</span>
+                    </a>
+                    <a href="#" class="patch-card coming-soon">
+                        <span class="patch-number">L5</span>
+                        <span class="patch-title">Additive Process</span>
+                        <span class="patch-desc">Gradually building patterns one note at a time</span>
+                    </a>
+                </div>
+
+                <h2>ER-301 Autogen301</h2>
+                <p class="section-desc">General-purpose patches for synthesis, drums, and generative systems. MIT licensed by mudlogger.</p>
+                <div class="patches">
+                    <a href="patches/er-301-patches/autogen301/1975.html" class="patch-card">
+                        <span class="patch-number">A1</span>
+                        <span class="patch-title">1975</span>
+                        <span class="patch-desc">Dual arpeggiator synth with LFO modulation, Strike LPG, and Freeverb</span>
+                    </a>
+                    <a href="patches/er-301-patches/autogen301/217-levels.html" class="patch-card">
+                        <span class="patch-number">A2</span>
+                        <span class="patch-title">217 Levels</span>
+                        <span class="patch-desc">Euclidean drum machine with 217-level random quantization</span>
+                    </a>
+                    <a href="patches/er-301-patches/autogen301/yolo.html" class="patch-card">
+                        <span class="patch-number">A3</span>
+                        <span class="patch-title">YOLO</span>
+                        <span class="patch-desc">Dual Shatttr texture generator with clocked random gates</span>
+                    </a>
+                    <a href="patches/er-301-patches/autogen301/ambikarp.html" class="patch-card">
+                        <span class="patch-number">A4</span>
+                        <span class="patch-title">Ambikarp</span>
+                        <span class="patch-desc">Ambient arpeggiator with scale quantization</span>
+                    </a>
+                    <a href="patches/er-301-patches/autogen301/auto-reels.html" class="patch-card">
+                        <span class="patch-number">A5</span>
+                        <span class="patch-title">Auto Reels</span>
+                        <span class="patch-desc">Tape-style looper with 3 playback heads</span>
+                    </a>
+                    <a href="patches/er-301-patches/autogen301/barbieri.html" class="patch-card">
+                        <span class="patch-number">A6</span>
+                        <span class="patch-title">Barbieri</span>
+                        <span class="patch-desc">Dual aliasing oscillator synth with scale quantization</span>
+                    </a>
+                    <a href="patches/er-301-patches/autogen301/barton.html" class="patch-card">
+                        <span class="patch-number">A7</span>
+                        <span class="patch-title">Barton</span>
+                        <span class="patch-desc">Noise synthesizer with yin/yang filtering and wavefolding</span>
+                    </a>
+                    <a href="patches/er-301-patches/autogen301/belle-reid.html" class="patch-card">
+                        <span class="patch-number">A8</span>
+                        <span class="patch-title">Belle Reid</span>
+                        <span class="patch-desc">Brass sample granular looper with tap tempo</span>
+                    </a>
+                    <a href="patches/er-301-patches/autogen301/bent-808.html" class="patch-card">
+                        <span class="patch-number">A9</span>
+                        <span class="patch-title">Bent 808</span>
+                        <span class="patch-desc">Circuit-bent TR-808 with Euclidean sequencing</span>
+                    </a>
+                    <a href="#" class="patch-card coming-soon">
+                        <span class="patch-number">A10</span>
+                        <span class="patch-title">Drone</span>
+                        <span class="patch-desc">Complex drone oscillator with multi-stage processing</span>
+                    </a>
+                    <a href="#" class="patch-card coming-soon">
+                        <span class="patch-number">A3</span>
+                        <span class="patch-title">Ikeda</span>
+                        <span class="patch-desc">Ryoji Ikeda-style minimal textures</span>
+                    </a>
+                    <a href="#" class="patch-card coming-soon">
+                        <span class="patch-number">A4</span>
+                        <span class="patch-title">Cave</span>
+                        <span class="patch-desc">Cave-like reverb space</span>
+                    </a>
+                    <a href="#" class="patch-card coming-soon">
+                        <span class="patch-number">A5</span>
+                        <span class="patch-title">FDN</span>
+                        <span class="patch-desc">Feedback delay network</span>
+                    </a>
+                    <a href="#" class="patch-card coming-soon">
+                        <span class="patch-number">A6</span>
+                        <span class="patch-title">Feedback Physics</span>
+                        <span class="patch-desc">Physical modeling with feedback</span>
+                    </a>
+                    <a href="#" class="patch-card coming-soon">
+                        <span class="patch-number">A7</span>
+                        <span class="patch-title">Harm Osc</span>
+                        <span class="patch-desc">Harmonic oscillator synthesis</span>
+                    </a>
+                    <a href="#" class="patch-card coming-soon">
+                        <span class="patch-number">A8</span>
+                        <span class="patch-title">Sand Grains</span>
+                        <span class="patch-desc">Sand-like granular synthesis</span>
+                    </a>
+                    <span class="more-patches">+25 more Autogen301 patches coming soon</span>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Original SuperCollider patches translated to Web Audio API with AudioWorklet</p>
+        </footer>
+    </div>
+</body>
+</html>

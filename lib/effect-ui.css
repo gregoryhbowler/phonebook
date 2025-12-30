@@ -1,0 +1,330 @@
+/* ============================================================================
+   PEDALBOARD EFFECT CHAIN UI STYLES
+   Matches the phonebook project's visual style
+   ============================================================================ */
+
+/* --- Container --- */
+.pedalboard-container {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    background: var(--bg-secondary, #12121a);
+    border: 1px solid var(--border, #2a2a3a);
+    border-radius: 8px;
+}
+
+.pedalboard {
+    /* Inner wrapper */
+}
+
+.pedalboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border, #2a2a3a);
+}
+
+.pedalboard-title {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary, #8888a0);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.pedalboard-add-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--border, #2a2a3a);
+    background: var(--bg-card, #1a1a24);
+    color: var(--text-secondary, #8888a0);
+    border-radius: 4px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.pedalboard-add-btn:hover {
+    border-color: var(--accent, #6366f1);
+    color: var(--accent, #6366f1);
+}
+
+/* --- Slots Container --- */
+.pedalboard-slots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    min-height: 60px;
+    padding: 1rem;
+    background: var(--bg-primary, #0a0a0f);
+    border: 1px dashed var(--border, #2a2a3a);
+    border-radius: 6px;
+    align-items: flex-start;
+}
+
+.pedalboard-empty {
+    width: 100%;
+    text-align: center;
+    color: var(--text-secondary, #8888a0);
+    font-size: 0.85rem;
+    font-style: italic;
+    padding: 1rem 0;
+}
+
+/* --- Effect Slot --- */
+.pedalboard-slot {
+    width: 180px;
+    background: var(--bg-card, #1a1a24);
+    border: 1px solid var(--border, #2a2a3a);
+    border-radius: 6px;
+    padding: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.pedalboard-slot:hover {
+    border-color: var(--accent, #6366f1);
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);
+}
+
+.pedalboard-slot.bypassed {
+    opacity: 0.5;
+}
+
+.slot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border, #2a2a3a);
+}
+
+.slot-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary, #e8e8f0);
+    letter-spacing: 0.05em;
+}
+
+.slot-controls {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.slot-bypass,
+.slot-remove {
+    width: 22px;
+    height: 22px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary, #8888a0);
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.slot-bypass:hover,
+.slot-remove:hover {
+    background: var(--bg-secondary, #12121a);
+    color: var(--accent, #6366f1);
+}
+
+.slot-bypass.active {
+    background: var(--accent, #6366f1);
+    color: white;
+}
+
+.slot-remove:hover {
+    color: #f87171;
+}
+
+/* --- Slot Parameters --- */
+.slot-params {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* JS uses .param-group for each param wrapper */
+.param-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.param-group label {
+    font-size: 0.7rem;
+    color: var(--text-secondary, #8888a0);
+}
+
+.param-value {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    color: var(--accent, #6366f1);
+    font-size: 0.7rem;
+}
+
+/* JS uses .param-slider class */
+.param-slider {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--bg-secondary, #12121a);
+    border-radius: 2px;
+    cursor: pointer;
+}
+
+.param-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: var(--accent, #6366f1);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+}
+
+.param-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.param-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: var(--accent, #6366f1);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+/* JS uses .param-select class */
+.param-select {
+    width: 100%;
+    padding: 0.3rem 0.5rem;
+    background: var(--bg-secondary, #12121a);
+    border: 1px solid var(--border, #2a2a3a);
+    color: var(--text-primary, #e8e8f0);
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.param-select:focus {
+    outline: none;
+    border-color: var(--accent, #6366f1);
+}
+
+/* --- Effect Picker --- */
+.pedalboard-picker {
+    display: none;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--bg-card, #1a1a24);
+    border: 1px solid var(--border, #2a2a3a);
+    border-radius: 6px;
+}
+
+.pedalboard-picker.show {
+    display: block;
+}
+
+.picker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border, #2a2a3a);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-primary, #e8e8f0);
+}
+
+.picker-close {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary, #8888a0);
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.picker-close:hover {
+    background: var(--bg-secondary, #12121a);
+    color: var(--text-primary, #e8e8f0);
+}
+
+.picker-categories {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.picker-category {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* JS uses .category-name not .category-title */
+.category-name {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--accent, #6366f1);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+}
+
+.category-effects {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.effect-btn {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-secondary, #12121a);
+    border: 1px solid var(--border, #2a2a3a);
+    color: var(--text-primary, #e8e8f0);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+}
+
+.effect-btn:hover {
+    border-color: var(--accent, #6366f1);
+    background: var(--bg-card, #1a1a24);
+}
+
+/* --- Responsive --- */
+@media (max-width: 600px) {
+    .pedalboard-slots {
+        flex-direction: column;
+    }
+
+    .pedalboard-slot {
+        width: 100%;
+    }
+
+    .pedalboard-header {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: flex-start;
+    }
+}

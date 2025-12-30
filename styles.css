@@ -1,0 +1,1530 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #12121a;
+    --bg-card: #1a1a24;
+    --text-primary: #e8e8f0;
+    --text-secondary: #8888a0;
+    --accent: #6366f1;
+    --accent-dim: #4f46e5;
+    --border: #2a2a3a;
+    --glow: rgba(99, 102, 241, 0.3);
+}
+
+body {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+header {
+    text-align: center;
+    padding: 3rem 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+}
+
+header h1 {
+    font-size: 2.5rem;
+    font-weight: 300;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, var(--text-primary), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.subtitle {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.patch-grid h2 {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 400;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin: 2rem 0 1rem;
+    padding-left: 0.5rem;
+    border-left: 2px solid var(--accent);
+}
+
+.patches {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.patch-card {
+    display: flex;
+    flex-direction: column;
+    padding: 1.25rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s ease;
+}
+
+.patch-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--glow);
+    transform: translateY(-2px);
+}
+
+.patch-number {
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.patch-title {
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.patch-desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+footer {
+    text-align: center;
+    padding: 3rem 0 1rem;
+    border-top: 1px solid var(--border);
+    margin-top: 3rem;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+/* Patch page styles */
+.patch-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.patch-header {
+    padding: 2rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+}
+
+.back-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+}
+
+.back-link:hover {
+    color: var(--accent);
+}
+
+.patch-info {
+    flex: 1;
+}
+
+.patch-info h1 {
+    font-size: 1.5rem;
+    font-weight: 400;
+    margin-bottom: 0.25rem;
+}
+
+.patch-info p {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.patch-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+}
+
+.visualizer-container {
+    width: 100%;
+    max-width: 800px;
+    height: 150px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    overflow: hidden;
+}
+
+.visualizer-container canvas,
+.patch-content > canvas {
+    width: 100%;
+    max-width: 800px;
+    height: 150px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.play-btn {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-size: 1.5rem;
+}
+
+.play-btn:hover {
+    background: var(--accent);
+    color: var(--bg-primary);
+    box-shadow: 0 0 30px var(--glow);
+}
+
+.play-btn.playing {
+    background: var(--accent);
+    color: var(--bg-primary);
+}
+
+.param-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    max-width: 800px;
+    width: 100%;
+}
+
+.param-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 120px;
+}
+
+.param-group label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.param-group input[type="range"] {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+}
+
+.param-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.param-group input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.param-value {
+    font-size: 0.8rem;
+    color: var(--accent);
+    text-align: right;
+}
+
+.code-block {
+    max-width: 800px;
+    width: 100%;
+    margin-top: 2rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow-x: auto;
+}
+
+.code-block code {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.nav-links {
+    display: flex;
+    gap: 2rem;
+    padding: 1rem 2rem;
+    border-top: 1px solid var(--border);
+    justify-content: space-between;
+}
+
+.nav-links a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: color 0.2s;
+}
+
+.nav-links a:hover {
+    color: var(--accent);
+}
+
+.nav-links a.disabled {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+/* Loading state */
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+}
+
+.loading::after {
+    content: '';
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Status indicator */
+.status {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 1rem;
+}
+
+.status.active {
+    color: var(--accent);
+}
+
+/* Quantizer section */
+.quantizer-section {
+    max-width: 800px;
+    width: 100%;
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.quantizer-section h3 {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 1rem;
+    font-weight: 400;
+}
+
+.scale-controls {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.scale-controls select {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.scale-controls select:hover,
+.scale-controls select:focus {
+    border-color: var(--accent);
+}
+
+/* Virtual keyboard */
+.keyboard-container {
+    margin-bottom: 1.5rem;
+}
+
+.keyboard {
+    display: flex;
+    gap: 2px;
+    justify-content: center;
+    position: relative;
+    height: 80px;
+    padding: 0 10px;
+}
+
+.keyboard .white-key,
+.keyboard .black-key {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 6px;
+    font-size: 0.65rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+}
+
+.keyboard .white-key {
+    width: 36px;
+    height: 100%;
+    background: #ddd;
+    color: #333;
+    border-radius: 0 0 4px 4px;
+    border: 1px solid #888;
+}
+
+.keyboard .black-key {
+    width: 24px;
+    height: 55%;
+    background: #222;
+    color: #888;
+    border-radius: 0 0 3px 3px;
+    margin-left: -13px;
+    margin-right: -13px;
+    z-index: 1;
+    border: 1px solid #111;
+}
+
+.keyboard .white-key:hover {
+    background: #eee;
+}
+
+.keyboard .black-key:hover {
+    background: #333;
+}
+
+.keyboard .white-key.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent-dim);
+}
+
+.keyboard .black-key.active {
+    background: var(--accent-dim);
+    color: white;
+    border-color: var(--accent);
+}
+
+/* Octave/LFO controls */
+.octave-lfo-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+}
+
+/* Duty Sequencer section */
+.sequencer-section {
+    max-width: 800px;
+    width: 100%;
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.sequencer-section h3,
+.quantizer-section h3 {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 1rem;
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.toggle-label {
+    font-size: 0.75rem;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.toggle-label input[type="checkbox"] {
+    width: 1.1rem;
+    height: 1.1rem;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.seq-mode-controls,
+.lfsr-controls,
+.gate-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.seq-mode-controls select,
+.lfsr-controls select {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.seq-mode-controls select:hover,
+.seq-mode-controls select:focus,
+.lfsr-controls select:hover,
+.lfsr-controls select:focus {
+    border-color: var(--accent);
+}
+
+/* Shift register display */
+.shift-register-display {
+    margin-top: 1rem;
+    text-align: center;
+}
+
+.register-bits {
+    display: inline-flex;
+    gap: 4px;
+    padding: 0.75rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+
+.register-bits .bit {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    background: var(--bg-primary);
+    border-radius: 3px;
+    transition: all 0.15s;
+}
+
+.register-bits .bit.active {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 0 8px var(--accent);
+}
+
+.register-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+/* Section description */
+.section-desc {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin: -0.5rem 0 1.5rem 0.5rem;
+    padding-left: 0.5rem;
+    border-left: 2px solid var(--border);
+}
+
+/* Coming soon patches */
+.patch-card.coming-soon {
+    opacity: 0.5;
+    pointer-events: none;
+    position: relative;
+}
+
+.patch-card.coming-soon::after {
+    content: 'Coming Soon';
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    background: var(--bg-primary);
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* More patches indicator */
+.more-patches {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 1rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+/* Sample Visualization (ER-301 patches) */
+.sample-visualizer {
+    max-width: 800px;
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.sample-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.sample-slot {
+    width: 28px;
+    height: 28px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+    cursor: default;
+}
+
+.sample-slot:hover {
+    border-color: var(--accent);
+}
+
+.sample-slot.playing {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+    box-shadow: 0 0 10px var(--glow);
+    transform: scale(1.1);
+}
+
+.now-playing {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+/* Sample import button */
+.sample-import {
+    max-width: 800px;
+    width: 100%;
+    margin-top: 1.5rem;
+    text-align: center;
+}
+
+.sample-import input[type="file"] {
+    display: none;
+}
+
+.sample-import label {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sample-import label:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* Info panel */
+.info-panel {
+    display: none;
+    max-width: 800px;
+    margin: 0 auto 2rem;
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.info-panel.visible {
+    display: block;
+}
+
+.info-panel h3 {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+    font-weight: 500;
+}
+
+.info-panel p,
+.info-panel li {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 0.5rem;
+}
+
+.info-panel ul {
+    margin-left: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.info-toggle {
+    padding: 0.4rem 0.8rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.info-toggle:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* ============================================================================
+   PEDALBOARD UI STYLES
+   ============================================================================ */
+
+.pedalboard {
+    max-width: 800px;
+    width: 100%;
+    margin: 2rem auto;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.pedalboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+}
+
+.pedalboard-title {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    font-weight: 400;
+}
+
+.pedalboard-add-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--accent);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pedalboard-add-btn:hover {
+    background: var(--accent);
+    color: var(--bg-primary);
+    border-color: var(--accent);
+}
+
+.pedalboard-slots {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.pedalboard-empty {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    padding: 2rem;
+}
+
+.pedalboard-slot {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.slot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid var(--border);
+}
+
+.slot-name {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.slot-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.slot-bypass,
+.slot-remove {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.slot-bypass:hover,
+.slot-remove:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.slot-bypass.active {
+    background: var(--accent);
+    color: var(--bg-primary);
+    border-color: var(--accent);
+}
+
+.slot-params {
+    padding: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.slot-params .param-group {
+    min-width: 100px;
+    flex: 1;
+}
+
+.slot-params .param-select {
+    width: 100%;
+    padding: 0.4rem 0.5rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    outline: none;
+}
+
+.slot-params .param-select:hover,
+.slot-params .param-select:focus {
+    border-color: var(--accent);
+}
+
+/* Effect picker */
+.pedalboard-picker {
+    display: none;
+    padding: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+.pedalboard-picker.show {
+    display: block;
+}
+
+.picker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.picker-header span {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.picker-close {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.picker-close:hover {
+    color: var(--accent);
+}
+
+.picker-categories {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.picker-category {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.category-name {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.category-effects {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.effect-btn {
+    padding: 0.4rem 0.75rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.effect-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* ============================================================================
+   ACTION BUTTONS (for recording effects like Arbhar, Morphagene, Lubadh)
+   ============================================================================ */
+
+.slot-actions {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    margin-top: 0.5rem;
+    border-top: 1px solid var(--border);
+}
+
+.action-btn {
+    padding: 0.4rem 0.6rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.action-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.action-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg-primary);
+}
+
+/* Record button specific styling */
+.action-btn.action-record {
+    border-color: #dc2626;
+    color: #dc2626;
+}
+
+.action-btn.action-record:hover {
+    background: rgba(220, 38, 38, 0.1);
+}
+
+.action-btn.action-record.active {
+    background: #dc2626;
+    color: white;
+    animation: record-pulse 1s ease-in-out infinite;
+}
+
+@keyframes record-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Play button */
+.action-btn.action-play.active {
+    background: #22c55e;
+    border-color: #22c55e;
+    color: white;
+}
+
+/* Clear/Erase buttons - warning color */
+.action-btn.action-clear,
+.action-btn.action-erase {
+    border-color: #f59e0b;
+    color: #f59e0b;
+}
+
+.action-btn.action-clear:hover,
+.action-btn.action-erase:hover {
+    background: rgba(245, 158, 11, 0.1);
+}
+
+/* Strike/Trigger buttons */
+.action-btn.action-strike,
+.action-btn.action-splice,
+.action-btn.action-shift,
+.action-btn.action-punch,
+.action-btn.action-retrig {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.action-btn.action-strike:hover,
+.action-btn.action-splice:hover,
+.action-btn.action-shift:hover,
+.action-btn.action-punch:hover,
+.action-btn.action-retrig:hover {
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.action-btn.action-strike:active,
+.action-btn.action-splice:active,
+.action-btn.action-shift:active,
+.action-btn.action-punch:active,
+.action-btn.action-retrig:active {
+    background: var(--accent);
+    color: white;
+    transform: scale(0.95);
+}
+
+/* ============================================================================
+   STICKY HEADER (Recording & MIDI Controls)
+   ============================================================================ */
+
+.sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border);
+    padding: 0.5rem 1rem;
+}
+
+.sticky-header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header-section {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* Record button */
+.record-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.75rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.record-btn:hover {
+    border-color: #dc2626;
+    color: #dc2626;
+}
+
+.record-btn.active {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: white;
+}
+
+.record-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.record-btn.active .record-dot {
+    animation: record-pulse 1s ease-in-out infinite;
+}
+
+.record-time {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+    min-width: 50px;
+}
+
+.record-filename {
+    font-size: 0.75rem;
+    color: var(--accent);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* MIDI Learn button */
+.midi-learn-btn {
+    padding: 0.4rem 0.75rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.midi-learn-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.midi-learn-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.midi-status {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* MIDI Learn mode global styles */
+body.midi-learn-mode input[type="range"],
+body.midi-learn-mode select {
+    cursor: crosshair;
+}
+
+body.midi-learn-mode input[type="range"]:hover,
+body.midi-learn-mode select:hover {
+    outline: 2px dashed var(--accent);
+    outline-offset: 2px;
+}
+
+/* MIDI learnable indicator (shown when in MIDI learn mode) */
+input.midi-learnable,
+select.midi-learnable {
+    cursor: pointer !important;
+    outline: 1px dashed rgba(99, 102, 241, 0.5);
+    outline-offset: 2px;
+}
+
+input.midi-learnable:hover,
+select.midi-learnable:hover {
+    outline: 2px dashed var(--accent);
+    outline-offset: 2px;
+}
+
+/* MIDI mapped indicator */
+input.midi-mapped,
+select.midi-mapped {
+    border-color: var(--accent) !important;
+}
+
+input.midi-mapped::after,
+select.midi-mapped::after {
+    content: 'M';
+    position: absolute;
+    right: -8px;
+    top: -8px;
+    width: 16px;
+    height: 16px;
+    background: var(--accent);
+    color: white;
+    font-size: 10px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* MIDI learning animation */
+input.midi-learning,
+select.midi-learning {
+    animation: midi-learning-pulse 0.5s ease-in-out infinite;
+}
+
+@keyframes midi-learning-pulse {
+    0%, 100% {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+    }
+    50% {
+        outline: 2px solid transparent;
+        outline-offset: 2px;
+    }
+}
+
+/* ============================================================================
+   MODULATION MATRIX UI
+   ============================================================================ */
+
+.mod-matrix {
+    max-width: 800px;
+    width: 100%;
+    margin: 2rem auto;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.mod-matrix-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+}
+
+.mod-matrix-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 0.25rem;
+}
+
+.mod-matrix-toggle:hover {
+    color: var(--text-primary);
+}
+
+.toggle-icon {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.toggle-label {
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.75rem;
+}
+
+.mod-matrix-indicators {
+    display: flex;
+    gap: 4px;
+}
+
+.mod-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--border);
+    opacity: 0.3;
+    transition: all 0.1s;
+}
+
+.mod-indicator.active {
+    background: var(--accent);
+}
+
+/* Content (collapsed by default) */
+.mod-matrix-content {
+    display: none;
+    padding: 0.75rem;
+}
+
+.mod-matrix.expanded .mod-matrix-content {
+    display: block;
+}
+
+/* Individual mod source */
+.mod-source {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    overflow: hidden;
+}
+
+.mod-source:last-child {
+    margin-bottom: 0;
+}
+
+.mod-source-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid var(--border);
+}
+
+.mod-enable {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.mod-enable-check {
+    width: 14px;
+    height: 14px;
+    accent-color: var(--accent);
+}
+
+.mod-value {
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    min-width: 40px;
+    text-align: right;
+}
+
+.mod-source-controls {
+    padding: 0.75rem;
+}
+
+.mod-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.mod-control {
+    flex: 1;
+    min-width: 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.mod-control label {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.mod-control select,
+.mod-control input[type="range"] {
+    width: 100%;
+}
+
+.mod-control select {
+    padding: 0.3rem 0.5rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.75rem;
+}
+
+.mod-control select:focus {
+    border-color: var(--accent);
+    outline: none;
+}
+
+.mod-rate-display {
+    font-size: 0.7rem;
+    color: var(--accent);
+    text-align: right;
+}
+
+/* Destinations */
+.mod-destinations {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+}
+
+.mod-dest {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mod-dest label {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    min-width: 40px;
+}
+
+.mod-dest-target {
+    flex: 1;
+    min-width: 120px;
+    padding: 0.25rem 0.4rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.7rem;
+}
+
+.mod-dest-depth {
+    width: 80px;
+}
+
+.mod-depth-display {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    min-width: 35px;
+    text-align: right;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .sticky-header-content {
+        flex-wrap: wrap;
+    }
+
+    .mod-row {
+        flex-direction: column;
+    }
+
+    .mod-dest {
+        flex-wrap: wrap;
+    }
+
+    .mod-dest-target {
+        min-width: 100%;
+    }
+}
